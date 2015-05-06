@@ -1,0 +1,21 @@
+
+INCLUDE_DIRECTORIES(..)
+
+# ${CMAKE_CURRENT_SOURCE_DIR} is necessary because we will use this variable in the parent directory
+# PARENT_SCOPE: Make variables visible in parent scope
+SET(UTILS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/CameraDBLookup.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/ExifParser.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/ImageInfo.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/OpenCVHelper.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/OpenMVGHelper.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/R3DExternalPrograms.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/R3DFontHandler.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DSettings.cpp PARENT_SCOPE)
+SET(UTILS_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/CameraDBLookup.h
+	${CMAKE_CURRENT_SOURCE_DIR}/ExifParser.h
+	${CMAKE_CURRENT_SOURCE_DIR}/ImageInfo.h
+	${CMAKE_CURRENT_SOURCE_DIR}/OpenCVHelper.h
+	${CMAKE_CURRENT_SOURCE_DIR}/OpenMVGHelper.h
+	${CMAKE_CURRENT_SOURCE_DIR}/R3DExternalPrograms.h
+	${CMAKE_CURRENT_SOURCE_DIR}/R3DFontHandler.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DSettings.h PARENT_SCOPE)

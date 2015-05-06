@@ -1,0 +1,10 @@
+This is directory contains source code from of VLFEAT, required to compute LIOP descriptors.
+
+Changes to original source code:
+
+- Renamed files to vl_*
+- Renamed functions to avoid clashes with original VLFEAT
+- Removed DLL-export/import directives from host.h
+- Removed include directives in vl_liop.h and .c, added some defines
+- Fixed memory leak
+- Small speed optimisations

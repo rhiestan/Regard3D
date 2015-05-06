@@ -1,0 +1,9 @@
+SET PATH=%PATH%;F:\Projects\libs\zopfli\build_msvc64
+
+zopflipng --iterations=500 --splitting=3 --filters=01234mepb document-new.png document-new_zopflifull.png
+
+Nützt nichts:
+zopflipng --iterations=500 --splitting=3 --filters=01234mepb --lossy_transparent document-new.png document-new_zopflifull_lossy.png
+
+Compress really good and trying all filter strategies:
+zopflipng --iterations=500 --splitting=3 --filters=01234mepb --lossy_8bit --lossy_transparent infile.png outfile.png

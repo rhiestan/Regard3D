@@ -1,0 +1,3 @@
+
+0.7.0, 28.04.2015:
+Initial version, based on OpenMVG 0.7

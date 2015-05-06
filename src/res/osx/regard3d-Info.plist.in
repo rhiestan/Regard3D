@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist SYSTEM "file://localhost/System/Library/DTDs/PropertyList.dtd">
+<plist version="0.9">
+<dict>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleIdentifier</key>
+	<string>ch.hiesti.Regard3D</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>de</string>
+		<string>en</string>
+		<string>fr</string>
+		<string>it</string>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>Regard3D</string>
+	<key>CFBundleIconFile</key>
+	<string>regard3d.icns</string>
+	<key>CFBundleName</key>
+	<string> Regard3D </string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>${REGARD3D_VERSION_MAJOR}.${REGARD3D_VERSION_MINOR}.${REGARD3D_VERSION_BUILD}</string>
+	<key>CFBundleShortVersionString</key>
+	<string>${REGARD3D_VERSION_MAJOR}.${REGARD3D_VERSION_MINOR}.${REGARD3D_VERSION_BUILD}</string>
+	<key>CFBundleGetInfoString</key>
+	<string> Regard3D ${REGARD3D_VERSION_MAJOR}.${REGARD3D_VERSION_MINOR}.${REGARD3D_VERSION_BUILD}</string>
+	<key>CFBundleLongVersionString</key>
+	<string>${REGARD3D_VERSION_MAJOR}.${REGARD3D_VERSION_MINOR}.${REGARD3D_VERSION_BUILD}</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright ${REGARD3D_COPYRIGHT_YEAR} by Roman Hiestand</string>
+	<key>LSRequiresCarbon</key>
+	<true/>
+	<key>CSResourcesFileMapped</key>
+	<true/>
+</dict>
+</plist>

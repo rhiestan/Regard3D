@@ -1,0 +1,4 @@
+Changes to original source code:
+
+ - Moved definition of DEGREE from kutility.def to corecv.cpp (conflicts with OpenCV's ml.hpp, where DEGREE is an enum)
+ - Removed some cout << ...

@@ -59,7 +59,7 @@ public:
 
 	static bool exportToMeshLab(R3DProject::Densification *pDensification, const wxString &pathname);
 
-	static bool exportToCMPMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
+	static bool exportToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
 
 private:
 	OpenMVGHelper() { }

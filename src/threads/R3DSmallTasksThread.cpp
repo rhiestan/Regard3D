@@ -86,9 +86,9 @@ void R3DSmallTasksThread::exportDensificationToMeshLab(R3DProject::Densification
 	this->Run();
 }
 
-void R3DSmallTasksThread::exportTriangulationToCMPMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname)
+void R3DSmallTasksThread::exportTriangulationToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname)
 {
-	type_ = R3DSmallTasksThread::STTExportToCMPMVS;
+	type_ = R3DSmallTasksThread::STTExportToExternalMVS;
 	pTriangulation_ = pTriangulation;
 	pathname_ = pathname;
 
@@ -153,9 +153,9 @@ wxThread::ExitCode R3DSmallTasksThread::Entry()
 	{
 		OpenMVGHelper::exportToMeshLab(pDensification_, pathname_);
 	}
-	else if(type_ == STTExportToCMPMVS)
+	else if(type_ == STTExportToExternalMVS)
 	{
-		OpenMVGHelper::exportToCMPMVS(pTriangulation_, pathname_);
+		OpenMVGHelper::exportToExternalMVS(pTriangulation_, pathname_);
 	}
 	else if(type_ == STTExportToPointCloud)
 	{

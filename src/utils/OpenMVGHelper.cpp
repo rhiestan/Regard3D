@@ -24,6 +24,9 @@
 #include <sstream>
 #include <cmath>
 #include <iterator>
+#include <limits>
+#include <float.h>
+#include <set>
 
 using namespace std;
 
@@ -657,7 +660,7 @@ bool OpenMVGHelper::exportToMeshLab(R3DProject::Densification *pDensification, c
 }
 
 // Code based on main_openMVG2CMPMVS.cpp
-bool OpenMVGHelper::exportToCMPMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname)
+bool OpenMVGHelper::exportToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname)
 {
 	// Make sure output directory exists
 	wxFileName outDir(pathname, wxT(""));
@@ -689,10 +692,17 @@ bool OpenMVGHelper::exportToCMPMVS(R3DProject::Triangulation *pTriangulation, co
 			return false;
 	}
 
+	// Create file for MeshRecon, see http://www-scf.usc.edu/~zkang/software.html
+	std::ostringstream sfm_out;
+	sfm_out << doc._map_camera.size() << std::endl << std::endl;
+	std::map<size_t, std::pair<size_t,size_t> >::const_iterator iterSize = doc._map_imageSize.begin();
+	std::vector<std::string>::const_iterator iterName = doc._vec_imageNames.begin();
+
 	// Export cameras
 	size_t count = 1;
 	for (std::map<size_t, PinholeCamera>::const_iterator iter = doc._map_camera.begin();
-		iter != doc._map_camera.end(); ++iter, ++count)
+//		iter != doc._map_camera.end(); ++iter, ++count)
+		iter != doc._map_camera.end(); ++iter, ++count, ++iterSize, ++iterName)
 	{
 		const Mat34 & PMat = iter->second._P;
 		std::ostringstream os;
@@ -714,12 +724,117 @@ bool OpenMVGHelper::exportToCMPMVS(R3DProject::Triangulation *pTriangulation, co
 		std::string camfileStr = file.str();
 		camFile.Write(camfileStr.c_str(), camfileStr.length());
 		camFile.Close();
+
+
+		// MeshRecon export
+		Mat3 R = iter->second._R;
+		Vec3 t = iter->second._t;
+		double focal = iter->second._K(0, 0);
+		double k1 = 0.0, k2 = 0.0; // distortion already removed
+
+		std::ostringstream os2;
+		os2 << std::setw(5) << std::setfill('0') << count;
+
+		sfm_out << "../CMPMVS/" << os2.str() << ".jpg "
+			<< R(0, 0) << " " << R(0, 1) << " " << R(0, 2) << " "
+			<< R(1, 0) << " " << R(1, 1) << " " << R(1, 2) << " "
+			<< R(2, 0) << " " << R(2, 1) << " " << R(2, 2) << " " 
+			<< t[0] << " " 
+			<< t[1] << " " 
+			<< t[2] << " " 
+			<< focal << " " << focal << " "
+			<< iterSize->second.first / 2.0 << " " << iterSize->second.second / 2.0
+			<< std::endl;
 	}
+
+
+	// MeshRecon: Bounding box, image neighbours
+	sfm_out << std::endl;
+
+	std::vector< std::set<size_t> > image_neighbours;
+	image_neighbours.resize(doc._map_camera.size());
+
+	float minX = FLT_MAX, maxX = -FLT_MAX, minY = FLT_MAX, maxY = -FLT_MAX, minZ = FLT_MAX, maxZ = -FLT_MAX;
+	int trackIndex = 0;
+	for (std::map< size_t, tracks::submapTrack >::const_iterator
+		iterTracks = doc._tracks.begin();
+		iterTracks != doc._tracks.end();
+		++iterTracks,++trackIndex)
+	{
+		const tracks::submapTrack & map_track = iterTracks->second;
+
+		const float * ptr3D = & doc._vec_points[trackIndex*3];
+
+		minX = std::min(minX, ptr3D[0]);
+		maxX = std::max(maxX, ptr3D[0]);
+		minY = std::min(minY, ptr3D[1]);
+		maxY = std::max(maxY, ptr3D[1]);
+		minZ = std::min(minZ, ptr3D[2]);
+		maxZ = std::max(maxZ, ptr3D[2]);
+
+		std::vector<size_t> imageIndexes;
+		for (tracks::submapTrack::const_iterator iterTrack = map_track.begin();
+			iterTrack != map_track.end();
+			++iterTrack)
+		{
+			imageIndexes.push_back(iterTrack->first);
+		}
+		for(size_t i = 0; i < imageIndexes.size(); i++)
+		{
+			for(size_t j = 0; j < imageIndexes.size(); j++)
+			{
+				if(i != j)
+				{
+					image_neighbours[i].insert(j);
+				}
+			}
+		}
+
+	}
+	sfm_out << minX << " " << maxX << " " << minY << " " << maxY << " " << minZ << " " << maxZ << std::endl << std::endl;
+/*	
+	size_t numCams = doc._map_camera.size();
+	for(size_t i = 0; i < numCams; i++)
+	{
+		sfm_out << i << " " << numCams - 1;
+		for(size_t j = 0; j < numCams; j++)
+			if(i != j)
+				sfm_out << " " << j;
+		sfm_out << std::endl;
+	}*/
+	for(size_t i = 0; i < image_neighbours.size(); i++)
+	{
+		std::set<size_t>::const_iterator iter = image_neighbours[i].begin();
+		sfm_out << i << " " << image_neighbours[i].size();
+		while(iter != image_neighbours[i].end())
+		{
+			sfm_out << " " << (*iter);
+			iter++;
+		}
+		sfm_out << std::endl;
+	}
+	sfm_out << std::endl;
+
+	wxFileName sfm_outFN(outDir);
+	sfm_outFN.AppendDir(wxT("meshrecon"));
+	if(!sfm_outFN.DirExists())
+		sfm_outFN.Mkdir();
+	sfm_outFN.SetFullName(wxT("output.sfm"));
+	wxFile sfm_outFile(sfm_outFN.GetFullPath(), wxFile::write);
+	if(!sfm_outFile.IsOpened())
+		return false;
+	std::string sfm_outStr = sfm_out.str();
+	sfm_outFile.Write(sfm_outStr.c_str(), sfm_outStr.length());
+	sfm_outFile.Close();
+	// MeshRecon finished
+
+
 
 	// Export undistorted images
 	wxFileName undistImageFN(wxString(paths.relativeSfmOutPath_.c_str(), wxConvLibc), wxT(""));
 	undistImageFN.AppendDir(wxT("images"));
 	wxFileName destImageFN(cmpmvsOutDir);
+
 	count = 1;
 	//Image<RGBColor> image;
 	for (std::map<size_t, PinholeCamera>::const_iterator iter = doc._map_camera.begin();

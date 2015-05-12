@@ -19,7 +19,6 @@
 
 #include "CommonIncludes.h"
 #include "Regard3DFeatures.h"
-#include "config.h"
 #include <memory>
 #include <boost/locale.hpp>
 

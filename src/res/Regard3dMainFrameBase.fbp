@@ -3119,11 +3119,11 @@
                                                                                 <property name="fg"></property>
                                                                                 <property name="font"></property>
                                                                                 <property name="hidden">0</property>
-                                                                                <property name="id">ID_EXPORTTRIANGULATIONTOCMPMVSBUTTON</property>
-                                                                                <property name="label">Export project to CMPMVS</property>
+                                                                                <property name="id">ID_EXPORTTRIANGULATIONTOEXTERNALMVSBUTTON</property>
+                                                                                <property name="label">Export to external MVS</property>
                                                                                 <property name="maximum_size"></property>
                                                                                 <property name="minimum_size"></property>
-                                                                                <property name="name">pExportTriangulationToCMPMVSButton_</property>
+                                                                                <property name="name">pExportTriangulationToExternalMVSButton_</property>
                                                                                 <property name="permission">protected</property>
                                                                                 <property name="pos"></property>
                                                                                 <property name="size"></property>
@@ -3137,7 +3137,7 @@
                                                                                 <property name="window_extra_style"></property>
                                                                                 <property name="window_name"></property>
                                                                                 <property name="window_style"></property>
-                                                                                <event name="OnButtonClick">OnExportTriangulationToCMPMVSButton</event>
+                                                                                <event name="OnButtonClick">OnExportTriangulationToExternalMVSButton</event>
                                                                                 <event name="OnChar"></event>
                                                                                 <event name="OnEnterWindow"></event>
                                                                                 <event name="OnEraseBackground"></event>

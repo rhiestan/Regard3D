@@ -220,13 +220,15 @@ void R3DDensificationProcess::OnTerminate(int pid, int status)
 		if(checkForClusters_)
 		{
 			wxString pmvsExe = R3DExternalPrograms::getInstance().getPMVSPath();
+			wxString pmvsPath(relativePMVSOutPath_);
+			pmvsPath.Append(wxT("/"));
 			int i = 0;
 			wxString optionFilename(wxString::Format(wxT("option-%04d"), i));
 			wxFileName optionFN(relativePMVSOutPath_, optionFilename);
 			while(optionFN.FileExists())
 			{
 				foundClusters = true;
-				cmds_.Add(pmvsExe + wxString(wxT(" ./ ")) + optionFilename);
+				cmds_.Add(pmvsExe + wxString(wxT(" ")) + pmvsPath + wxString(wxT(" ")) + optionFilename);
 				i++;
 				optionFilename = wxString::Format(wxT("option-%04d"), i);
 				optionFN.SetFullName(optionFilename);

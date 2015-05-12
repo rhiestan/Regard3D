@@ -17,7 +17,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "CommonIncludes.h"
-#include "config.h"
 #include "version.h"
 
 #include "Regard3DApp.h"
@@ -25,6 +24,10 @@
 #include "CameraDBLookup.h"
 #include "R3DExternalPrograms.h"
 #include "R3DFontHandler.h"
+
+#if defined(R3D_HAVE_TBB)
+//#	include "tbb/tbbmalloc_proxy.h"
+#endif
 
 #include <osgDB/Registry>
 

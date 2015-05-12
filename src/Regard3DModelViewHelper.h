@@ -67,6 +67,10 @@ protected:
 	osg::Node *createRotationSphere();
 	static osg::Drawable *createRotationSphereCircle(int plane);
 
+	bool loadSurfaceModelOSG(osg::ref_ptr<osg::Group> root, const wxString &filename, bool debugOutput);
+	bool loadSurfaceModelAssImp(osg::ref_ptr<osg::Group> root, const wxString &filename, bool debugOutput);
+	bool loadSurfaceModelPCL(osg::ref_ptr<osg::Group> root, const wxString &filename, bool debugOutput);
+
 private:
 	wxMutex mutex_;
 	bool isButtonPressed_;

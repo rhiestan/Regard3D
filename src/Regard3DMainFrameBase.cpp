@@ -36,7 +36,7 @@ BEGIN_EVENT_TABLE( Regard3DMainFrameBase, wxFrame )
 	EVT_BUTTON( ID_PROJECTDELETECOMPUTEMATCHESBUTTON, Regard3DMainFrameBase::_wxFB_OnProjectDeleteComputeMatchesButton )
 	EVT_BUTTON( ID_CREATEDENSEPOINTCLOUDBUTTON, Regard3DMainFrameBase::_wxFB_OnCreateDensePointcloudButton )
 	EVT_BUTTON( ID_SHOWTRIANGULATEDPOINTS, Regard3DMainFrameBase::_wxFB_OnShowTriangulatedPoints )
-	EVT_BUTTON( ID_EXPORTTRIANGULATIONTOCMPMVSBUTTON, Regard3DMainFrameBase::_wxFB_OnExportTriangulationToCMPMVSButton )
+	EVT_BUTTON( ID_EXPORTTRIANGULATIONTOEXTERNALMVSBUTTON, Regard3DMainFrameBase::_wxFB_OnExportTriangulationToExternalMVSButton )
 	EVT_BUTTON( ID_PROJECTDELETETRIANGULATIONBUTTON, Regard3DMainFrameBase::_wxFB_OnProjectDeleteTriangulationButton )
 	EVT_BUTTON( ID_CREATESURFACEBUTTON, Regard3DMainFrameBase::_wxFB_OnCreateSurfaceButton )
 	EVT_BUTTON( ID_SHOWDENSEPOINTCLOUDBUTTON, Regard3DMainFrameBase::_wxFB_OnShowDensePointCloudButton )
@@ -323,8 +323,8 @@ Regard3DMainFrameBase::Regard3DMainFrameBase( wxWindow* parent, wxWindowID id, c
 	pShowTriangulatedPoints_ = new wxButton( pProjectLowerScrolledWindow_, ID_SHOWTRIANGULATEDPOINTS, wxT("Show triangulated points"), wxDefaultPosition, wxDefaultSize, 0 );
 	pProjectTriangulationSizer_->Add( pShowTriangulatedPoints_, 0, wxALL, 3 );
 	
-	pExportTriangulationToCMPMVSButton_ = new wxButton( pProjectLowerScrolledWindow_, ID_EXPORTTRIANGULATIONTOCMPMVSBUTTON, wxT("Export project to CMPMVS"), wxDefaultPosition, wxDefaultSize, 0 );
-	pProjectTriangulationSizer_->Add( pExportTriangulationToCMPMVSButton_, 0, wxALL, 3 );
+	pExportTriangulationToExternalMVSButton_ = new wxButton( pProjectLowerScrolledWindow_, ID_EXPORTTRIANGULATIONTOEXTERNALMVSBUTTON, wxT("Export to external MVS"), wxDefaultPosition, wxDefaultSize, 0 );
+	pProjectTriangulationSizer_->Add( pExportTriangulationToExternalMVSButton_, 0, wxALL, 3 );
 	
 	pProjectDeleteTriangulationButton_ = new wxButton( pProjectLowerScrolledWindow_, ID_PROJECTDELETETRIANGULATIONBUTTON, wxT("Delete"), wxDefaultPosition, wxDefaultSize, 0 );
 	pProjectTriangulationSizer_->Add( pProjectDeleteTriangulationButton_, 0, wxALL, 3 );

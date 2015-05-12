@@ -6,7 +6,7 @@
 
 #define REGARD3D_VERSION_MAJOR 0
 #define REGARD3D_VERSION_MINOR 7
-#define REGARD3D_VERSION_BUILD 0
+#define REGARD3D_VERSION_BUILD 1
 
 #define REGARD3D_VERSION_STRING R3D_STRINGIFY(REGARD3D_VERSION_MAJOR) \
 	"." R3D_STRINGIFY(REGARD3D_VERSION_MINOR) \
@@ -26,7 +26,11 @@
 #	define REGARD3D_COMPILER "Visual C++"
 #	define REGARD3D_COMPILER_VERSION R3D_STRINGIFY(_MSC_FULL_VER)
 #elif defined(__clang__)
-#	define REGARD3D_COMPILER "Clang"
+#	if defined( __apple_build_version__)
+#		define REGARD3D_COMPILER_VERSION "Apple Clang"
+#	else
+#		define REGARD3D_COMPILER_VERSION "Clang"
+#	endif
 #	define REGARD3D_COMPILER_VERSION R3D_STRINGIFY(__clang_major__) "." R3D_STRINGIFY(__clang_minor__) "." R3D_STRINGIFY(__clang_patchlevel__)
 #elif defined(__GNUG__)
 #	define REGARD3D_COMPILER "GCC"

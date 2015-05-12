@@ -7,6 +7,8 @@
 // Define the windows API level we'd like to use: Windows XP SP2
 #define _WIN32_WINNT 0x0502
 
+#include "config.h"
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>

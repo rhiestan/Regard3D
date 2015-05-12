@@ -24,7 +24,6 @@
 
 #include "Regard3DMainFrame.h"
 #include "version.h"
-#include "config.h"
 #include "PreviewGeneratorThread.h"
 #include "ImageInfoThread.h"
 #include "Regard3DDropTarget.h"
@@ -94,6 +93,10 @@
 
 #endif
 
+#if defined(R3D_LINUX)
+#	include <dlfcn.h>
+#endif
+
 #include "res/png/icons_png.h"
 
 enum
@@ -126,7 +129,7 @@ enum
 	ID_CTX_DELETE_DENSIFICATION,
 	ID_CTX_SHOW_SURFACE,
 	ID_CTX_DELETE_SURFACE,
-	ID_CTX_EXPORT_TRIANGULATION_TO_CMPMVS,
+	ID_CTX_EXPORT_TRIANGULATION_TO_EXT_MVS,
 	ID_CTX_EXPORT_POINT_CLOUD,
 	ID_CTX_EXPORT_DENSIFICATION_TO_MESHLAB,
 	ID_CTX_EXPORT_SURFACE
@@ -473,7 +476,9 @@ void Regard3DMainFrame::OnViewConsoleOutputFrameUpdate( wxUpdateUIEvent& event )
 	event.Check(pRegard3DConsoleOutputFrame_->IsShown());
 }
 
-//#define R3D_GET_OPENBLAS_INFO
+#if defined(R3D_WIN32)
+#	define R3D_GET_OPENBLAS_INFO
+#endif
 #if defined(R3D_GET_OPENBLAS_INFO)
 /*Get the number of threads on runtime.*/
 extern "C" int openblas_get_num_threads(void);
@@ -507,7 +512,7 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 
 	wxString openblasStr;
 
-#if defined(R3D_GET_OPENBLAS_INFO)
+#if defined(R3D_GET_OPENBLAS_INFO) && defined(R3D_WIN32)
 #	if defined(_MSC_VER)
 	typedef int (*openblas_get_num_procs_ptr)(void);
 	typedef char * (*openblas_get_config_ptr)(void);
@@ -532,9 +537,7 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 	if(openblas_get_config_m != NULL)
 	{
 		const char *config = (*openblas_get_config_m)();
-		openblasStr = wxT("\n OpenBLAS (");
-		openblasStr.Append( wxString(config, wxConvLibc) );
-		openblasStr.Append( wxT(")") );
+		openblasStr = wxString(config, wxConvLibc);
 	}
 	if(openblas_get_parallel_m != NULL
 		&& openblas_get_num_procs_m != NULL
@@ -547,14 +550,13 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 		OutputDebugStringA(buf);
 	}
 #	else
+	// MinGW can link statically to OpenBLAS
 	const char *config = openblas_get_config();
 	int par = openblas_get_parallel();
 	char buf[100];
 	sprintf(buf, "parallel: %d, threads: %d procs: %d CPU corename: %s\n", par,
 		openblas_get_num_threads(), openblas_get_num_procs(), openblas_get_corename());
-	openblasStr = wxT("\n OpenBLAS (");
-	openblasStr.Append( wxString(config, wxConvLibc) );
-	openblasStr.Append( wxT(")") );
+	openblasStr = wxString(config, wxConvLibc);
 #	endif
 #endif
 
@@ -598,7 +600,43 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 	descrString.Append(wxT("\n Ceres ") );
 	descrString.Append( wxString(CERES_VERSION_STRING, *wxConvCurrent) );
 #endif
-	descrString.Append(openblasStr);
+
+#if defined(R3D_HAVE_OpenBLAS_VERSION)
+	wxString openBLASVersion(wxString(R3D_STRINGIFY(R3D_OpenBLAS_VERSION), *wxConvCurrent));
+	descrString.Append(wxT("\n OpenBLAS "));
+	descrString.Append(openBLASVersion);
+	if(!openblasStr.IsEmpty())
+	{
+		descrString.Append(wxT(" ("));
+		descrString.Append(openblasStr);
+		descrString.Append(wxT(")"));
+	}
+#else
+	if(!openblasStr.IsEmpty())
+	{
+		descrString.Append(wxT("\n OpenBLAS ("));
+		descrString.Append(openblasStr);
+		descrString.Append(wxT(")"));
+	}
+#endif
+
+#if defined(R3D_HAVE_TBB)
+	bool usingTBB = false;
+#	if defined(R3D_WIN32)
+	HMODULE hModTBB = GetModuleHandleW(wxT("tbbmalloc.dll"));
+	if(hModTBB != NULL)
+		usingTBB = true;
+#	elif defined(R3D_MACOSX)
+#	elif defined(R3D_LINUX)
+	if(dlsym(RTLD_DEFAULT, "scalable_malloc") != NULL)
+		usingTBB = true;
+#	else
+#		error "Unsupported platform"
+#	endif
+	if(usingTBB)
+		descrString.Append(wxT("\n Using TBB scalable memory allocator"));
+#endif
+
 	info.SetDescription(descrString);
 	info.SetCopyright(wxString(wxT("\u00A9 ")) + wxString(wxT(REGARD3D_COPYRIGHT_YEAR))
 		+ wxString(wxT(" ")) + wxString(wxT(REGARD3D_COPYRIGHT_NAME)));
@@ -697,7 +735,7 @@ void Regard3DMainFrame::OnProjectTreeItemMenu( wxTreeEvent& event )
 		pTreeListPopupMenu_ = new wxMenu();
 		pTreeListPopupMenu_->Append(ID_CTX_CREATE_DENSE_POINTCLOUD, wxT("Create dense pointcloud..."));
 		pTreeListPopupMenu_->Append(ID_CTX_SHOW_TRIANGULATED_POINTS, wxT("Show triangulated points"));
-		pTreeListPopupMenu_->Append(ID_CTX_EXPORT_TRIANGULATION_TO_CMPMVS, wxT("Export project to CMPMVS"));
+		pTreeListPopupMenu_->Append(ID_CTX_EXPORT_TRIANGULATION_TO_EXT_MVS, wxT("Export to external MVS"));
 		pTreeListPopupMenu_->Append(ID_CTX_DELETE_TRIANGULATION, wxT("Delete"));
 	}
 	else if(type == R3DProject::R3DTreeItem::TypeDensification)
@@ -850,14 +888,14 @@ void Regard3DMainFrame::OnShowTriangulatedPoints( wxCommandEvent& event )
 		showTriangulatedPoints(pTriangulation);
 }
 
-void Regard3DMainFrame::OnExportTriangulationToCMPMVSButton( wxCommandEvent& event )
+void Regard3DMainFrame::OnExportTriangulationToExternalMVSButton( wxCommandEvent& event )
 {
 	// Get selected TreeViewCtrl item
 	wxTreeItemId selId = pProjectTreeCtrl_->GetSelection();
 	R3DProject::Triangulation *pTriangulation = getSpecializedProjectItem<R3DProject::Triangulation>(selId,
 		R3DProject::R3DTreeItem::TypeTriangulation);
 	if(pTriangulation != NULL)
-		exportTriangulationToCMPMVS(pTriangulation);
+		exportTriangulationToExternalMVS(pTriangulation);
 }
 
 void Regard3DMainFrame::OnProjectDeleteTriangulationButton( wxCommandEvent& event )
@@ -1415,7 +1453,7 @@ void Regard3DMainFrame::OnSmallTaskFinished( wxCommandEvent &event )
 		endProgressDialog = false;
 	}
 	else if(type == R3DSmallTasksThread::STTExportToMeshLab
-		|| type == R3DSmallTasksThread::STTExportToCMPMVS
+		|| type == R3DSmallTasksThread::STTExportToExternalMVS
 		|| type == R3DSmallTasksThread::STTExportToPointCloud
 		|| type == R3DSmallTasksThread::STTExportSurface)
 	{
@@ -1669,13 +1707,13 @@ void Regard3DMainFrame::OnContextMenuDeleteSurface( wxCommandEvent &event )
 		deleteSurface(pSurface);
 }
 
-void Regard3DMainFrame::OnContextMenuExportTriangulationToCMPMVS( wxCommandEvent &event )
+void Regard3DMainFrame::OnContextMenuExportTriangulationToExternalMVS( wxCommandEvent &event )
 {
 	// Get right-clicked TreeViewCtrl item
 	R3DProject::Triangulation *pTriangulation = getSpecializedProjectItem<R3DProject::Triangulation>(contextMenuItemId_,
 		R3DProject::R3DTreeItem::TypeTriangulation);
 	if(pTriangulation != NULL)
-		exportTriangulationToCMPMVS(pTriangulation);
+		exportTriangulationToExternalMVS(pTriangulation);
 }
 
 void Regard3DMainFrame::OnContextMenuExportPointCloud( wxCommandEvent &event )
@@ -2543,13 +2581,13 @@ void Regard3DMainFrame::deleteSurface(R3DProject::Surface *pSurface)
 	}
 }
 
-void Regard3DMainFrame::exportTriangulationToCMPMVS(R3DProject::Triangulation *pTriangulation)
+void Regard3DMainFrame::exportTriangulationToExternalMVS(R3DProject::Triangulation *pTriangulation)
 {
 	wxDirDialog dlg(this, wxT("Choose directory to export project to:"), wxEmptyString,
 		wxDD_DEFAULT_STYLE);
 	if(dlg.ShowModal() == wxID_OK)
 	{
-		pStdProgressDialog_ = new wxProgressDialog(wxT("Exporting to CMPMVS"), wxT("Exporting project to CMPMVS"), -1, this, wxPD_APP_MODAL);
+		pStdProgressDialog_ = new wxProgressDialog(wxT("Exporting to external MVS"), wxT("Exporting project to external MVS"), -1, this, wxPD_APP_MODAL);
 		pStdProgressDialog_->Show();
 		pStdProgressDialog_->Pulse();	// Run in indeterminate mode
 
@@ -2558,7 +2596,7 @@ void Regard3DMainFrame::exportTriangulationToCMPMVS(R3DProject::Triangulation *p
 
 		pR3DSmallTasksThread_ = new R3DSmallTasksThread();
 		pR3DSmallTasksThread_->setMainFrame(this);
-		pR3DSmallTasksThread_->exportTriangulationToCMPMVS(pTriangulation, dlg.GetPath());
+		pR3DSmallTasksThread_->exportTriangulationToExternalMVS(pTriangulation, dlg.GetPath());
 	}
 }
 
@@ -2772,7 +2810,7 @@ BEGIN_EVENT_TABLE( Regard3DMainFrame, Regard3DMainFrameBase )
 	EVT_MENU( ID_CTX_DELETE_DENSIFICATION, Regard3DMainFrame::OnContextMenuDeleteDensification )
 	EVT_MENU( ID_CTX_SHOW_SURFACE, Regard3DMainFrame::OnContextMenuShowSurface )
 	EVT_MENU( ID_CTX_DELETE_SURFACE, Regard3DMainFrame::OnContextMenuDeleteSurface )
-	EVT_MENU( ID_CTX_EXPORT_TRIANGULATION_TO_CMPMVS, Regard3DMainFrame::OnContextMenuExportTriangulationToCMPMVS )
+	EVT_MENU( ID_CTX_EXPORT_TRIANGULATION_TO_EXT_MVS, Regard3DMainFrame::OnContextMenuExportTriangulationToExternalMVS )
 	EVT_MENU( ID_CTX_EXPORT_POINT_CLOUD, Regard3DMainFrame::OnContextMenuExportPointCloud )
 	EVT_MENU( ID_CTX_EXPORT_DENSIFICATION_TO_MESHLAB, Regard3DMainFrame::OnContextMenuExportDensificationToMeshLab )
 	EVT_MENU( ID_CTX_EXPORT_SURFACE, Regard3DMainFrame::OnContextMenuExportSurface )

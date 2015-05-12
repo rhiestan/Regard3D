@@ -26,12 +26,16 @@
 
 #include "minilog/minilog.h"
 
-#include "config.h"
+
 
 #if defined(R3D_HAVE_OPENMP)
 #	include <omp.h>
 #endif
 
+#if defined(R3D_HAVE_TBB) && !defined(R3D_HAVE_OPENMP)
+#	include <tbb/tbb.h>
+#	include <tbb/task_scheduler_init.h>
+#endif
 
 R3DComputeMatches::R3DComputeMatches()
 	: pMainFrame_(NULL)
@@ -768,6 +772,10 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
 */
 
   //MLOG << "\n\nEXTRACT FEATURES" << std::endl;
+
+#if defined(R3D_USE_TBB_THREADING)
+  tbb::task_scheduler_init tbb_taskscheduler(tbb::task_scheduler_init::automatic);	// Let TBB determine number of threads
+#endif
 
   typedef SIOPointFeature FeatureT;
   typedef std::vector<FeatureT> FeatsT;

@@ -78,7 +78,7 @@ class Regard3DMainFrameBase : public wxFrame
 		void _wxFB_OnProjectDeleteComputeMatchesButton( wxCommandEvent& event ){ OnProjectDeleteComputeMatchesButton( event ); }
 		void _wxFB_OnCreateDensePointcloudButton( wxCommandEvent& event ){ OnCreateDensePointcloudButton( event ); }
 		void _wxFB_OnShowTriangulatedPoints( wxCommandEvent& event ){ OnShowTriangulatedPoints( event ); }
-		void _wxFB_OnExportTriangulationToCMPMVSButton( wxCommandEvent& event ){ OnExportTriangulationToCMPMVSButton( event ); }
+		void _wxFB_OnExportTriangulationToExternalMVSButton( wxCommandEvent& event ){ OnExportTriangulationToExternalMVSButton( event ); }
 		void _wxFB_OnProjectDeleteTriangulationButton( wxCommandEvent& event ){ OnProjectDeleteTriangulationButton( event ); }
 		void _wxFB_OnCreateSurfaceButton( wxCommandEvent& event ){ OnCreateSurfaceButton( event ); }
 		void _wxFB_OnShowDensePointCloudButton( wxCommandEvent& event ){ OnShowDensePointCloudButton( event ); }
@@ -138,7 +138,7 @@ class Regard3DMainFrameBase : public wxFrame
 			ID_TRIANGULATIONTIMETEXTCTRL,
 			ID_CREATEDENSEPOINTCLOUDBUTTON,
 			ID_SHOWTRIANGULATEDPOINTS,
-			ID_EXPORTTRIANGULATIONTOCMPMVSBUTTON,
+			ID_EXPORTTRIANGULATIONTOEXTERNALMVSBUTTON,
 			ID_PROJECTDELETETRIANGULATIONBUTTON,
 			ID_DENSIFICATIONIDTEXTCTRL,
 			ID_DENSIFICATIONTYPETEXTCTRL,
@@ -229,7 +229,7 @@ class Regard3DMainFrameBase : public wxFrame
 		wxTextCtrl* pTriangulationTimeTextCtrl_;
 		wxButton* pCreateDensePointcloudButton_;
 		wxButton* pShowTriangulatedPoints_;
-		wxButton* pExportTriangulationToCMPMVSButton_;
+		wxButton* pExportTriangulationToExternalMVSButton_;
 		wxButton* pProjectDeleteTriangulationButton_;
 		wxBoxSizer* pProjectDensificationSizer_;
 		wxStaticText* m_staticText35;
@@ -298,7 +298,7 @@ class Regard3DMainFrameBase : public wxFrame
 		virtual void OnProjectDeleteComputeMatchesButton( wxCommandEvent& event ) = 0;
 		virtual void OnCreateDensePointcloudButton( wxCommandEvent& event ) = 0;
 		virtual void OnShowTriangulatedPoints( wxCommandEvent& event ) = 0;
-		virtual void OnExportTriangulationToCMPMVSButton( wxCommandEvent& event ) = 0;
+		virtual void OnExportTriangulationToExternalMVSButton( wxCommandEvent& event ) = 0;
 		virtual void OnProjectDeleteTriangulationButton( wxCommandEvent& event ) = 0;
 		virtual void OnCreateSurfaceButton( wxCommandEvent& event ) = 0;
 		virtual void OnShowDensePointCloudButton( wxCommandEvent& event ) = 0;

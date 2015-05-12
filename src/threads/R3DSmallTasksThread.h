@@ -46,7 +46,7 @@ public:
 		STTLoadSurfaceModel,
 		STTExportToPMVS,
 		STTExportToMeshLab,
-		STTExportToCMPMVS,
+		STTExportToExternalMVS,
 		STTExportToPointCloud,
 		STTExportSurface,
 		STTColorizeSurface,
@@ -68,7 +68,7 @@ public:
 	void loadSurfaceModel(const wxString &filename, Regard3DModelViewHelper *pRegard3DModelViewHelper);
 	void exportToPMVS(R3DProject::Densification *pDensification);
 	void exportDensificationToMeshLab(R3DProject::Densification *pDensification, const wxString &pathname);
-	void exportTriangulationToCMPMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
+	void exportTriangulationToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
 	void exportDensificationToPointCloud(R3DProject::Densification *pDensification, const wxString &filename);
 	void exportSurface(R3DProject::Surface *pSurface, const wxString &filename);
 	void colorizeSurface(R3DProject::Surface *pSurface);

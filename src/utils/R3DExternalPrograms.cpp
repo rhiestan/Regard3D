@@ -19,7 +19,6 @@
 
 #include "CommonIncludes.h"
 #include "R3DExternalPrograms.h"
-#include "config.h"
 #include "Regard3DSettings.h"
 
 #include <wx/stdpaths.h>

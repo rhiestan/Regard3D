@@ -23,7 +23,6 @@
 #include "Regard3DMainFrame.h"
 #include "R3DExternalPrograms.h"
 #include "minilog/minilog.h"
-#include "config.h"
 
 R3DSurfaceGenProcess::R3DSurfaceGenProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),

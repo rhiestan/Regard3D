@@ -18,7 +18,6 @@
  */
 
 #include "CommonIncludes.h"
-#include "config.h"
 #include "R3DFeaturesThread.h"
 #include "Regard3DMainFrame.h"
 

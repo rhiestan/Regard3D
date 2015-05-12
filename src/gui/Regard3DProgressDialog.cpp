@@ -21,7 +21,6 @@
 #include "Regard3DProgressDialog.h"
 #include "Regard3DMainFrame.h"
 #include "Regard3DConsoleOutputFrame.h"
-#include "config.h"
 
 #include <wx/utils.h>
 

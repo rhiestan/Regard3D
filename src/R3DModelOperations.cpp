@@ -79,6 +79,7 @@ void R3DModelOperations::colorizeSurface(R3DProject::Surface *pSurface)
 	wxFileName surfaceFN(wxString(paths.relativeSurfacePath_.c_str(), wxConvLibc), surfaceFilename);
 	if(!surfaceFN.FileExists())
 		return;
+
 	pcl::PolygonMesh surfaceModel;
 #if PCL_VERSION_COMPARE(<, 1, 7, 2)
 	if(pcl::io::loadPolygonFilePLY(std::string(surfaceFN.GetFullPath().mb_str()), surfaceModel) == -1)

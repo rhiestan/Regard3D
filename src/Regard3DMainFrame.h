@@ -106,7 +106,7 @@ protected:
 	virtual void OnProjectDeleteComputeMatchesButton( wxCommandEvent& event );
 	virtual void OnCreateDensePointcloudButton( wxCommandEvent& event );
 	virtual void OnShowTriangulatedPoints( wxCommandEvent& event );
-	virtual void OnExportTriangulationToCMPMVSButton( wxCommandEvent& event );
+	virtual void OnExportTriangulationToExternalMVSButton( wxCommandEvent& event );
 	virtual void OnProjectDeleteTriangulationButton( wxCommandEvent& event );
 	virtual void OnCreateSurfaceButton( wxCommandEvent& event );
 	virtual void OnShowDensePointCloudButton( wxCommandEvent& event );
@@ -149,7 +149,7 @@ protected:
 	virtual void OnContextMenuDeleteDensification( wxCommandEvent &event );
 	virtual void OnContextMenuShowSurface( wxCommandEvent &event );
 	virtual void OnContextMenuDeleteSurface( wxCommandEvent &event );
-	virtual void OnContextMenuExportTriangulationToCMPMVS( wxCommandEvent &event );
+	virtual void OnContextMenuExportTriangulationToExternalMVS( wxCommandEvent &event );
 	virtual void OnContextMenuExportPointCloud( wxCommandEvent &event );
 	virtual void OnContextMenuExportDensificationToMeshLab( wxCommandEvent &event );
 	virtual void OnContextMenuExportSurface( wxCommandEvent &event );
@@ -183,7 +183,7 @@ protected:
 	void deleteDensification(R3DProject::Densification *pDensification);
 	void showSurface(R3DProject::Surface *pSurface);
 	void deleteSurface(R3DProject::Surface *pSurface);
-	void exportTriangulationToCMPMVS(R3DProject::Triangulation *pTriangulation);
+	void exportTriangulationToExternalMVS(R3DProject::Triangulation *pTriangulation);
 	void exportPointCloud(R3DProject::Densification *pDensification);
 	void exportDensificationToMeshLab(R3DProject::Densification *pDensification);
 	void exportSurface(R3DProject::Surface *pSurface);

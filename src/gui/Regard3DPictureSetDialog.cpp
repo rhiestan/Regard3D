@@ -18,7 +18,6 @@
  */
 
 #include "CommonIncludes.h"
-#include "config.h"
 #include "Regard3DPictureSetDialog.h"
 #include "PreviewGeneratorThread.h"
 #include "Regard3DDropTarget.h"

@@ -26,6 +26,9 @@
 #include "openMVG/features/feature.hpp"
 #include "openMVG/features/descriptor.hpp"
 #include "openMVG/features/keypointSet.hpp"
+#if !defined(R3D_USE_OPENMVG_PRE08)
+#	include "openMVG/features/regions.hpp"
+#endif
 
 // OpenCV
 #include "opencv2/features2d/features2d.hpp"
@@ -34,11 +37,14 @@ class Regard3DFeatures
 {
 public:
 
-	typedef openMVG::SIOPointFeature FeatureR3D;
+	typedef openMVG::features::SIOPointFeature FeatureR3D;
 	typedef std::vector<FeatureR3D> FeatsR3D;
-	typedef openMVG::Descriptor<float, 144> DescriptorR3D;	// LIOP: 144, Daisy: 200
+	typedef openMVG::features::Descriptor<float, 144> DescriptorR3D;	// LIOP: 144, Daisy: 200
 	typedef std::vector<DescriptorR3D> DescsR3D;
-	typedef openMVG::KeypointSet<FeatsR3D, DescsR3D > KeypointSetR3D;
+	typedef openMVG::features::KeypointSet<FeatsR3D, DescsR3D > KeypointSetR3D;
+#if !defined(R3D_USE_OPENMVG_PRE08)
+	typedef openMVG::features::Scalar_Regions<FeatureR3D, float, 144> R3D_AKAZE_LIOP_Regions;
+#endif
 
 	// Class for holding feature extraction parameters
 	struct R3DFParams
@@ -54,12 +60,14 @@ public:
 		int nFeatures_;		// GFTT, HARRIS, ORB
 
 		float distRatio_;	// Nearest Neighbor distance ratio
-		int numberOfThreads_;
 
 		bool computeHomographyMatrix_;
 		bool computeFundalmentalMatrix_;
 		bool computeEssentialMatrix_;
 	};
+
+	static bool initAKAZESemaphore(int count = 1);
+	static void uninitializeAKAZESemaphore();
 
 	/**
 	 * Return a list of supported keypoint detectors.
@@ -74,36 +82,36 @@ public:
 	/**
 	 * Detect keypoints and extract feature descriptors.
 	 */
-	static void detectAndExtract(const Image<float> &img,
+	static void detectAndExtract(const openMVG::image::Image<float> &img,
 		FeatsR3D &feats, DescsR3D &descs, const R3DFParams &params);
 
 	// The same, but only used for optimizing kpSizeFactor
-	static void detectAndExtract_NLOPT(const Image<unsigned char> &img,
+	static void detectAndExtract_NLOPT(const openMVG::image::Image<unsigned char> &img,
 		FeatsR3D &feats, DescsR3D &descs, double kpSizeFactorIn = 0.5);
 
 	// Old method, not used anymore
-	static void detectAndExtractVLFEAT_CoV_Daisy(const Image<unsigned char> &img,
+	static void detectAndExtractVLFEAT_CoV_Daisy(const openMVG::image::Image<unsigned char> &img,
 		FeatsR3D &feats, DescsR3D &descs);
 
 	// Old method, not used anymore
-	static void detectAndExtractVLFEAT_MSER_LIOP(const Image<unsigned char> &img,
+	static void detectAndExtractVLFEAT_MSER_LIOP(const openMVG::image::Image<unsigned char> &img,
 		FeatsR3D &feats, DescsR3D &descs);
 
 	// Old method, not used anymore
-	static void detectAndExtractVLFEAT_CoV_LIOP(const Image<unsigned char> &img,
+	static void detectAndExtractVLFEAT_CoV_LIOP(const openMVG::image::Image<unsigned char> &img,
 		FeatsR3D &feats, DescsR3D &descs);
 
 	
 private:
-	static void detectKeypoints(const Image<float> &img,
+	static void detectKeypoints(const openMVG::image::Image<float> &img,
 		std::vector< cv::KeyPoint > &vec_keypoints, const std::string &fdname,
 		const R3DFParams &params);
 
-	static void extractDaisyFeatures(const Image<unsigned char> &img, 
+	static void extractDaisyFeatures(const openMVG::image::Image<unsigned char> &img,
 		std::vector< cv::KeyPoint > &vec_keypoints, float kpSizeFactor,
 		FeatsR3D &feats, DescsR3D &descs);
 
-	static void extractLIOPFeatures(const Image<float> &img, 
+	static void extractLIOPFeatures(const openMVG::image::Image<float> &img,
 		std::vector< cv::KeyPoint > &vec_keypoints, float kpSizeFactor,
 		FeatsR3D &feats, DescsR3D &descs);
 

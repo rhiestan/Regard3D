@@ -25,6 +25,8 @@
 #include "R3DExternalPrograms.h"
 #include "R3DFontHandler.h"
 
+#include <Eigen/Core>
+
 #if defined(R3D_HAVE_TBB)
 //#	include "tbb/tbbmalloc_proxy.h"
 #endif
@@ -96,8 +98,10 @@ bool Regard3DApp::OnInit()
 	wxInitAllImageHandlers();
 #endif
 
+	Eigen::initParallel();
+
 #if defined(R3D_HAVE_OPENMP)
-	omp_set_num_threads(omp_get_num_procs() + 1);	// +1 to fill delays in file I/O
+	//omp_set_num_threads(1);	// omp_get_num_procs() + 1);	// +1 to fill delays in file I/O
 #endif
 
 	CameraDBLookup::getInstance().initialize();

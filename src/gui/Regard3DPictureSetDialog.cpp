@@ -182,7 +182,27 @@ void Regard3DPictureSetDialog::OnCancel( wxCommandEvent& event )
 void Regard3DPictureSetDialog::OnOK( wxCommandEvent& event )
 {
 	if(sentImageInfoRequests_ == receivedImageInfos_)
+	{
+		// Check for number of pictures
+		if(imageList_.size() < 4)
+			wxMessageBox(wxT("Too few pictures.\nTriangulation will probably fail."),
+				wxT("Too few pictures"), wxOK | wxICON_WARNING);
+
+		// Check for focal length
+		size_t numberOfKownFocalLength = 0;
+		for(size_t i = 0; i < imageList_.size(); i++)
+		{
+			const ImageInfo &ii = imageList_[i];
+			if(ii.focalLength_ != 0
+				&& ii.sensorWidth_ != 0)
+				numberOfKownFocalLength++;
+		}
+		if(numberOfKownFocalLength < 2)
+			wxMessageBox(wxT("The focal length is known for too few pictures.\nTriangulation will fail.\nUse pictures with known focal length taken with cameras stored in the database."),
+				wxT("Unknown focal length"), wxOK | wxICON_WARNING);
+
 		EndModal(wxID_OK);
+	}
 	else
 		wxMessageBox(wxT("Please wait until all image infos have been listed"),
 			wxT("Picture set"), wxOK | wxICON_INFORMATION | wxCENTRE, this);

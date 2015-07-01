@@ -27,6 +27,9 @@
 // OpenMVG
 #include "software/SfM/SfMIOHelper.hpp"
 #include "software/SfMViewer/document.h"
+#if !defined(R3D_USE_OPENMVG_PRE08)
+#include "openMVG/sfm/sfm_data.hpp"
+#endif
 
 class OpenMVGHelper
 {
@@ -53,7 +56,10 @@ public:
 
 	static ImagePairList getBestValidatedPairs(const R3DProjectPaths &paths, const std::string &matchesfilename, int pairCount = 10);
 
-	static bool isGlobalSfmAvailable(const R3DProjectPaths &paths);
+	static bool isGlobalSfmAvailable(const R3DProjectPaths &paths, R3DProject::PictureSet *pPictureSet);
+
+	static bool hasMatchesSfM_DataFile(const R3DProjectPaths &paths);
+	static bool hasTriSfM_DataFile(const R3DProjectPaths &paths);
 
 	static bool exportToPMVS(R3DProject::Densification *pDensification);
 
@@ -61,10 +67,20 @@ public:
 
 	static bool exportToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
 
+#if !defined(R3D_USE_OPENMVG_PRE08)
+	static void ColorizeTracks(const openMVG::sfm::SfM_Data &sfm_data, std::vector<Vec3> &vec_3dPoints, std::vector<Vec3> &vec_tracksColor);
+	static void GetCameraPositions(const openMVG::sfm::SfM_Data &sfm_data, std::vector<Vec3> &vec_camPosition);
+
+	static void calculateResiduals(const openMVG::sfm::SfM_Data &sfm_data, std::vector<float> &residuals);
+
+	static void exportOldSfM_output(const R3DProjectPaths &paths);
+#endif
+
 private:
 	OpenMVGHelper() { }
 	~OpenMVGHelper() { }
 
+	// For triangulations created with openMVG 0.7
 	static bool exportToPMVSFormat(const Document & doc,
 		const std::string & sOutDirectory,
 		const std::string & sImagePath,
@@ -74,6 +90,18 @@ private:
 		const std::string & sOutFile,
 		const std::string & sOutListFile);
 
+	// For triangulations created with openMVG 0.8
+#if !defined(R3D_USE_OPENMVG_PRE08)
+	static bool exportToPMVSFormat(
+		const openMVG::sfm::SfM_Data & sfm_data,
+		const std::string & sOutDirectory,
+		R3DProject::Densification *pDensification);
+
+	static bool exportToBundlerFormat(
+		const openMVG::sfm::SfM_Data & sfm_data,
+		const std::string & sOutFile,
+		const std::string & sOutListFile);
+#endif
 };
 
 #endif

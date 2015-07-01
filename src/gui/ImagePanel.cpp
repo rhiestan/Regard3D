@@ -189,6 +189,9 @@ void ImagePanel::OnPaint( wxPaintEvent& event )
 	if(img_.GetWidth() > viewWidthOrig
 		|| img_.GetHeight() > viewHeightOrig)
 	{
+		viewStartXOrig = std::max(0, viewStartXOrig);
+		viewStartYOrig = std::max(0, viewStartYOrig);
+
 		// Get only part of the image
 		viewWidthOrig = std::min( viewWidthOrig, img_.GetWidth() - viewStartXOrig );		// One dimension might still be bigger than the image
 		viewHeightOrig = std::min( viewHeightOrig, img_.GetHeight() - viewStartYOrig );

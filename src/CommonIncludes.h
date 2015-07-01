@@ -66,5 +66,8 @@
 #undef Success
 #endif
 
+#if defined(ERROR)
+#undef ERROR
+#endif
 
 #endif

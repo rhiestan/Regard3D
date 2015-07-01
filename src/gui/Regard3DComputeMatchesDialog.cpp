@@ -37,12 +37,10 @@ void Regard3DComputeMatchesDialog::setMaxPixelCount(long long maxPixelCount)
 }
 
 void Regard3DComputeMatchesDialog::getResults(float &keypointSensitivity,
-	float &keypointMatchingRatio,
-	int &nrOfThreads)
+	float &keypointMatchingRatio)
 {
 	keypointSensitivity = keypointSensitivity_;
 	keypointMatchingRatio = keypointMatchingRatio_;
-	nrOfThreads = pNumberOfThreadsChoice_->GetSelection() + 1;
 }
 
 void Regard3DComputeMatchesDialog::OnInitDialog( wxInitDialogEvent& event )
@@ -51,13 +49,6 @@ void Regard3DComputeMatchesDialog::OnInitDialog( wxInitDialogEvent& event )
 	updateICKeypointSensitivityText();
 	pKeypointMatchingRatioSlider_->SetValue(0);
 	updateICKeypointMatchingRatioText();
-
-	int maxNumberOfThreads = wxThread::GetCPUCount() + 1;
-	for(int i = 1; i <= maxNumberOfThreads; i++)
-		pNumberOfThreadsChoice_->Append(wxString::Format(wxT("%d"), i));
-	pNumberOfThreadsChoice_->SetSelection(0);
-
-	updateNumberOfThreadsText();
 
 	Fit();
 	CenterOnParent();
@@ -71,11 +62,6 @@ void Regard3DComputeMatchesDialog::OnKeypointSensitivitySlider( wxScrollEvent& e
 void Regard3DComputeMatchesDialog::OnKeypointMatchingRatioSlider( wxScrollEvent& event )
 {
 	updateICKeypointMatchingRatioText();
-}
-
-void Regard3DComputeMatchesDialog::OnNumberOfThreadsChoice( wxCommandEvent& event )
-{
-	updateNumberOfThreadsText();
 }
 
 // TODO: Put sliderValue/textStr/textvalStr triplets into vector
@@ -144,19 +130,6 @@ void Regard3DComputeMatchesDialog::updateICKeypointMatchingRatioText()
 
 	pKeypointMatchingRatioTextCtrl_->SetValue(textStr);
 	pKeypointMatchingRatioValTextCtrl_->SetValue(textValStr);
-}
-
-void Regard3DComputeMatchesDialog::updateNumberOfThreadsText()
-{
-	// Calculate memory
-	int numThreads = pNumberOfThreadsChoice_->GetSelection() + 1;
-
-	// A-KAZE requires roughly 225MB per Megapixel
-	wxULongLong memSize = 260000000L + 225L * static_cast<long long>(numThreads) * maxPixelCount_;
-	wxString memSizeStr = wxFileName::GetHumanReadableSize(memSize, wxEmptyString, 1);
-	wxString infoString = wxString(wxT("Estimated memory consumption: ")) + memSizeStr;
-	pKeypointSuggestedNumThreadsStaticText_->SetLabel(infoString);
-	pComputeMatchesDialogPanel_->Layout();
 }
 
 BEGIN_EVENT_TABLE( Regard3DComputeMatchesDialog, Regard3DComputeMatchesDialogBase )

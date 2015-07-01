@@ -18,12 +18,16 @@ The Regard3D source code is released under the [MIT license](http://opensource.o
 Version history
 ---------------
 
+###Version 0.8.0, 30.06.2015:
+- Upgraded to OpenMVG 0.8.1
+- Changed multithreading in compute matches step
+
 ###Version 0.7.1, 12.05.2015:
-* Fixed bug when using CMVS
-* Improved speed of Windows version
-* Added multithreading in computing matches on Mac OS X (using TBB)
-* Surfaces with textures (OBJ file format) are now loaded with AssImp
-* "Export to CMPMVS" renamed to "Export to external MVS", MeshRecon format added
+- Fixed bug when using CMVS
+- Improved speed of Windows version
+- Added multithreading in computing matches on Mac OS X (using TBB)
+- Surfaces with textures (OBJ file format) are now loaded with AssImp
+- "Export to CMPMVS" renamed to "Export to external MVS", MeshRecon format added
 
 ###Version 0.7.0, 28.04.2015
 Initial version, based on OpenMVG 0.7

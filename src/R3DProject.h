@@ -49,10 +49,12 @@ struct R3DProjectPaths
 	std::string relativeSfmOutPath_;
 	std::string relativeMVESceneDir_;
 	std::string listsTxtFilename_;
+	std::string matchesSfmDataFilename_;
 	std::string matchesPutitativeFilename_;
 	std::string matchesFFilename_;
 	std::string matchesEFilename_;
 	std::string matchesHFilename_;
+	std::string relativeTriSfmDataFilename_;
 	std::string relativePMVSOutPath_;
 	std::string relativeDenseModelName_;
 	std::string relativeDensificationPath_;
@@ -211,6 +213,12 @@ public:
 		std::vector<Surface> surfaces_;
 	};
 
+	enum R3DTriangulationVersion
+	{
+		R3DTV_0_7 = 0,		// openMVG 0.7
+		R3DTV_0_8,			// openMVG 0.8.x
+		R3DTV_Illegal
+	};
 	/**
 	 * Defines a triangulation step.
 	 */
@@ -229,8 +237,11 @@ public:
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version);
 
+		R3DTriangulationVersion version_;
 		size_t initialImageIndexA_, initialImageIndexB_;
 		bool global_, globalMSTBasedRot_;
+		bool refineIntrinsics_;
+		int rotAveraging_, transAveraging_;
 		R3DObjectState state_;
 		wxString resultCameras_, resultNumberOfTracks_;
 		wxString resultResidualErrors_, runningTime_;
@@ -329,7 +340,7 @@ public:
 		const wxString &featureDetector, const wxString &descriptorExtractor,
 		float keypointSensitivity, float keypointMatchingRatio);
 	int addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
-		bool global, bool globalMSTBasedRot);
+		bool global, int rotAveraging, int transAveraging, bool refineIntrinsics);
 	int addDensification(R3DProject::Triangulation *pTriangulation);
 	int addSurface(R3DProject::Densification *pDensification);
 	void removePictureSet(PictureSet *pPictureSet);
@@ -345,6 +356,8 @@ public:
 
 	bool importAllImages(const R3DProjectPaths &paths);
 	bool writeImageListTXT(const R3DProjectPaths &paths);
+	bool writeSfmData(const R3DProjectPaths &paths);
+	void ensureSfmDataExists(const R3DProjectPaths &paths);
 
 	void prepareComputeMatches(const R3DProjectPaths &paths, float threshold, float distRatio);
 	void prepareTriangulation(R3DProject::Triangulation *pTriangulation);

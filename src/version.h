@@ -5,8 +5,8 @@
 #define R3D_STRINGIFY(x) R3D_STRINGIFY2(x)
 
 #define REGARD3D_VERSION_MAJOR 0
-#define REGARD3D_VERSION_MINOR 7
-#define REGARD3D_VERSION_BUILD 1
+#define REGARD3D_VERSION_MINOR 8
+#define REGARD3D_VERSION_BUILD 0
 
 #define REGARD3D_VERSION_STRING R3D_STRINGIFY(REGARD3D_VERSION_MAJOR) \
 	"." R3D_STRINGIFY(REGARD3D_VERSION_MINOR) \
@@ -27,9 +27,9 @@
 #	define REGARD3D_COMPILER_VERSION R3D_STRINGIFY(_MSC_FULL_VER)
 #elif defined(__clang__)
 #	if defined( __apple_build_version__)
-#		define REGARD3D_COMPILER_VERSION "Apple Clang"
+#		define REGARD3D_COMPILER "Apple Clang"
 #	else
-#		define REGARD3D_COMPILER_VERSION "Clang"
+#		define REGARD3D_COMPILER "Clang"
 #	endif
 #	define REGARD3D_COMPILER_VERSION R3D_STRINGIFY(__clang_major__) "." R3D_STRINGIFY(__clang_minor__) "." R3D_STRINGIFY(__clang_patchlevel__)
 #elif defined(__GNUG__)

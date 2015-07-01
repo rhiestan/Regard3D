@@ -8,8 +8,15 @@ project(AKAZE)
 #  find_package(OpenMP)
 #endif ()
 
-# We don't want that AKAZE uses OpenMP, we use it on top level
-REMOVE_DEFINITIONS(-D_OPENMP -DUSE_OPENMP)
+# Determine whether to use OpenMP and/or TBB
+IF(R3D_HAVE_OPENMP)
+	ADD_DEFINITIONS(-DAKAZE_USE_OPENMP)
+ENDIF(R3D_HAVE_OPENMP)
+IF(R3D_USE_TBB_THREADING)
+	ADD_DEFINITIONS(-DAKAZE_USE_TBB_THREADING)
+ENDIF(R3D_USE_TBB_THREADING)
+# If both AKAZE_USE_OPENMP and AKAZE_USE_TBB_THREADING are defined, TBB wins
+#REMOVE_DEFINITIONS(-D_OPENMP -DUSE_OPENMP)
 
 # ============================================================================ #
 # Compilation flags

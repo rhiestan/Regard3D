@@ -158,7 +158,11 @@ Regard3DMainFrame::Regard3DMainFrame(wxWindow* parent)
 	pOSGGLCanvas_->GetSize(&width, &height);
 	viewer->getCamera()->setViewport(0, 0, width, height);
 	viewer->addEventHandler(new osgViewer::StatsHandler);
-	viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
+
+	// On Linux (and possibly on other platforms as well), setting SingleThreaded results in
+	// getting the CPU affinity mask set to CPU 0 for the whole process, i.e. only one CPU is used by Regard3D.
+	viewer->setThreadingModel(osgViewer::Viewer::ThreadPerContext);
+//	viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
 
 	osgGA::TrackballManipulator *cameraManip = new osgGA::TrackballManipulator;
 
@@ -562,7 +566,11 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 
 	wxString descrString;
 	descrString = wxT("This program creates 3D models from 2D photographs.\n\n");
-	descrString.Append(wxT("Based on the OpenMVG Structure from Motion engine.\n"));
+	descrString.Append(wxT("Based on the OpenMVG "));
+#if defined(R3D_HAVE_OPENMVG_VERSION)
+	descrString.Append(wxT(R3D_STRINGIFY(OPENMVG_VERSION)) wxT(" "));
+#endif
+	descrString.Append(wxT("Structure from Motion engine.\n"));
 	descrString.Append(wxT("Uses AKAZE and LIOP for feature detection and descriptor extraction.\n\n"));
 	descrString.Append(wxT("Built with: ") wxT(REGARD3D_COMPILER) wxT(" ") wxT(REGARD3D_COMPILER_VERSION) wxT("\n"));
 #if defined(R3D_HAVE_OPENMP)
@@ -1473,6 +1481,13 @@ void Regard3DMainFrame::OnSmallTaskFinished( wxCommandEvent &event )
 		pDensification = pR3DSmallTasksThread_->getDensification();
 		endProgressDialog = true;
 	}
+	else if(type == R3DSmallTasksThread::STTExportOldSfM_Output)
+	{
+		R3DProject::Densification *pDensification = pR3DSmallTasksThread_->getDensification();
+		pDensificationProcess_ = new R3DDensificationProcess(this);
+		pDensificationProcess_->runDensificationProcess(pDensification);
+		endProgressDialog = false;
+	}
 
 	delete pR3DSmallTasksThread_;
 	pR3DSmallTasksThread_ = NULL;
@@ -1818,7 +1833,7 @@ void Regard3DMainFrame::load3DModel(const wxString &filename)
 	if(pR3DSmallTasksThread_ != NULL)
 		delete pR3DSmallTasksThread_;
 
-	pStdProgressDialog_ = new wxProgressDialog(wxT("Loading model"), wxT("Loading model"), -1, this, wxPD_APP_MODAL);
+	pStdProgressDialog_ = new wxProgressDialog(wxT("Loading model"), wxT("Loading model"), 1, this, wxPD_APP_MODAL);
 	pStdProgressDialog_->Show();
 	pStdProgressDialog_->Pulse();	// Run in indeterminate mode
 
@@ -1836,7 +1851,7 @@ void Regard3DMainFrame::loadSurfaceModel(const wxString &filename)
 	if(pR3DSmallTasksThread_ != NULL)
 		delete pR3DSmallTasksThread_;
 
-	pStdProgressDialog_ = new wxProgressDialog(wxT("Loading surface model"), wxT("Loading surface model"), -1, this, wxPD_APP_MODAL);
+	pStdProgressDialog_ = new wxProgressDialog(wxT("Loading surface model"), wxT("Loading surface model"), 1, this, wxPD_APP_MODAL);
 	pStdProgressDialog_->Show();
 	pStdProgressDialog_->Pulse();	// Run in indeterminate mode
 
@@ -2019,18 +2034,45 @@ void Regard3DMainFrame::updateProjectDetails()
 			if(pTriangulation != NULL)
 			{
 				name = pTriangulation->name_;
-				if(pTriangulation->global_)
+				if(pTriangulation->version_ == R3DProject::R3DTV_0_7)
 				{
-					params = wxString(wxT("Global ("));
-					if(pTriangulation->globalMSTBasedRot_)
-						params.Append(wxT("MST based rotation + L1 rotation averaging)"));
+					if(pTriangulation->global_)
+					{
+						params = wxString(wxT("Global ("));
+						if(pTriangulation->globalMSTBasedRot_)
+							params.Append(wxT("MST based rotation + L1 rotation averaging)"));
+						else
+							params.Append(wxT("Dense L2 global rotation computation)"));
+					}
 					else
-						params.Append(wxT("Dense L2 global rotation computation)"));
+					{
+						params = wxString::Format(wxT("Incremental, initial pair %d/%d"), pTriangulation->initialImageIndexA_,
+							pTriangulation->initialImageIndexB_);
+					}
 				}
-				else
+				else if(pTriangulation->version_ == R3DProject::R3DTV_0_8)
 				{
-					params = wxString::Format(wxT("Incremental, initial pair %d/%d"), pTriangulation->initialImageIndexA_,
-						pTriangulation->initialImageIndexB_);
+					if(pTriangulation->global_)
+					{
+						params = wxString(wxT("Global ("));
+						if(pTriangulation->rotAveraging_ == 1)
+							params.Append(wxT("L1 rotation averaging, "));
+						else
+							params.Append(wxT("L2 rotation averaging, "));
+						if(pTriangulation->transAveraging_ == 1)
+							params.Append(wxT("L1 translation averaging)"));
+						else
+							params.Append(wxT("L2 translation averaging)"));
+					}
+					else
+					{
+						params = wxString::Format(wxT("Incremental, initial pair %d/%d"), pTriangulation->initialImageIndexA_,
+							pTriangulation->initialImageIndexB_);
+					}
+					if(pTriangulation->refineIntrinsics_)
+						params.Append(wxT(", intrinsic camera parameters refined"));
+					else
+						params.Append(wxT(", intrinsic camera parameters kept constant"));
 				}
 				resultsCameras = pTriangulation->resultCameras_;
 				resultNumberOfTracks = pTriangulation->resultNumberOfTracks_;
@@ -2237,15 +2279,12 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 	{
 		// Start compute matches
 		float keypointSensitivity, keypointMatchingRatio;
-		int nrOfThreads;
 
-		dlg.getResults(keypointSensitivity, keypointMatchingRatio,
-			nrOfThreads);
+		dlg.getResults(keypointSensitivity, keypointMatchingRatio);
 
 		Regard3DFeatures::R3DFParams params;
 		params.threshold_ = keypointSensitivity;
 		params.distRatio_ = keypointMatchingRatio;
-		params.numberOfThreads_ = nrOfThreads;
 		bool svgOutput = false;	// TODO: Make configurable?
 
 		wxString featureDetector(wxT("AKAZE")), descriptorExtractor(wxT("LIOP"));
@@ -2283,6 +2322,10 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 
 void Regard3DMainFrame::showMatches(R3DProject::ComputeMatches *pComputeMatches)
 {
+	R3DProjectPaths paths;
+	project_.getProjectPathsCM(paths, pComputeMatches);
+	project_.ensureSfmDataExists(paths);
+
 	Regard3DMatchingResultsDialog dlg(this);
 	dlg.setPreviewGeneratorThread(&previewGeneratorThread_);
 	dlg.setComputeMatches(&project_, pComputeMatches);
@@ -2303,10 +2346,24 @@ void Regard3DMainFrame::showMatches(R3DProject::ComputeMatches *pComputeMatches)
 
 void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 {
+	R3DProjectPaths paths;
+	project_.getProjectPathsCM(paths, pComputeMatches);
+	project_.ensureSfmDataExists(paths);
+
 	Regard3DTriangulationDialog dlg(this);
 	dlg.setPreviewGeneratorThread(&previewGeneratorThread_);
 	dlg.setComputeMatches(&project_, pComputeMatches);
 	pImageUpdatesDlg_ = &dlg;
+	bool isTriPossible = dlg.isTriangulationPossible();
+
+	if(!isTriPossible)
+	{
+		wxMessageBox(
+			wxT("Triangulation not possible.\nPlease try different matching settings or a different picture set."),
+			wxT("Triangulation not possible"),
+			wxOK | wxICON_ERROR);
+		return;
+	}
 
 	int retVal = wxID_CANCEL;
 	try
@@ -2322,9 +2379,10 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 	if(retVal == wxID_OK)
 	{
-		bool useGlobalAlgorithm = false, globalMSTBasedRot = true;
+		bool useGlobalAlgorithm = false, refineIntrinsics = true;
 		size_t initialPairA = 0, initialPairB = 0;
-		dlg.getResults(useGlobalAlgorithm, initialPairA, initialPairB, globalMSTBasedRot);
+		int rotAveraging = 2, transAveraging = 1;
+		dlg.getResults(useGlobalAlgorithm, initialPairA, initialPairB, rotAveraging, transAveraging, refineIntrinsics);
 
 		if(pR3DTriangulationThread_ != NULL)
 			delete pR3DTriangulationThread_;
@@ -2334,7 +2392,7 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 		R3DProject::Triangulation *pTriangulation = NULL;
 		int newID = project_.addTriangulation(pComputeMatches, initialPairA, initialPairB,
-			useGlobalAlgorithm, globalMSTBasedRot);
+			useGlobalAlgorithm, rotAveraging, transAveraging, refineIntrinsics);
 		if(newID >= 0)
 		{
 			project_.populateTreeControl(pProjectTreeCtrl_);
@@ -2358,7 +2416,7 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 		pR3DTriangulationThread_ = new R3DTriangulationThread();
 		pR3DTriangulationThread_->setMainFrame(this);
-		pR3DTriangulationThread_->setParameters(useGlobalAlgorithm, initialPairA, initialPairB, globalMSTBasedRot);
+		pR3DTriangulationThread_->setParameters(useGlobalAlgorithm, initialPairA, initialPairB, rotAveraging, transAveraging, refineIntrinsics);
 		pR3DTriangulationThread_->setTriangulation(&project_, pTriangulation);
 		pR3DTriangulationThread_->startTriangulationThread();
 	}
@@ -2432,6 +2490,16 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 		{
 			pDensificationProcess_ = new R3DDensificationProcess(this);
 			pDensificationProcess_->runDensificationProcess(pDensification);
+/*			pProgressDialog_->Pulse(wxT("Exporting project to MVE"));
+
+			if(pR3DSmallTasksThread_ != NULL)
+				delete pR3DSmallTasksThread_;
+
+			pR3DSmallTasksThread_ = new R3DSmallTasksThread();
+			pR3DSmallTasksThread_->setMainFrame(this);
+			pR3DSmallTasksThread_->exportOldSfM_Output(pDensification);
+
+			// The actual densification process will be started in OnSmallTaskFinished*/
 		}
 	}
 }

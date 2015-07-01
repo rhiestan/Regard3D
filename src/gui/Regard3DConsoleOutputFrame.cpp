@@ -54,10 +54,10 @@ enum
 	ID_CONSOLEOUTPUTTEXTCTRL,
 	ID_CLEARCONSOLEOUTPUTBUTTON
 };
-/*
+
 #define BUFFER_SIZE 1024
 
-#if defined(_WIN32)
+#if defined(USE_STDOUT_REDIRECT) && defined(_WIN32)
 // The following code is taken from here:
 // http://stackoverflow.com/questions/573724/how-can-i-redirect-stdout-to-some-visible-display-in-a-windows-application
 
@@ -143,24 +143,29 @@ int StdOutRedirect::GetBuffer(char *buffer, int size)
 	return nOutRead;
 }
 #endif
-*/
+
 
 Regard3DConsoleOutputFrame::Regard3DConsoleOutputFrame(wxWindow* parent)
 //	: Regard3DConsoleOutputFrameBase(parent),
 	: wxMiniFrame(parent, wxID_ANY, wxT("Console output"), wxDefaultPosition,
 		wxDefaultSize, wxCAPTION | wxRESIZE_BORDER | wxCLOSE_BOX),
+#if defined(USE_STREAM_TO_TEXT_REDIRECT)
 	pStreamToTextRedirectorStdOut_(NULL), pStreamToTextRedirectorStdErr_(NULL),
+#endif
+#if defined(USE_STDOUT_REDIRECT) && defined(_WIN32)
 	pStdOutRedirect_(NULL),
+#endif
 	aTimer_(this, ID_CONSOLE_WIN_TIMER)
 {
-/*#if defined(_WIN32)
+#if defined(USE_STDOUT_REDIRECT) && defined(_WIN32)
 	pStdOutRedirect_ = new StdOutRedirect(BUFFER_SIZE);
 	pStdOutRedirect_->Start();
 	aTimer_.Start(100);
-#else*/
-//	pStreamToTextRedirectorStdOut_ = new wxStreamToTextRedirector(pConsoleOutputTextCtrl_, &(std::cout));
-//	pStreamToTextRedirectorStdErr_ = new wxStreamToTextRedirector(pConsoleOutputTextCtrl_, &(std::cerr));
-//#endif
+#endif
+#if defined(USE_STREAM_TO_TEXT_REDIRECT)
+	pStreamToTextRedirectorStdOut_ = new wxStreamToTextRedirector(pConsoleOutputTextCtrl_, &(std::cout));
+	pStreamToTextRedirectorStdErr_ = new wxStreamToTextRedirector(pConsoleOutputTextCtrl_, &(std::cerr));
+#endif
 
 	SetSizeHints( wxDefaultSize, wxDefaultSize );
 	
@@ -201,14 +206,15 @@ Regard3DConsoleOutputFrame::Regard3DConsoleOutputFrame(wxWindow* parent)
 
 Regard3DConsoleOutputFrame::~Regard3DConsoleOutputFrame()
 {
-/*#if defined(_WIN32)
+#if defined(USE_STDOUT_REDIRECT) && defined(_WIN32)
 	if(pStdOutRedirect_ != NULL)
 		pStdOutRedirect_->Stop();
 	delete pStdOutRedirect_;
-#else*/
-//	delete pStreamToTextRedirectorStdOut_;
-//	delete pStreamToTextRedirectorStdErr_;
-//#endif
+#endif
+#if defined(USE_STREAM_TO_TEXT_REDIRECT)
+	delete pStreamToTextRedirectorStdOut_;
+	delete pStreamToTextRedirectorStdErr_;
+#endif
 
 	minilog::inst().set_locker(NULL);
 	delete pminilog_mutex_impl_wx_;
@@ -226,11 +232,12 @@ void Regard3DConsoleOutputFrame::OnClearConsoleOutputButton( wxCommandEvent& eve
 
 void Regard3DConsoleOutputFrame::OnTimer( wxTimerEvent &event )
 {
-/*	char buf[BUFFER_SIZE+1];	// Not necessarily same BUFFER_SIZE as in new StdOutRedirect(BUFFER_SIZE);
+#if defined(USE_STDOUT_REDIRECT) && defined(_WIN32)
+	char buf[BUFFER_SIZE+1];	// Not necessarily same BUFFER_SIZE as in new StdOutRedirect(BUFFER_SIZE);
 	int nOutRead = pStdOutRedirect_->GetBuffer(buf, BUFFER_SIZE);
 	if(nOutRead > 0)
-		pConsoleOutputTextCtrl_->AppendText(wxString(buf, *wxConvCurrent));*/
-
+		pConsoleOutputTextCtrl_->AppendText(wxString(buf, *wxConvCurrent));
+#endif
 	std::string str = minilog::inst().getbuf();
 	if(!str.empty())
 	{

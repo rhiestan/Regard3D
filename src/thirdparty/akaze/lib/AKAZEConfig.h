@@ -11,6 +11,15 @@
 // OpenCV
 #include <opencv2/opencv.hpp>
 
+// Defined in CMakeLists.txt
+//#define AKAZE_USE_TBB_THREADING
+//#define AKAZE_USE_OPENMP
+
+// TBB
+#ifdef AKAZE_USE_TBB_THREADING
+#	include <tbb/tbb.h>
+#endif
+
 // OpenMP
 #ifdef AKAZE_USE_OPENMP
 #include <omp.h>

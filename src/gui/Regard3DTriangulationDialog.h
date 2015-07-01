@@ -33,8 +33,11 @@ public:
 	void setPreviewGeneratorThread(PreviewGeneratorThread *pPreviewGeneratorThread);
 	void setComputeMatches(R3DProject *pProject, R3DProject::ComputeMatches *pComputeMatches);
 
+	bool isTriangulationPossible();
+
 	void getResults(bool &global, size_t &initialImageID1, size_t &initialImageID2,
-		bool &globalMSTBasedRot);
+		int &rotAveraging, int &transAveraging,
+		bool &refineIntrinsics);
 
 	virtual void OnPreviewFinished();
 	virtual void OnNewImageInfos();
@@ -69,6 +72,8 @@ private:
 	R3DProject::PictureSet *pPictureSet_;
 	R3DProjectPaths paths_;
 	PreviewInfo previewInfoMatches_;
+
+	bool isGlobalSfmAvailable_, initialImagePairListIsEmpty_;
 
 	std::vector< std::pair<size_t, size_t> > imageIDList_;
 	int ipSortColumn_, ipSortDirections_[5];

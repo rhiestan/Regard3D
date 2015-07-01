@@ -30,18 +30,15 @@ public:
 	void setMaxPixelCount(long long maxPixelCount);
 
 	void getResults(float &keypointSensitivity,
-		float &keypointMatchingRatio,
-		int &nrOfThreads);
+		float &keypointMatchingRatio);
 
 protected:
 	virtual void OnInitDialog( wxInitDialogEvent& event );
 	virtual void OnKeypointSensitivitySlider( wxScrollEvent& event );
 	virtual void OnKeypointMatchingRatioSlider( wxScrollEvent& event );
-	virtual void OnNumberOfThreadsChoice( wxCommandEvent& event );
 
 	void updateICKeypointSensitivityText();
 	void updateICKeypointMatchingRatioText();
-	void updateNumberOfThreadsText();
 
 private:
 	float keypointSensitivity_;

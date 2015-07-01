@@ -191,13 +191,19 @@ void AKAZE::Compute_Multiscale_Derivatives() {
 
   t1 = cv::getTickCount();
 
+#if defined(AKAZE_USE_TBB_THREADING)
+  tbb::parallel_for(tbb::blocked_range<int>(0, (int)(evolution_.size())),
+	  [=](const tbb::blocked_range<int>& r)				// Use lambda notation
+  {
+	  for(int i = r.begin(); i != r.end(); ++i) {
+#else
 #ifdef AKAZE_USE_OPENMP
-omp_set_num_threads(OMP_MAX_THREADS);
+//omp_set_num_threads(OMP_MAX_THREADS);
 #pragma omp parallel for
 #endif
 
   for (int i = 0; i < (int)(evolution_.size()); i++) {
-
+#endif
     float ratio = pow(2.0f,(float)evolution_[i].octave);
     int sigma_size_ = fRound(evolution_[i].esigma*options_.derivative_factor/ratio);
 
@@ -213,6 +219,9 @@ omp_set_num_threads(OMP_MAX_THREADS);
     evolution_[i].Lxy = evolution_[i].Lxy*((sigma_size_)*(sigma_size_));
     evolution_[i].Lyy = evolution_[i].Lyy*((sigma_size_)*(sigma_size_));
   }
+#if defined(AKAZE_USE_TBB_THREADING)
+  });
+#endif
 
   t2 = cv::getTickCount();
   timing_.derivatives = 1000.0*(t2-t1) / cv::getTickFrequency();

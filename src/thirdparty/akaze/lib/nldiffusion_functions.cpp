@@ -188,7 +188,7 @@ float compute_k_percentile(const cv::Mat& img, float perc, float gscale,
     nelements = nelements + hist[k];
 
   if (nelements < nthreshold)
-    kperc = 0.03;
+    kperc = 0.03f;
   else
     kperc = hmax*((float)(k)/(float)nbins);
 
@@ -211,18 +211,25 @@ void nld_step_scalar(cv::Mat& Ld, const cv::Mat& c, cv::Mat& Lstep, const float 
 //  Lstep = cv::Scalar(0);
 
   // Diffusion all the image except borders
-#ifdef AKAZE_USE_OPENMP
-  omp_set_num_threads(OMP_MAX_THREADS);
+#if defined(AKAZE_USE_TBB_THREADING)
+	tbb::parallel_for(tbb::blocked_range<int>(1, Lstep.rows-1),
+		[=, &Lstep](const tbb::blocked_range<int>& r)				// Use lambda notation
+	{
+	for(int y = r.begin(); y != r.end(); ++y) {
+#else
+#if defined(AKAZE_USE_OPENMP)
+//  omp_set_num_threads(OMP_MAX_THREADS);
 #pragma omp parallel for schedule(dynamic)
 #endif
   for (int y = 1; y < Lstep.rows-1; y++) {
+#endif
     const float* c_row = c.ptr<float>(y);
     const float* c_row_p = c.ptr<float>(y+1);
     const float* c_row_m = c.ptr<float>(y-1);
 
-    float* Ld_row = Ld.ptr<float>(y);
-    float* Ld_row_p = Ld.ptr<float>(y+1);
-    float* Ld_row_m = Ld.ptr<float>(y-1);
+    const float* Ld_row = Ld.ptr<float>(y);
+    const float* Ld_row_p = Ld.ptr<float>(y+1);
+    const float* Ld_row_m = Ld.ptr<float>(y-1);
     float* Lstep_row = Lstep.ptr<float>(y);
 
     for (int x = 1; x < Lstep.cols-1; x++) {
@@ -233,6 +240,9 @@ void nld_step_scalar(cv::Mat& Ld, const cv::Mat& c, cv::Mat& Lstep, const float 
       Lstep_row[x] = 0.5f*stepsize*(xpos-xneg + ypos-yneg);
     }
   }
+#if defined(AKAZE_USE_TBB_THREADING)
+} );
+#endif
 
   // First row
   const float* c_row = c.ptr<float>(0);

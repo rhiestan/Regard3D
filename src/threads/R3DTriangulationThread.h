@@ -24,9 +24,14 @@ class Regard3DMainFrame;
 namespace openMVG
 {
 	struct reconstructorHelper;
+	class ReconstructionEngine;
 }
 
 #include "R3DProject.h"
+
+#if !defined(R3D_USE_OPENMVG_PRE08)
+#include "openMVG/sfm/sfm_data.hpp"
+#endif
 
 class R3DTriangulationThread : public wxThread
 {
@@ -38,7 +43,9 @@ public:
 
 	void setParameters(bool global,
 		int initialPairA, int initialPairB,
-		bool globalMSTBasedRot);
+		int rotAveraging, int transAveraging,
+		bool refineIntrinsics);
+//		bool globalMSTBasedRot);
 	void setTriangulation(R3DProject *pProject, R3DProject::Triangulation *pTriangulation);
 	R3DProject::Triangulation *getTriangulation() const { return pTriangulation_; }
 
@@ -53,9 +60,13 @@ public:
 
 protected:
 	virtual wxThread::ExitCode Entry();
-
+#if defined(R3D_USE_OPENMVG_PRE08)
 	void prepareResultStrings(const openMVG::reconstructorHelper* pReconstructorHelper,
 		const std::vector<float> &residuals, size_t numImages, wxTimeSpan runTime);
+#else
+	void prepareResultStrings(const openMVG::sfm::SfM_Data &sfm_Data,
+		size_t numImages, wxTimeSpan runTime);
+#endif
 
 	void updateProgressBar(float progress, const wxString &str);
 	void sendFinishedEvent();
@@ -65,7 +76,9 @@ private:
 
 	bool global_;
 	int initialPairA_, initialPairB_;
-	bool globalMSTBasedRot_;
+	int rotAveraging_, transAveraging_;
+	bool refineIntrinsics_;
+//	bool globalMSTBasedRot_;
 
 	R3DProject *pProject_;
 	R3DProject::Triangulation *pTriangulation_;

@@ -33,6 +33,8 @@
 #endif
 
 #if defined(R3D_HAVE_TBB) && !defined(R3D_HAVE_OPENMP)
+
+#define R3D_USE_TBB_THREADING 1
 #	include <tbb/tbb.h>
 #	include <tbb/task_scheduler_init.h>
 #endif
@@ -65,7 +67,17 @@ void R3DComputeMatches::addImages(const ImageInfoVector &iiv)
 #include "openMVG/features/features.hpp"
 
 /// Generic Image Collection image matching
-#include "openMVG/matching_image_collection/Matcher_AllInMemory.hpp"
+#if defined(R3D_USE_OPENMVG_PRE08)
+#	include "openMVG/matching_image_collection/Matcher_AllInMemory.hpp"
+#else
+#	include "openMVG/matching_image_collection/Matcher_Regions_AllInMemory.hpp"
+#include "openMVG/sfm/sfm_data.hpp"
+#include "openMVG/sfm/sfm_data_io.hpp"
+#include "openMVG/sfm/pipelines/sfm_engine.hpp"
+#include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
+#include "openMVG/sfm/pipelines/sfm_regions_provider.hpp"
+#include "software/SfM/io_regions_type.hpp"
+#endif
 #include "openMVG/matching_image_collection/GeometricFilter.hpp"
 #include "openMVG/matching_image_collection/F_ACRobust.hpp"
 #include "openMVG/matching_image_collection/E_ACRobust.hpp"
@@ -114,8 +126,8 @@ bool testIntrinsicsEquality(
 
 /// Extract OpenCV features and convert them to openMVG features/descriptor data
 template <class DescriptorT, class cvFeature2DInterfaceT>
-static bool ComputeCVFeatAndDesc(const Image<unsigned char>& I,
-  std::vector<SIOPointFeature>& feats,
+static bool ComputeCVFeatAndDesc(const openMVG::image::Image<unsigned char>& I,
+  std::vector<openMVG::features::SIOPointFeature>& feats,
   std::vector<DescriptorT >& descs,
   cvFeature2DInterfaceT &detectAndDescribeClass)
 {
@@ -138,7 +150,7 @@ static bool ComputeCVFeatAndDesc(const Image<unsigned char>& I,
     for(std::vector< cv::KeyPoint >::const_iterator i_keypoint = vec_keypoints.begin();
       i_keypoint != vec_keypoints.end(); ++i_keypoint, ++cpt){
 
-      SIOPointFeature feat((*i_keypoint).pt.x, (*i_keypoint).pt.y, (*i_keypoint).size, (*i_keypoint).angle);
+      openMVG::features::SIOPointFeature feat((*i_keypoint).pt.x, (*i_keypoint).pt.y, (*i_keypoint).size, (*i_keypoint).angle);
       feats.push_back(feat);
 
       memcpy(descriptor.getData(),
@@ -156,8 +168,8 @@ void extractFeaturesAndDescriptors_r3df_nlopt(
   const std::string & sOutDir,  // Output directory where features and descriptor will be saved
   double factor = 0.5)
 {
-  Image<openMVG::RGBColor> imageRGB;
-  Image<unsigned char> imageGray;
+  openMVG::image::Image<openMVG::image::RGBColor> imageRGB;
+  openMVG::image::Image<unsigned char> imageGray;
 
   for(size_t i=0; i < vec_fileNames.size(); ++i) 
   {
@@ -192,8 +204,8 @@ void extractFeaturesAndDescriptors_SingleFile_r3df(
   const std::string & sOutDir, // Output directory where features and descriptor will be saved
   const Regard3DFeatures::R3DFParams &params)
 {
-  Image<openMVG::RGBColor> imageRGB;
-  Image<unsigned char> imageGray;
+  openMVG::image::Image<openMVG::image::RGBColor> imageRGB;
+  openMVG::image::Image<unsigned char> imageGray;
 
   Regard3DFeatures::KeypointSetR3D kpSet;
 
@@ -243,16 +255,16 @@ void extractFeaturesAndDescriptors_Parallel_r3df(
 
 
 
-typedef SIOPointFeature FeatureT_Test;
+typedef openMVG::features::SIOPointFeature FeatureT_Test;
 typedef std::vector<FeatureT_Test> FeatsT_Test;
 
-typedef Descriptor<unsigned char, 64> DescriptorT_BRISK_Test;
+typedef openMVG::features::Descriptor<unsigned char, 64> DescriptorT_BRISK_Test;
 typedef vector<DescriptorT_BRISK_Test> DescsT_BRISK_Test;
-typedef KeypointSet<FeatsT_Test, DescsT_BRISK_Test > KeypointSetT_BRISK_Test;
+typedef openMVG::features::KeypointSet<FeatsT_Test, DescsT_BRISK_Test > KeypointSetT_BRISK_Test;
 
 
-static bool ComputeCVFeatAndDesc_Test(const Image<unsigned char>& I,
-  std::vector<SIOPointFeature>& feats,
+static bool ComputeCVFeatAndDesc_Test(const openMVG::image::Image<unsigned char>& I,
+  std::vector<openMVG::features::SIOPointFeature>& feats,
   std::vector<DescriptorT_BRISK_Test >& descs)
 {
   // Convert image to OpenCV data
@@ -364,7 +376,7 @@ static bool ComputeCVFeatAndDesc_Test(const Image<unsigned char>& I,
     for(std::vector< cv::KeyPoint >::const_iterator i_keypoint = vec_keypoints.begin();
       i_keypoint != vec_keypoints.end(); ++i_keypoint, ++cpt){
 
-      SIOPointFeature feat((*i_keypoint).pt.x, (*i_keypoint).pt.y, (*i_keypoint).size, (*i_keypoint).angle);
+      openMVG::features::SIOPointFeature feat((*i_keypoint).pt.x, (*i_keypoint).pt.y, (*i_keypoint).size, (*i_keypoint).angle);
       feats.push_back(feat);
 
       memcpy(descriptor.getData(),
@@ -381,10 +393,10 @@ void extractFeaturesAndDescriptors_Test(
   const std::vector<std::string> & vec_fileNames, // input filenames
   const std::string & sOutDir)  // Output directory where features and descriptor will be saved
 {
-  typedef SIOPointFeature FeatureT;
+  typedef openMVG::features::SIOPointFeature FeatureT;
   typedef std::vector<FeatureT> FeatsT;
-  Image<openMVG::RGBColor> imageRGB;
-  Image<unsigned char> imageGray;
+  openMVG::image::Image<openMVG::image::RGBColor> imageRGB;
+  openMVG::image::Image<unsigned char> imageGray;
 
   for(size_t i=0; i < vec_fileNames.size(); ++i) 
   {
@@ -419,8 +431,8 @@ void extractFeaturesAndDescriptors_SingleFile(
   const std::string & sOutDir,  // Output directory where features and descriptor will be saved
   cvFeature2DInterfaceT &detectAndDescribeClass)
 {
-  Image<openMVG::RGBColor> imageRGB;
-  Image<unsigned char> imageGray;
+  openMVG::image::Image<openMVG::image::RGBColor> imageRGB;
+  openMVG::image::Image<unsigned char> imageGray;
 
   KeypointSetT kpSet;
 
@@ -482,8 +494,8 @@ void extractFeaturesAndDescriptors(
   cvFeature2DInterfaceT &detectAndDescribeClass)
 {
   vec_imagesSize.resize(vec_fileNames.size());
-  Image<openMVG::RGBColor> imageRGB;
-  Image<unsigned char> imageGray;
+  openMVG::image::Image<openMVG::image::RGBColor> imageRGB;
+  openMVG::image::Image<unsigned char> imageGray;
 
   C_Progress_display my_progress_bar( vec_fileNames.size() );
   for(size_t i=0; i < vec_fileNames.size(); ++i)  {
@@ -528,6 +540,7 @@ void computePutativeDescriptorMatches(
   float fDistRatio
 )
 {
+#if defined(R3D_USE_OPENMVG_PRE08)
   //---------------------------------------
   // c. Compute putative descriptor matches
   //    - L2 descriptor matching
@@ -568,6 +581,7 @@ void computePutativeDescriptorMatches(
   PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
     map_PutativesMatches,
     stlplus::create_filespec(sOutDir, "PutativeAdjacencyMatrix", "svg"));
+#endif
 }
 
 void R3DComputeMatches::setMainFrame(Regard3DMainFrame *pMainFrame)
@@ -583,6 +597,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
   std::string sOutDir(paths.relativeMatchesPath_);		//pProject->getRelativeMatchesPath());
   R3DFeatureExtractor fe = R3DFER3DF;
 
+#if defined(R3D_USE_OPENMVG_PRE08)
   // -----------------------------
   // a. List images
   // b. Compute features and descriptors
@@ -592,8 +607,8 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
   // -----------------------------
 
   // Create output dir
-  if (!stlplus::folder_exists(sOutDir))
-    stlplus::folder_create( sOutDir );
+  if(!stlplus::folder_exists(sOutDir))
+	  stlplus::folder_create(sOutDir);
 
   // Create lists.txt
   pProject->writeImageListTXT(paths);
@@ -617,102 +632,78 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
     std::cerr << "\nEmpty image list." << std::endl;
     return false;
   }
-/*
-  // Inserted by RH
-  bool firstItem = true;
-  ImageInfoVectorIterator iter = imageInfoVector_.begin();
-  while(iter != imageInfoVector_.end())
-  {
-    ImageInfo &ii = (*iter);
 
-    openMVG::SfMIO::CameraInfo camInfo;
-	camInfo.m_sImageName = std::string(ii.importedFilename_.mb_str());	// Use imported name (can safely be converted to C-string)
-    camInfo.m_intrinsicId = 0;
-    vec_camImageName.push_back(camInfo);
-
-	if(firstItem)
-	{
-		firstItem = false;
-		openMVG::SfMIO::IntrinsicCameraInfo intrinsicCamInfo;
-		intrinsicCamInfo.m_bKnownIntrinsic = true;
-		double focal = std::max ( ii.imageWidth_, ii.imageHeight_ ) * ii.focalLength_ / ii.sensorWidth_;
-		intrinsicCamInfo.m_focal = focal;
-		intrinsicCamInfo.m_sCameraMaker = ii.cameraMaker_.ToStdString();
-		intrinsicCamInfo.m_sCameraModel = ii.cameraModel_.ToStdString();
-		intrinsicCamInfo.m_w = ii.imageWidth_;
-		intrinsicCamInfo.m_h = ii.imageHeight_;
-        Mat3 K;
-        K << focal, 0, double(ii.imageWidth_) / 2.,
-             0, focal, double(ii.imageHeight_) / 2.,
-             0, 0, 1.;
-        intrinsicCamInfo.m_K = K;
-
-		vec_focalGroup.push_back(intrinsicCamInfo);
-	}
-    iter++;
-  }
-
-  
-  std::ofstream listTXT(pProject->getListsTxtFilename().c_str());	//stlplus::create_filespec( sOutDir,
-                          //                         "lists.txt" ).c_str() );
-  if ( listTXT )
-  {
-    iter = imageInfoVector_.begin();
-	while(iter != imageInfoVector_.end())
-	{
-      ImageInfo &ii = (*iter);
-	  double focal = ii.focalLength_;
-	  int width = ii.imageWidth_;
-	  int height = ii.imageHeight_;
-	  std::string sCamName = ii.cameraMaker_.ToStdString();
-	  std::string sCamModel = ii.cameraModel_.ToStdString();
-	  std::string imgFilenameBase = std::string(ii.importedFilename_.mb_str());	// Use imported name (can safely be converted to C-string)
-
-      // The camera model was found in the database so we can compute its approximated focal length
-	  double ccdw = ii.sensorWidth_;
-      focal = std::max ( width, height ) * focal / ccdw;
-      listTXT << imgFilenameBase << ";" << width << ";" << height << ";" << focal << ";" << sCamName << ";" << sCamModel << std::endl;
-	  iter++;
-    }
-  }
-  listTXT.close();*/
-  // End inserted by RH
-
-//  if (eGeometricModelToCompute == ESSENTIAL_MATRIX)
+  //  if (eGeometricModelToCompute == ESSENTIAL_MATRIX)
   if(params.computeEssentialMatrix_)
   {
-    //-- In the case of the essential matrix we check if only one K matrix is present.
-    //-- Due to the fact that the generic framework allows only one K matrix for the
-    // robust essential matrix estimation in image collection.
-    std::vector<openMVG::SfMIO::IntrinsicCameraInfo>::iterator iterF =
-    std::unique(vec_focalGroup.begin(), vec_focalGroup.end(), testIntrinsicsEquality);
-    vec_focalGroup.resize( std::distance(vec_focalGroup.begin(), iterF) );
-    if (vec_focalGroup.size() == 1) {
-      // Set all the intrinsic ID to 0
-      for (size_t i = 0; i < vec_camImageName.size(); ++i)
-        vec_camImageName[i].m_intrinsicId = 0;
-    }
-    else  {
-//      std::cerr << "There is more than one focal group in the lists.txt file." << std::endl
-//        << "Only one focal group is supported for the image collection robust essential matrix estimation." << std::endl;
-//      return false;
+	  //-- In the case of the essential matrix we check if only one K matrix is present.
+	  //-- Due to the fact that the generic framework allows only one K matrix for the
+	  // robust essential matrix estimation in image collection.
+	  std::vector<openMVG::SfMIO::IntrinsicCameraInfo>::iterator iterF =
+		  std::unique(vec_focalGroup.begin(), vec_focalGroup.end(), testIntrinsicsEquality);
+	  vec_focalGroup.resize(std::distance(vec_focalGroup.begin(), iterF));
+	  if(vec_focalGroup.size() == 1) {
+		  // Set all the intrinsic ID to 0
+		  for(size_t i = 0; i < vec_camImageName.size(); ++i)
+			  vec_camImageName[i].m_intrinsicId = 0;
+	  }
+	  else  {
+		  //      std::cerr << "There is more than one focal group in the lists.txt file." << std::endl
+		  //        << "Only one focal group is supported for the image collection robust essential matrix estimation." << std::endl;
+		  //      return false;
 
-      params.computeEssentialMatrix_ = false;
-    }
+		  params.computeEssentialMatrix_ = false;
+	  }
   }
 
   //-- Two alias to ease access to image filenames and image sizes
   std::vector<std::string> vec_fileNames;
   std::vector<std::pair<size_t, size_t> > vec_imagesSize;
-  for ( std::vector<openMVG::SfMIO::CameraInfo>::const_iterator
-    iter_camInfo = vec_camImageName.begin();
-    iter_camInfo != vec_camImageName.end();
-    iter_camInfo++ )
+  for(std::vector<openMVG::SfMIO::CameraInfo>::const_iterator
+	  iter_camInfo = vec_camImageName.begin();
+	  iter_camInfo != vec_camImageName.end();
+  iter_camInfo++)
   {
-    vec_imagesSize.push_back( std::make_pair( vec_focalGroup[iter_camInfo->m_intrinsicId].m_w,
-                                              vec_focalGroup[iter_camInfo->m_intrinsicId].m_h ) );
-    vec_fileNames.push_back( stlplus::create_filespec( sImaDirectory, iter_camInfo->m_sImageName) );
+	  vec_imagesSize.push_back(std::make_pair(vec_focalGroup[iter_camInfo->m_intrinsicId].m_w,
+		  vec_focalGroup[iter_camInfo->m_intrinsicId].m_h));
+	  vec_fileNames.push_back(stlplus::create_filespec(sImaDirectory, iter_camInfo->m_sImageName));
   }
+#else
+  std::string sSfM_Data_Filename(paths.matchesSfmDataFilename_);
+  pProject->writeSfmData(paths);
+
+  //---------------------------------------
+  // Read SfM Scene (image view & intrinsics data)
+  //---------------------------------------
+  openMVG::sfm::SfM_Data sfm_data;
+  if(!Load(sfm_data, sSfM_Data_Filename, openMVG::sfm::ESfM_Data(openMVG::sfm::VIEWS | openMVG::sfm::INTRINSICS))) {
+	  std::cerr << std::endl
+		  << "The input SfM_Data file \"" << sSfM_Data_Filename << "\" cannot be read." << std::endl;
+	  return false;	// EXIT_FAILURE;
+  }
+
+  // Build some alias from SfM_Data Views data:
+  // - List views as a vector of filenames & image sizes
+  std::vector<std::string> vec_fileNames;
+  std::vector<std::pair<size_t, size_t> > vec_imagesSize;
+  {
+    vec_fileNames.reserve(sfm_data.GetViews().size());
+    vec_imagesSize.reserve(sfm_data.GetViews().size());
+    for(openMVG::sfm::Views::const_iterator iter = sfm_data.GetViews().begin();
+      iter != sfm_data.GetViews().end();
+      ++iter)
+    {
+      const openMVG::sfm::View * v = iter->second.get();
+      vec_fileNames.push_back(stlplus::create_filespec(sfm_data.s_root_path,
+        v->s_Img_path));
+      vec_imagesSize.push_back(std::make_pair(v->ui_width, v->ui_height));
+    }
+  }
+
+  std::unique_ptr<openMVG::features::Regions> regions_type(new Regard3DFeatures::R3D_AKAZE_LIOP_Regions);
+  std::string sMatchesDirectory(paths.relativeMatchesPath_);
+#endif
+
 
   //---------------------------------------
   // b. Compute features and descriptor
@@ -776,8 +767,9 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
 #if defined(R3D_USE_TBB_THREADING)
   tbb::task_scheduler_init tbb_taskscheduler(tbb::task_scheduler_init::automatic);	// Let TBB determine number of threads
 #endif
+  Regard3DFeatures::initAKAZESemaphore(1);
 
-  typedef SIOPointFeature FeatureT;
+  typedef openMVG::features::SIOPointFeature FeatureT;
   typedef std::vector<FeatureT> FeatsT;
 
   PairWiseMatches map_PutativesMatches;
@@ -846,6 +838,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
   }
   else if(fe == R3DFEORB)
   {
+#if 0			// TODO
     // Doesn't work properly, as OpenMVG only works with float descriptors
     typedef cv::ORB cvFeature2DInterfaceT_ORB;
     typedef Descriptor<unsigned char, 32> DescriptorT_ORB;
@@ -919,30 +912,44 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
     //typedef ArrayMatcherBruteForce<DescriptorT::bin_type, MetricT> MatcherT;
     computePutativeDescriptorMatches<DescriptorT_BRISK, KeypointSetT_BRISK, MatcherT_BRISK>
 		(vec_fileNames, sOutDir, map_PutativesMatches, fDistRatio);*/
+#endif
   }
   else if(fe == R3DFER3DF)
   {
-/*	OpenMP version
-    extractFeaturesAndDescriptors_Parallel_r3df(
-	  vec_fileNames, // input filenames
-	  sOutDir,  // Output directory where features and descriptor will be saved
-	  params);
-*/
     R3DFeaturesThread::extractFeaturesAndDescriptors(vec_fileNames,
 	  sOutDir, params);
 	statistics_.numberOfKeypoints_ = R3DFeaturesThread::getNumberOfKeypoints();
 
 	updateProgress(0.7, wxT("Find putative matches"));
 
-    if(svgOutput)
-      OpenMVGHelper::exportKeypoints(vec_camImageName, vec_focalGroup, sImaDirectory, sOutDir);
+//    if(svgOutput)
+//     OpenMVGHelper::exportKeypoints(vec_camImageName, vec_focalGroup, sImaDirectory, sOutDir);
     typedef flann::L2<Regard3DFeatures::DescriptorR3D::bin_type> MetricR3D;
     typedef ArrayMatcher_Kdtree_Flann<Regard3DFeatures::DescriptorR3D::bin_type, MetricR3D> MatcherR3D;
     // Brute force matcher can be defined as following:
     //typedef L2_Vectorized<DescriptorT::bin_type> MetricT;
     //typedef ArrayMatcherBruteForce<DescriptorT::bin_type, MetricT> MatcherT;
-	computePutativeDescriptorMatches<Regard3DFeatures::DescriptorR3D, Regard3DFeatures::KeypointSetR3D, MatcherR3D>
-		(vec_fileNames, sOutDir, map_PutativesMatches, fDistRatio);
+#if defined(R3D_USE_OPENMVG_PRE08)
+    computePutativeDescriptorMatches<Regard3DFeatures::DescriptorR3D, Regard3DFeatures::KeypointSetR3D, MatcherR3D>
+      (vec_fileNames, sOutDir, map_PutativesMatches, fDistRatio);
+#else
+    std::unique_ptr<Matcher_Regions_AllInMemory> collectionMatcher(new Matcher_Regions_AllInMemory(fDistRatio, ANN_L2));
+    if(collectionMatcher->loadData(regions_type, vec_fileNames, sMatchesDirectory))
+    {
+      Pair_Set pairs = exhaustivePairs(sfm_data.GetViews().size());
+	  // Photometric matching of putative pairs
+	  collectionMatcher->Match(vec_fileNames, pairs, map_PutativesMatches);
+	  //-- Export putative matches
+	  std::ofstream file(std::string(sMatchesDirectory + "/matches.putative.txt").c_str());
+	  if(file.is_open())
+        PairedIndMatchToStream(map_PutativesMatches, file);
+      file.close();
+    }
+	//-- export putative matches Adjacency matrix
+	PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
+		map_PutativesMatches,
+		stlplus::create_filespec(sMatchesDirectory, "PutativeAdjacencyMatrix", "svg"));
+#endif
   }
 
   statistics_.putativeMatches_ = map_PutativesMatches;
@@ -954,9 +961,19 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
   //---------------------------------------
   PairWiseMatches map_GeometricMatches;
 
+  const double maxResidualError = 4.0;	// Orig: 4 (higher is more relaxed, e.g. 5.5)
+#if defined(R3D_USE_OPENMVG_PRE08)
   ImageCollectionGeometricFilter<FeatureT> collectionGeomFilter;
-  const double maxResidualError = 4;	// Orig: 4 (higher is more relaxed, e.g. 5.5)
-  if (collectionGeomFilter.loadData(vec_fileNames, sOutDir))
+  if(collectionGeomFilter.loadData(vec_fileNames, sOutDir))
+#else
+  // Load the features
+  std::shared_ptr<openMVG::sfm::Features_Provider> feats_provider = std::make_shared<openMVG::sfm::Features_Provider>();
+  if(!feats_provider->load(sfm_data, sMatchesDirectory, regions_type)) {
+    std::cerr << std::endl << "Invalid features." << std::endl;
+	return false;	// EXIT_FAILURE;
+  }
+  ImageCollectionGeometricFilter collectionGeomFilter(feats_provider.get());
+#endif
   {
     if(params.computeFundalmentalMatrix_)
     {
@@ -980,31 +997,62 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
     {
       map_GeometricMatches.clear();
       updateProgress(0.9, wxT("Calculate essential matrix"));
+#if defined(R3D_USE_OPENMVG_PRE08)
       collectionGeomFilter.Filter(
         GeometricFilter_EMatrix_AC(vec_focalGroup[0].m_K, maxResidualError),
         map_PutativesMatches,
         map_GeometricMatches,
         vec_imagesSize);
+#else
+	  // Build the intrinsic parameter map for each view
+	  std::map<IndexT, Mat3> map_K;
+	  size_t cpt = 0;
+	  for(openMVG::sfm::Views::const_iterator iter = sfm_data.GetViews().begin();
+		  iter != sfm_data.GetViews().end();
+		  ++iter, ++cpt)
+	  {
+		  const openMVG::sfm::View * v = iter->second.get();
+		  if(sfm_data.GetIntrinsics().count(v->id_intrinsic))
+		  {
+			  const IntrinsicBase * ptrIntrinsic = sfm_data.GetIntrinsics().find(v->id_intrinsic)->second.get();
+			  switch(ptrIntrinsic->getType())
+			  {
+			  case PINHOLE_CAMERA:
+			  case PINHOLE_CAMERA_RADIAL1:
+			  case PINHOLE_CAMERA_RADIAL3:
+				  const Pinhole_Intrinsic * ptrPinhole = (const Pinhole_Intrinsic*)(ptrIntrinsic);
+				  map_K[cpt] = ptrPinhole->K();
+				  break;
+			  }
+		  }
+	  }
 
-        //-- Perform an additional check to remove pairs with poor overlap
-        std::vector<PairWiseMatches::key_type> vec_toRemove;
-        for (PairWiseMatches::const_iterator iterMap = map_GeometricMatches.begin();
-          iterMap != map_GeometricMatches.end(); ++iterMap)
-        {
-          size_t putativePhotometricCount = map_PutativesMatches.find(iterMap->first)->second.size();
-          size_t putativeGeometricCount = iterMap->second.size();
-          float ratio = putativeGeometricCount / (float)putativePhotometricCount;
-          if (putativeGeometricCount < 50 || ratio < .3f)  {
-            // the pair will be removed
-            vec_toRemove.push_back(iterMap->first);
-          }
-        }
-        //-- remove discarded pairs
-        for (std::vector<PairWiseMatches::key_type>::const_iterator
-          iter =  vec_toRemove.begin(); iter != vec_toRemove.end(); ++iter)
-        {
-          map_GeometricMatches.erase(*iter);
-        }
+	  collectionGeomFilter.Filter(
+		  GeometricFilter_EMatrix_AC(map_K, maxResidualError),
+		  map_PutativesMatches,
+		  map_GeometricMatches,
+		  vec_imagesSize);
+#endif
+	  //-- Perform an additional check to remove pairs with poor overlap
+	  std::vector<PairWiseMatches::key_type> vec_toRemove;
+	  for(PairWiseMatches::const_iterator iterMap = map_GeometricMatches.begin();
+		  iterMap != map_GeometricMatches.end(); ++iterMap)
+	  {
+		  const size_t putativePhotometricCount = map_PutativesMatches.find(iterMap->first)->second.size();
+		  const size_t putativeGeometricCount = iterMap->second.size();
+		  const float ratio = putativeGeometricCount / (float)putativePhotometricCount;
+		  if(putativeGeometricCount < 50 || ratio < .3f)  {
+			  // the pair will be removed
+			  vec_toRemove.push_back(iterMap->first);
+		  }
+	  }
+	  //-- remove discarded pairs
+	  for(std::vector<PairWiseMatches::key_type>::const_iterator
+		  iter = vec_toRemove.begin(); iter != vec_toRemove.end(); ++iter)
+	  {
+		  map_GeometricMatches.erase(*iter);
+	  }
+
       //---------------------------------------
       //-- Export geometric filtered matches
       //---------------------------------------
@@ -1039,7 +1087,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
     PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
       map_GeometricMatches,
       stlplus::create_filespec(sOutDir, "GeometricAdjacencyMatrix", "svg"));
-
+/*
     if(svgOutput)
     {
       std::string sGeometricMatchesFilename;
@@ -1049,8 +1097,10 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
         sGeometricMatchesFilename =	paths.matchesEFilename_;			//pProject->getMatchesEFilename();
       OpenMVGHelper::exportMatches(vec_camImageName, vec_focalGroup,
         sImaDirectory, sOutDir, sOutDir, sGeometricMatchesFilename);
-    }
+    }*/
   }
+  Regard3DFeatures::uninitializeAKAZESemaphore();
+
   return true;
 }
 
@@ -1066,7 +1116,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
 
 
 
-
+#if 0
 #include "boost/filesystem.hpp"
 
 int R3DComputeMatches::computeMatchesOpenCV_NLOPT_step(double factor)
@@ -1263,9 +1313,19 @@ int R3DComputeMatches::computeMatchesOpenCV_NLOPT_step(double factor)
   //---------------------------------------
   PairWiseMatches map_GeometricMatches;
 
-  ImageCollectionGeometricFilter<FeatureT> collectionGeomFilter;
   const double maxResidualError = 4;	// Orig: 4 (higher is more relaxed, e.g. 5.5)
-  if (collectionGeomFilter.loadData(vec_fileNames, sOutDir))
+#if defined(R3D_USE_OPENMVG_PRE08)
+  ImageCollectionGeometricFilter<FeatureT> collectionGeomFilter;
+  if(collectionGeomFilter.loadData(vec_fileNames, sOutDir))
+#else
+  // Load the features
+  std::shared_ptr<Features_Provider> feats_provider = std::make_shared<Features_Provider>();
+  if(!feats_provider->load(sfm_data, sMatchesDirectory, regions_type)) {
+	  std::cerr << std::endl << "Invalid features." << std::endl;
+	  return false;	// EXIT_FAILURE;
+  }
+  ImageCollectionGeometricFilter collectionGeomFilter;
+#endif
   {
     MLOG << std::endl << " - GEOMETRIC FILTERING - " << std::endl;
     switch (eGeometricModelToCompute)
@@ -1448,6 +1508,7 @@ bool R3DComputeMatches::computeMatchesOpenCV_NLOPT()
 #endif
 	return true;
 }
+#endif
 
 void R3DComputeMatches::updateProgress(float progress, const wxString &msg)
 {

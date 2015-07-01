@@ -22,6 +22,20 @@
 #include <memory>
 #include <boost/locale.hpp>
 
+#if defined(R3D_HAVE_OPENMP)
+#	include <omp.h>
+#endif
+
+#if defined(R3D_HAVE_TBB)	// && !defined(R3D_HAVE_OPENMP)
+
+#define R3D_USE_TBB_THREADING 1
+#	include <tbb/tbb.h>
+#endif
+
+#undef R3D_USE_TBB_THREADING
+#undef R3D_HAVE_TBB
+#undef R3D_HAVE_OPENMP
+
 #undef R3D_HAVE_VLFEAT
 
 #if defined(R3D_HAVE_VLFEAT)
@@ -47,9 +61,68 @@ extern "C" {
 // AKAZE
 #include "AKAZE.h"
 
+
+// Helper class for locking the AKAZE semaphore (based on wxMutexLocker)
+class AKAZESemaLocker
+{
+public:
+	// lock the mutex in the ctor
+	AKAZESemaLocker()
+		: isOK_(false)
+	{
+		if(pAKAZESemaphore_ != NULL)
+			isOK_ = (pAKAZESemaphore_->Wait() == wxSEMA_NO_ERROR);
+	}
+
+	// returns true if mutex was successfully locked in ctor
+	bool IsOk() const
+	{
+		return isOK_;
+	}
+
+	// unlock the mutex in dtor
+	~AKAZESemaLocker()
+	{
+		if(IsOk() && pAKAZESemaphore_ != NULL)
+			pAKAZESemaphore_->Post();
+	}
+
+	// Initializes the semaphore with the amount of allowed simultaneous threads
+	static bool initialize(int count)
+	{
+		if(pAKAZESemaphore_ != NULL)
+			delete pAKAZESemaphore_;
+		pAKAZESemaphore_ = new wxSemaphore(count, 0);
+
+		if(pAKAZESemaphore_->IsOk())
+			return true;
+
+		delete pAKAZESemaphore_;
+		return false;
+	}
+
+	static void uninitialize()
+	{
+		if(pAKAZESemaphore_ != NULL)
+			delete pAKAZESemaphore_;
+		pAKAZESemaphore_ = NULL;
+	}
+
+private:
+	// no assignment operator nor copy ctor
+	AKAZESemaLocker(const AKAZESemaLocker&);
+	AKAZESemaLocker& operator=(const AKAZESemaLocker&);
+
+	bool     isOK_;
+	static wxSemaphore *pAKAZESemaphore_;
+};
+
+wxSemaphore *AKAZESemaLocker::pAKAZESemaphore_ = NULL;
+
+
 Regard3DFeatures::R3DFParams::R3DFParams()
 	: threshold_(0.001), nFeatures_(20000), distRatio_(0.6),
-	numberOfThreads_(1), computeHomographyMatrix_(true),
+	computeHomographyMatrix_(true),
 	computeFundalmentalMatrix_(true), computeEssentialMatrix_(true)
 {
 	keypointDetectorList_.push_back( std::string("AKAZE") );
@@ -70,7 +143,6 @@ Regard3DFeatures::R3DFParams &Regard3DFeatures::R3DFParams::copy(const Regard3DF
 	threshold_ = o.threshold_;
 	nFeatures_ = o.nFeatures_;
 	distRatio_ = o.distRatio_;
-	numberOfThreads_ = o.numberOfThreads_;
 	computeHomographyMatrix_ = o.computeHomographyMatrix_;
 	computeFundalmentalMatrix_ = o.computeFundalmentalMatrix_;
 	computeEssentialMatrix_ = o.computeEssentialMatrix_;
@@ -89,6 +161,16 @@ Regard3DFeatures::Regard3DFeatures()
 
 Regard3DFeatures::~Regard3DFeatures()
 {
+}
+
+bool Regard3DFeatures::initAKAZESemaphore(int count)
+{
+	return AKAZESemaLocker::initialize(count);
+}
+
+void Regard3DFeatures::uninitializeAKAZESemaphore()
+{
+	AKAZESemaLocker::uninitialize();
 }
 
 std::vector<std::string> Regard3DFeatures::getKeypointDetectors()
@@ -117,7 +199,7 @@ std::vector<std::string> Regard3DFeatures::getFeatureExtractors()
 	return ret;
 }
 
-void Regard3DFeatures::detectAndExtract(const Image<float> &img,
+void Regard3DFeatures::detectAndExtract(const openMVG::image::Image<float> &img,
 	Regard3DFeatures::FeatsR3D &feats, Regard3DFeatures::DescsR3D &descs,
 	const Regard3DFeatures::R3DFParams &params)
 {
@@ -136,7 +218,7 @@ void Regard3DFeatures::detectAndExtract(const Image<float> &img,
 	}
 }
 
-void Regard3DFeatures::detectAndExtract_NLOPT(const Image<unsigned char> &img,
+void Regard3DFeatures::detectAndExtract_NLOPT(const openMVG::image::Image<unsigned char> &img,
 	Regard3DFeatures::FeatsR3D &feats, Regard3DFeatures::DescsR3D &descs, double kpSizeFactorIn)
 {
 	std::vector< cv::KeyPoint > vec_keypoints;
@@ -154,12 +236,12 @@ void Regard3DFeatures::detectAndExtract_NLOPT(const Image<unsigned char> &img,
 /**
  * Detect keypoints using VLFEAT covariant feature detectors, create daisy descriptors.
  */
-void Regard3DFeatures::detectAndExtractVLFEAT_CoV_Daisy(const Image<unsigned char> &img,
+void Regard3DFeatures::detectAndExtractVLFEAT_CoV_Daisy(const openMVG::image::Image<unsigned char> &img,
 	Regard3DFeatures::FeatsR3D &feats, Regard3DFeatures::DescsR3D &descs)
 {
 #if defined(R3D_HAVE_VLFEAT)
 	// Convert image float
-	Image<float> imgFloat( img.GetMat().cast<float>() );
+	openMVG::image::Image<float> imgFloat( img.GetMat().cast<float>() );
 	int w = img.Width(), h = img.Height();
 
 	int octaveResolution = 2;
@@ -247,7 +329,7 @@ void Regard3DFeatures::detectAndExtractVLFEAT_CoV_Daisy(const Image<unsigned cha
 		daisyDescr.get_descriptor(y, x, orientation,  &(desc[0]));
 
 		// Convert to OpenMVG keypoint and descriptor
-		openMVG::SIOPointFeature fp;
+		openMVG::features::SIOPointFeature fp;
 		fp.x() = feature[i].frame.x;
 		fp.y() = feature[i].frame.y;
 		fp.scale() = static_cast<float>(scale);
@@ -271,7 +353,7 @@ void Regard3DFeatures::detectAndExtractVLFEAT_CoV_Daisy(const Image<unsigned cha
  *
  * Make sure DescriptorR3D is set to 144 floats.
  */
-void Regard3DFeatures::detectAndExtractVLFEAT_MSER_LIOP(const Image<unsigned char> &img,
+void Regard3DFeatures::detectAndExtractVLFEAT_MSER_LIOP(const openMVG::image::Image<unsigned char> &img,
 	Regard3DFeatures::FeatsR3D &feats, Regard3DFeatures::DescsR3D &descs)
 {
 	// Convert image to OpenCV data
@@ -378,7 +460,7 @@ void Regard3DFeatures::detectAndExtractVLFEAT_MSER_LIOP(const Image<unsigned cha
 			r3d_vl_liopdesc_process(liop, &(desc[0]), patchPtr);
 
 			// Convert to OpenMVG keypoint and descriptor
-			openMVG::SIOPointFeature fp;
+			openMVG::features::SIOPointFeature fp;
 			fp.x() = minx + (width/2);
 			fp.y() = miny + (height/2);
 			fp.scale() = std::sqrt(static_cast<float>(width*width + height*height)) / 2.0f;
@@ -438,7 +520,7 @@ void Regard3DFeatures::detectAndExtractVLFEAT_MSER_LIOP(const Image<unsigned cha
 			vl_liopdesc_process(liop, &(desc[0]), patchPtr);
 
 			// Convert to OpenMVG keypoint and descriptor
-			openMVG::SIOPointFeature fp;
+			openMVG::features::SIOPointFeature fp;
 			fp.x() = kp.pt.x;
 			fp.y() = kp.pt.y;
 			fp.scale() = kp.size/2.0f;		// kp.size is diameter, convert to radius
@@ -460,12 +542,12 @@ void Regard3DFeatures::detectAndExtractVLFEAT_MSER_LIOP(const Image<unsigned cha
  *
  * Make sure DescriptorR3D is set to 144 floats.
  */
-void Regard3DFeatures::detectAndExtractVLFEAT_CoV_LIOP(const Image<unsigned char> &img,
+void Regard3DFeatures::detectAndExtractVLFEAT_CoV_LIOP(const openMVG::image::Image<unsigned char> &img,
 	Regard3DFeatures::FeatsR3D &feats, Regard3DFeatures::DescsR3D &descs)
 {
 #if defined(R3D_HAVE_VLFEAT)
 	// Convert image float
-	Image<float> imgFloat( img.GetMat().cast<float>() );
+	openMVG::image::Image<float> imgFloat( img.GetMat().cast<float>() );
 	int w = img.Width(), h = img.Height();
 
 	int octaveResolution = 2;
@@ -557,7 +639,7 @@ void Regard3DFeatures::detectAndExtractVLFEAT_CoV_LIOP(const Image<unsigned char
 		r3d_vl_liopdesc_process(liop, &(desc[0]), &(patch[0]));
 
 		// Convert to OpenMVG keypoint and descriptor
-		openMVG::SIOPointFeature fp;
+		openMVG::features::SIOPointFeature fp;
 		fp.x() = feature[i].frame.x;
 		fp.y() = feature[i].frame.y;
 		fp.scale() = static_cast<float>(scale);
@@ -578,12 +660,14 @@ void Regard3DFeatures::detectAndExtractVLFEAT_CoV_LIOP(const Image<unsigned char
 }
 
 
-void Regard3DFeatures::detectKeypoints(const Image<float> &img,
+void Regard3DFeatures::detectKeypoints(const openMVG::image::Image<float> &img,
 	std::vector< cv::KeyPoint > &vec_keypoints, const std::string &fdname,
 	const Regard3DFeatures::R3DFParams &params)
 {
 	if(fdname == std::string("AKAZE"))
 	{
+		AKAZESemaLocker akazeLocker;	// Only allow one thread in this area
+
 		// Convert image to OpenCV data
 		cv::Mat cvimg;
 		cv::eigen2cv(img.GetMat(), cvimg);
@@ -604,7 +688,18 @@ void Regard3DFeatures::detectKeypoints(const Image<float> &img,
 		evolution.Create_Nonlinear_Scale_Space(cvimg);			//(img_32);
 		evolution.Feature_Detection(vec_keypoints);
 
-		for(size_t i = 0; i < vec_keypoints.size(); i++)
+#if defined(R3D_USE_TBB_THREADING)
+		tbb::parallel_for(tbb::blocked_range<size_t>(0, vec_keypoints.size()),
+			[=, &vec_keypoints](const tbb::blocked_range<size_t>& r)				// Use lambda notation
+		{
+			for(size_t i = r.begin(); i != r.end(); ++i)
+#else
+#ifdef R3D_HAVE_OPENMP
+		//omp_set_num_threads(OMP_MAX_THREADS);
+#pragma omp parallel for
+#endif
+		for(int i = 0; i < static_cast<int>(vec_keypoints.size()); i++)
+#endif
 		{
 			evolution.Compute_Main_Orientation(vec_keypoints[i]);
 			// Convert from radians to degrees
@@ -615,6 +710,9 @@ void Regard3DFeatures::detectKeypoints(const Image<float> &img,
 			while(vec_keypoints[i].angle > 360.0f)
 				vec_keypoints[i].angle -= 360.0f;
 		}
+#if defined(R3D_USE_TBB_THREADING)
+	} );
+#endif
 	}
 	else if(fdname == std::string("DOG"))		// VLFEAT
 	{
@@ -692,7 +790,7 @@ float Regard3DFeatures::getKpSizeFactor(const std::string &fdname)
 	return retVal;
 }
 
-void Regard3DFeatures::extractDaisyFeatures(const Image<unsigned char> &img, 
+void Regard3DFeatures::extractDaisyFeatures(const openMVG::image::Image<unsigned char> &img, 
 	std::vector< cv::KeyPoint > &vec_keypoints, float kpSizeFactor,
 	FeatsR3D &feats, DescsR3D &descs)
 {
@@ -751,7 +849,7 @@ void Regard3DFeatures::extractDaisyFeatures(const Image<unsigned char> &img,
 		if(extractOK)
 		{
 			// Convert to OpenMVG keypoint and descriptor
-			openMVG::SIOPointFeature fp;
+			openMVG::features::SIOPointFeature fp;
 			fp.x() = kp.pt.x;
 			fp.y() = kp.pt.y;
 			fp.scale() = kp.size/2.0f;		// kp.size is diameter, convert to radius
@@ -765,7 +863,7 @@ void Regard3DFeatures::extractDaisyFeatures(const Image<unsigned char> &img,
 	}
 }
 
-void Regard3DFeatures::extractLIOPFeatures(const Image<float> &img, 
+void Regard3DFeatures::extractLIOPFeatures(const openMVG::image::Image<float> &img, 
 	std::vector< cv::KeyPoint > &vec_keypoints, float kpSizeFactor,
 	FeatsR3D &feats, DescsR3D &descs)
 {
@@ -777,107 +875,135 @@ void Regard3DFeatures::extractLIOPFeatures(const Image<float> &img,
 	const double patchRelativeExtent = 4.0;
 	const double patchRelativeSmoothing = 1.2;
 
-//	cv::Mat img_32;
-//	cvimg.convertTo(img_32, CV_32F);	//, 1.0/255.0, 0); // Convert to float, value range 0..1
-
 	vl_size patchSize = 2*patchResolution + 1;
-	std::vector<float> patchvec(patchSize * patchSize);
 
-	// Prepare LIOP descriptor
-	VlLiopDesc * liop = r3d_vl_liopdesc_new_basic((vl_size)patchSize);
-
-	vl_size dimension = r3d_vl_liopdesc_get_dimension(liop);
-
-	assert(dimension == DescriptorR3D::static_size);	// Must be equal to the size of DescriptorR3D
-
-	// Prepare patch
-	cv::Mat patchcv;
-	patchcv.create(patchSize, patchSize, CV_32F);
-
-	std::vector<float> desc(dimension);
-	DescriptorR3D descriptor;
-	cv::Mat M(2, 3, CV_32F);	// 2x3 matrix
-	for (size_t i = 0 ; i < vec_keypoints.size() ; i++)
+#if defined(R3D_USE_TBB_THREADING)
+	tbb::mutex critSectionMutex;
+	tbb::parallel_for(tbb::blocked_range<size_t>(0, vec_keypoints.size()),
+		[=, &critSectionMutex, &vec_keypoints, &descs, &feats](const tbb::blocked_range<size_t>& r)	// Use lambda notation
+#else
+#if defined(R3D_HAVE_OPENMP)
+#pragma omp parallel
+#endif
+#endif
 	{
-		const cv::KeyPoint &kp = vec_keypoints[i];
-		float x = kp.pt.x;
-		float y = kp.pt.y;
+		// Initialisation of (in OpenMP or TBB case: per-thread) variables/structures
+		std::vector<float> patchvec(patchSize * patchSize);
+		// Prepare LIOP descriptor
+		VlLiopDesc * liop = r3d_vl_liopdesc_new_basic((vl_size)patchSize);
+		vl_size dimension = r3d_vl_liopdesc_get_dimension(liop);
+		assert(dimension == DescriptorR3D::static_size);	// Must be equal to the size of DescriptorR3D
 
-		// LIOP is rotationally invariant, so angle is not improving much
-		float angle = -90.0f-kp.angle;	// angle in degrees
-		float kpsize = kp.size;		// diameter
-		float scale = kpsize / static_cast<float>(patchSize) * kpSizeFactor;
+		std::vector<float> desc(dimension);
+		DescriptorR3D descriptor;
+		cv::Mat M(2, 3, CV_32F);	// 2x3 matrix
 
-		// Extract patch TODO: Detect corner case
-/*		cv::Mat M_rot, M, M_trans;
+		// Prepare patch
+		cv::Mat patchcv;
+		patchcv.create(patchSize, patchSize, CV_32F);
 
-		M_trans = cv::Mat::eye(3, 3, CV_64F);	// Identity matrix: rows, columns, type
-		M_trans.at<double>(0, 2) = x - static_cast<double>(patchResolution);
-		M_trans.at<double>(1, 2) = y - static_cast<double>(patchResolution);
+#if defined(R3D_USE_TBB_THREADING)
+		for(size_t i = r.begin(); i != r.end(); ++i)
+#else
+#if defined(R3D_HAVE_OPENMP)
+#pragma omp for schedule(static)
+#endif
+		for (int i = 0 ; i < static_cast<int>(vec_keypoints.size()); i++)
+#endif
+		{
+			const cv::KeyPoint &kp = vec_keypoints[i];
+			float x = kp.pt.x;
+			float y = kp.pt.y;
 
-		M_rot = cv::getRotationMatrix2D(cv::Point2f(x, y), angle, scale);
-		M_rot.resize(3, cv::Scalar(0));		// Set number of rows to 3 (-> 3x3 matrix)
-		M_rot.at<double>(2, 2) = 1.0;
+			// LIOP is rotationally invariant, so angle is not improving much
+			float angle = -90.0f-kp.angle;	// angle in degrees
+			float kpsize = kp.size;		// diameter
+			float scale = kpsize / static_cast<float>(patchSize) * kpSizeFactor;
 
-		M = M_rot * M_trans;
-		M.resize(2);		// Reduce one row to 2x3 matrix
+			// Extract patch TODO: Detect corner case
+/*			cv::Mat M_rot, M, M_trans;
+
+			M_trans = cv::Mat::eye(3, 3, CV_64F);	// Identity matrix: rows, columns, type
+			M_trans.at<double>(0, 2) = x - static_cast<double>(patchResolution);
+			M_trans.at<double>(1, 2) = y - static_cast<double>(patchResolution);
+				
+			M_rot = cv::getRotationMatrix2D(cv::Point2f(x, y), angle, scale);
+			M_rot.resize(3, cv::Scalar(0));		// Set number of rows to 3 (-> 3x3 matrix)
+			M_rot.at<double>(2, 2) = 1.0;
+
+			M = M_rot * M_trans;
+			M.resize(2);		// Reduce one row to 2x3 matrix
 */
-		float alpha = scale * std::cos( angle * CV_PI / 180.0f );
-		float beta = scale * std::sin( angle * CV_PI / 180.0f );
-		float trans_x = x - static_cast<float>(patchResolution);
-		float trans_y = y - static_cast<float>(patchResolution);
-		M.at<float>(0, 0) = alpha;
-		M.at<float>(0, 1) = beta;
-		M.at<float>(0, 2) = beta*trans_y + alpha*trans_x - beta*y + (1.0f - alpha)*x;
-		M.at<float>(1, 0) = -beta;
-		M.at<float>(1, 1) = alpha;
-		M.at<float>(1, 2) = alpha*trans_y - beta*trans_x + beta*x + (1.0f - alpha)*y;
+			float alpha = scale * std::cos( angle * CV_PI / 180.0f );
+			float beta = scale * std::sin( angle * CV_PI / 180.0f );
+			float trans_x = x - static_cast<float>(patchResolution);
+			float trans_y = y - static_cast<float>(patchResolution);
+			M.at<float>(0, 0) = alpha;
+			M.at<float>(0, 1) = beta;
+			M.at<float>(0, 2) = beta*trans_y + alpha*trans_x - beta*y + (1.0f - alpha)*x;
+			M.at<float>(1, 0) = -beta;
+			M.at<float>(1, 1) = alpha;
+			M.at<float>(1, 2) = alpha*trans_y - beta*trans_x + beta*x + (1.0f - alpha)*y;
 
-		// Extract patch, rotate and resize it to patchSize * patchSize
-		cv::warpAffine(cvimg, patchcv, M, cv::Size(patchSize, patchSize),
-			cv::INTER_LINEAR | cv::WARP_INVERSE_MAP);
+			// Extract patch, rotate and resize it to patchSize * patchSize
+			cv::warpAffine(cvimg, patchcv, M, cv::Size(patchSize, patchSize),
+				cv::INTER_LINEAR | cv::WARP_INVERSE_MAP);
 
-		// Gauss filter for smoothing (suggested by LIOP paper)
-		if(patchRelativeSmoothing > 1.0)
-			cv::GaussianBlur(patchcv, patchcv, cv::Size(0, 0), patchRelativeSmoothing);
+			// Gauss filter for smoothing (suggested by LIOP paper)
+			if(patchRelativeSmoothing > 1.0)
+				cv::GaussianBlur(patchcv, patchcv, cv::Size(0, 0), patchRelativeSmoothing);
 
-		float *patchPtr = NULL;
-		if(patchcv.isContinuous())
-		{
-			patchPtr = patchcv.ptr<float>(0);
-		}
-		else
-		{
-			patchvec.resize(patchSize*patchSize);
-			for(int i = 0; i < patchSize; i++)
+			float *patchPtr = NULL;
+			if(patchcv.isContinuous())
 			{
-				float *rowPtr = patchcv.ptr<float>(i);
-				for(int j = 0; j < patchSize; j++)
-					patchvec[i * patchSize + j] = *(rowPtr++);
+				patchPtr = patchcv.ptr<float>(0);
 			}
-			patchPtr = &(patchvec[0]);
+			else
+			{
+				patchvec.resize(patchSize*patchSize);
+				for(int i = 0; i < patchSize; i++)
+				{
+					float *rowPtr = patchcv.ptr<float>(i);
+					for(int j = 0; j < patchSize; j++)
+						patchvec[i * patchSize + j] = *(rowPtr++);
+				}
+				patchPtr = &(patchvec[0]);
+			}
+
+			// Calculate LIOP descriptor
+			r3d_vl_liopdesc_process(liop, &(desc[0]), patchPtr);
+
+			{
+				// Convert to OpenMVG keypoint and descriptor
+				openMVG::features::SIOPointFeature fp;
+				fp.x() = kp.pt.x;
+				fp.y() = kp.pt.y;
+				fp.scale() = kp.size/2.0f;		// kp.size is diameter, convert to radius
+				fp.orientation() = kp.angle;
+
+				for(int j = 0; j < dimension; j++)
+					descriptor[j] = desc[j];
+
+#if defined(R3D_USE_TBB_THREADING)
+#elif defined(USE_OPENMP)
+#pragma omp critical
+#endif
+				{
+#if defined(R3D_USE_TBB_THREADING)
+					tbb::mutex::scoped_lock lock(critSectionMutex);
+#endif
+					descs.push_back(descriptor);
+					feats.push_back(fp);
+				}
+			}
+
 		}
-
-		// Calculate LIOP descriptor
-		r3d_vl_liopdesc_process(liop, &(desc[0]), patchPtr);
-
-		{
-			// Convert to OpenMVG keypoint and descriptor
-			openMVG::SIOPointFeature fp;
-			fp.x() = kp.pt.x;
-			fp.y() = kp.pt.y;
-			fp.scale() = kp.size/2.0f;		// kp.size is diameter, convert to radius
-			fp.orientation() = kp.angle;
-
-			for(int j = 0; j < dimension; j++)
-				descriptor[j] = desc[j];
-			descs.push_back(descriptor);
-			feats.push_back(fp);
-		}
-
+		r3d_vl_liopdesc_delete(liop);
 	}
-
+#if defined(R3D_USE_TBB_THREADING)
+	);
+#endif
 	// Clean up
-	r3d_vl_liopdesc_delete(liop);
+	//r3d_vl_liopdesc_delete(liop);
 }
 

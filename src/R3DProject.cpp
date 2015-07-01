@@ -372,6 +372,12 @@ int R3DProject::clonePictureSet(R3DProject::PictureSet *pPictureSet)
 
 	PictureSet ps(*pPictureSet);	// Copy all attributes
 	ps.computeMatches_.clear();		// Clear all compute matches objects (and derivatives)
+	ImageInfoVector &iiv = ps.imageList_;
+	for(size_t i = 0; i < iiv.size(); i++)
+	{
+		iiv[i].isImported_ = false;			// Clear isImported flag
+		iiv[i].importedFilename_.Clear();
+	}
 
 	highestID_++;
 	ps.id_ = highestID_;
@@ -410,7 +416,7 @@ int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 }
 
 int R3DProject::addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
-	bool global, bool globalMSTBasedRot)
+	bool global, int rotAveraging, int transAveraging, bool refineIntrinsics)
 {
 	if(pComputeMatches == NULL)
 		return -1;
@@ -425,10 +431,14 @@ int R3DProject::addTriangulation(R3DProject::ComputeMatches *pComputeMatches, si
 	tri.id_ = highestID_;
 	tri.parentId_ = pComputeMatches->id_;
 	tri.runningId_ = runningId;
+	tri.version_ = R3DTV_0_8;
 	tri.initialImageIndexA_ = initialImageIndexA;
 	tri.initialImageIndexB_ = initialImageIndexB;
 	tri.global_ = global;
-	tri.globalMSTBasedRot_ = globalMSTBasedRot;
+	tri.globalMSTBasedRot_ = false;		// Was used for previous versions
+	tri.rotAveraging_ = rotAveraging;
+	tri.transAveraging_ = transAveraging;
+	tri.refineIntrinsics_ = refineIntrinsics;
 	tri.state_ = OSInvalid;
 	pComputeMatches->triangulations_.push_back(tri);
 
@@ -788,10 +798,15 @@ bool R3DProject::getProjectPathsCM(R3DProjectPaths &paths, R3DProject::ComputeMa
 
 	paths.relativeOutPath_.clear();		// Not needed/not known for compute matches step
 	paths.relativeSfmOutPath_.clear();	// Not needed/not known for compute matches step
+	paths.relativeTriSfmDataFilename_.clear();
 
 	wxFileName listsTxtFN(matchesPathFN);
 	listsTxtFN.SetFullName(wxT("lists.txt"));
 	paths.listsTxtFilename_ = std::string(listsTxtFN.GetFullPath().mb_str(wxConvLibc));
+
+	wxFileName matchesSfmDataFN(matchesPathFN);
+	matchesSfmDataFN.SetFullName(wxT("sfm_data.bin"));
+	paths.matchesSfmDataFilename_ = std::string(matchesSfmDataFN.GetFullPath().mb_str(wxConvLibc));
 
 	wxFileName matchesPutativeFN(matchesPathFN);
 	matchesPutativeFN.SetFullName(wxT("matches.putative.txt"));
@@ -843,6 +858,10 @@ bool R3DProject::getProjectPathsTri(R3DProjectPaths &paths, R3DProject::Triangul
 		paths.relativeOutPath_ = std::string(outPathFN.GetPath(wxPATH_GET_VOLUME).mb_str(wxConvLibc));
 	else
 		return false;
+
+	wxFileName relativeTriSfmDataFN(outPathFN);
+	relativeTriSfmDataFN.SetFullName(wxT("sfm_data.bin"));
+	paths.relativeTriSfmDataFilename_ = std::string(relativeTriSfmDataFN.GetFullPath().mb_str(wxConvLibc));
 
 	wxFileName outPathSfMFN(outPathFN);
 	outPathSfMFN.AppendDir(wxT("SfM_output"));
@@ -1032,6 +1051,171 @@ bool R3DProject::writeImageListTXT(const R3DProjectPaths &paths)
 	listTXT.close();
 
 	return true;
+}
+
+#if !defined(R3D_USE_OPENMVG_PRE08)
+#include "openMVG/sfm/sfm_data.hpp"
+#include "openMVG/sfm/sfm_data_io.hpp"
+#endif
+
+bool R3DProject::writeSfmData(const R3DProjectPaths &paths)
+{
+#if !defined(R3D_USE_OPENMVG_PRE08)
+
+	openMVG::cameras::EINTRINSIC e_User_camera_model(openMVG::cameras::PINHOLE_CAMERA_RADIAL3);		// TODO: Make configurable
+	bool b_Group_camera_model = true;							// TODO: Make configurable
+
+	openMVG::sfm::SfM_Data sfm_data;
+	sfm_data.s_root_path = paths.relativeImagePath_;
+	openMVG::sfm::Views &views = sfm_data.views;
+	openMVG::sfm::Intrinsics &intrinsics = sfm_data.intrinsics;
+
+	R3DProject::PictureSet *pPictureSet = NULL;
+	R3DProject::Object *pObject = getObjectByTypeAndID(R3DProject::R3DTreeItem::TypePictureSet, paths.pictureSetId_);
+	if(pObject != NULL)
+	{
+		pPictureSet = dynamic_cast<R3DProject::PictureSet *>(pObject);
+	}
+	if(pPictureSet == NULL)
+		return false;
+
+	ImageInfoVector::iterator iter = pPictureSet->imageList_.begin();
+	while(iter != pPictureSet->imageList_.end())
+	{
+		ImageInfo &ii = (*iter);
+		double focal = -1.0;
+		int width = ii.imageWidth_;
+		int height = ii.imageHeight_;
+		std::string sCamName = std::string(ii.cameraMaker_.mb_str());
+		std::string sCamModel = std::string(ii.cameraModel_.mb_str());
+		std::string imgFilenameBase = std::string(ii.importedFilename_.mb_str());	// Use imported name (can safely be converted to C-string)
+		double ppx = static_cast<double>(width) / 2.0;
+		double ppy = static_cast<double> (height) / 2.0;
+
+		if(ii.focalLength_ > 0 && ii.sensorWidth_ > 0)
+		{
+			// The camera model was found in the database so we can compute its approximated focal length
+			double ccdw = ii.sensorWidth_;
+			focal = std::max(width, height) * ii.focalLength_ / ccdw;
+		}
+
+		// Build intrinsic parameter related to the view
+		std::shared_ptr<openMVG::cameras::IntrinsicBase> intrinsic(NULL);
+
+		if(focal > 0 && ppx > 0 && ppy > 0 && width > 0 && height > 0)
+		{
+			// Create the desired camera type
+			switch(e_User_camera_model)
+			{
+			case openMVG::cameras::PINHOLE_CAMERA:
+				intrinsic = std::make_shared<openMVG::cameras::Pinhole_Intrinsic>
+					(width, height, focal, ppx, ppy);
+				break;
+			case openMVG::cameras::PINHOLE_CAMERA_RADIAL1:
+				intrinsic = std::make_shared<openMVG::cameras::Pinhole_Intrinsic_Radial_K1>
+					(width, height, focal, ppx, ppy, 0.0); // setup no distortion as initial guess
+				break;
+			case openMVG::cameras::PINHOLE_CAMERA_RADIAL3:
+				intrinsic = std::make_shared<openMVG::cameras::Pinhole_Intrinsic_Radial_K3>
+					(width, height, focal, ppx, ppy, 0.0, 0.0, 0.0);  // setup no distortion as initial guess
+				break;
+			default:
+				std::cout << "Unknown camera model: " << (int)e_User_camera_model << std::endl;
+			}
+		}
+
+		// Build the view corresponding to the image
+		openMVG::sfm::View v(imgFilenameBase, views.size(), views.size(), views.size(), width, height);
+
+		// Add intrinsic related to the image (if any)
+		if(intrinsic == NULL)
+		{
+			//Since the view have invalid intrinsic data
+			// (export the view, with an invalid intrinsic field value)
+			v.id_intrinsic = openMVG::UndefinedIndexT;
+		}
+		else
+		{
+			// Add the intrinsic to the sfm_container
+			intrinsics[v.id_intrinsic] = intrinsic;
+		}
+
+		// Add the view to the sfm_container
+		views[v.id_view] = std::make_shared<openMVG::sfm::View>(v);
+
+
+		iter++;
+	}
+
+	// Group camera that share common properties if desired (leads to more faster & stable BA).
+	if(b_Group_camera_model)
+	{
+		// Group camera model that share common optics camera properties
+		// They must share (camera model, image size, & camera parameters)
+		// Grouping is simplified by using a hash function over the camera intrinsic.
+
+		// Build hash & build a set of the hash in order to maintain unique Ids
+		std::set<size_t> hash_index;
+		std::vector<size_t> hash_value;
+
+		for(openMVG::sfm::Intrinsics::const_iterator iterIntrinsic = intrinsics.begin();
+			iterIntrinsic != intrinsics.end();
+			++iterIntrinsic)
+		{
+			const openMVG::cameras::IntrinsicBase * intrinsicData = iterIntrinsic->second.get();
+			const size_t hashVal = intrinsicData->hashValue();
+			hash_index.insert(hashVal);
+			hash_value.push_back(hashVal);
+		}
+
+		// From hash_value(s) compute the new index (old to new indexing)
+		openMVG::Hash_Map<openMVG::IndexT, openMVG::IndexT> old_new_reindex;
+		size_t i = 0;
+		for(openMVG::sfm::Intrinsics::const_iterator iterIntrinsic = intrinsics.begin();
+			iterIntrinsic != intrinsics.end();
+			++iterIntrinsic, ++i)
+		{
+			old_new_reindex[iterIntrinsic->first] = std::distance(hash_index.begin(), hash_index.find(hash_value[i]));
+		}
+		//--> Copy & modify Ids & replace
+		//     - for the Intrinsic params
+		//     - for the View
+		openMVG::sfm::Intrinsics intrinsic_updated;
+		for(openMVG::sfm::Intrinsics::const_iterator iterIntrinsic = intrinsics.begin();
+			iterIntrinsic != intrinsics.end();
+			++iterIntrinsic)
+		{
+			intrinsic_updated[old_new_reindex[iterIntrinsic->first]] = intrinsics[iterIntrinsic->first];
+		}
+		intrinsics.swap(intrinsic_updated); // swap camera intrinsics
+		// Update intrinsic ids
+		for(openMVG::sfm::Views::iterator iterView = views.begin();
+			iterView != views.end();
+			++iterView)
+		{
+			openMVG::sfm::View * v = iterView->second.get();
+			v->id_intrinsic = old_new_reindex[v->id_intrinsic];
+		}
+	}
+
+	// Store SfM_Data views & intrinsic data
+	if(Save(
+		sfm_data,
+		paths.matchesSfmDataFilename_.c_str(),
+		openMVG::sfm::ESfM_Data(openMVG::sfm::VIEWS | openMVG::sfm::INTRINSICS))
+		)
+		return true;
+	else
+		return false;
+#endif
+	return true;
+}
+
+void R3DProject::ensureSfmDataExists(const R3DProjectPaths &paths)
+{
+	wxFileName sfm_DataFN(wxString(paths.matchesSfmDataFilename_.c_str(), wxConvLibc));
+	if(!sfm_DataFN.FileExists())
+		writeSfmData(paths);
 }
 
 static inline bool isEqualEps(float x, float y, float eps)
@@ -1403,8 +1587,10 @@ std::string R3DProject::ComputeMatches::getBasePathname()
 }
 
 R3DProject::Triangulation::Triangulation()
-	: Object(), initialImageIndexA_(0), initialImageIndexB_(0),
-	global_(false), globalMSTBasedRot_(false), state_(R3DProject::OSInvalid)
+	: Object(), version_(R3DProject::R3DTV_0_7), initialImageIndexA_(0), initialImageIndexB_(0),
+	global_(false), globalMSTBasedRot_(false),
+	refineIntrinsics_(true), rotAveraging_(2), transAveraging_(1),
+	state_(R3DProject::OSInvalid)
 {
 }
 
@@ -1420,11 +1606,15 @@ R3DProject::Triangulation::~Triangulation()
 R3DProject::Triangulation &R3DProject::Triangulation::copy(const R3DProject::Triangulation &o)
 {
 	R3DProject::Object::copy(o);	// Call base class
+	version_ = o.version_;
 	initialImageIndexA_ = o.initialImageIndexA_;
 	initialImageIndexB_ = o.initialImageIndexB_;
 	global_ = o.global_;
 	state_ = o.state_;
 	globalMSTBasedRot_ = o.globalMSTBasedRot_;
+	refineIntrinsics_ = o.refineIntrinsics_;
+	rotAveraging_ = o.rotAveraging_;
+	transAveraging_ = o.transAveraging_;
 	resultCameras_ = o.resultCameras_;
 	resultNumberOfTracks_ = o.resultNumberOfTracks_;
 	resultResidualErrors_ = o.resultResidualErrors_;
@@ -1656,11 +1846,24 @@ void R3DProject::Triangulation::serialize(Archive & ar, const unsigned int versi
 	ar & boost::serialization::make_nvp("parentId", parentId_);
 	ar & boost::serialization::make_nvp("runningId", runningId_);
 	ar & boost::serialization::make_nvp("name", name_);
+	if(version > 0)
+		ar & boost::serialization::make_nvp("version", version_);
+	else
+	{
+		if(Archive::is_loading::value)
+			version_ = R3DProject::R3DTV_0_7;
+	}
 	ar & boost::serialization::make_nvp("initialImageIndexA", initialImageIndexA_);
 	ar & boost::serialization::make_nvp("initialImageIndexB", initialImageIndexB_);
 	ar & boost::serialization::make_nvp("global", global_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("globalMSTBasedRot", globalMSTBasedRot_);
+	if(version > 0)
+	{
+		ar & boost::serialization::make_nvp("refineIntrinsics", refineIntrinsics_);
+		ar & boost::serialization::make_nvp("rotAveraging", rotAveraging_);
+		ar & boost::serialization::make_nvp("transAveraging", transAveraging_);
+	}
 	ar & boost::serialization::make_nvp("resultCameras", resultCameras_);
 	ar & boost::serialization::make_nvp("resultNumberOfTracks", resultNumberOfTracks_);
 	ar & boost::serialization::make_nvp("resultResidualErrors", resultResidualErrors_);
@@ -1668,7 +1871,7 @@ void R3DProject::Triangulation::serialize(Archive & ar, const unsigned int versi
 	ar & boost::serialization::make_nvp("orientation", orientation_);
 	ar & boost::serialization::make_nvp("Densifications", densifications_);
 }
-//BOOST_CLASS_VERSION(R3DProject::Triangulation, 1)
+BOOST_CLASS_VERSION(R3DProject::Triangulation, 1)
 
 // Serialize ComputeMatches class
 template<class Archive>

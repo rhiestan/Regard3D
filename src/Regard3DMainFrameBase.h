@@ -629,7 +629,6 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnKeypointSensitivitySlider( wxScrollEvent& event ){ OnKeypointSensitivitySlider( event ); }
 		void _wxFB_OnKeypointMatchingRatioSlider( wxScrollEvent& event ){ OnKeypointMatchingRatioSlider( event ); }
-		void _wxFB_OnNumberOfThreadsChoice( wxCommandEvent& event ){ OnNumberOfThreadsChoice( event ); }
 		
 	
 	protected:
@@ -643,8 +642,6 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 			ID_KEYPOINTMATCHINGRATIOTEXTCTRL,
 			ID_KEYPOINTMATCHINGRATIOSLIDER,
 			ID_KEYPOINTMATCHINGRATIOVALTEXTCTRL,
-			ID_NUMBEROFTHREADSCHOICE,
-			ID_KEYPOINTSUGGESTEDNUMTHREADSSTATICTEXT,
 		};
 		
 		wxPanel* pComputeMatchesDialogPanel_;
@@ -656,10 +653,6 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		wxTextCtrl* pKeypointMatchingRatioTextCtrl_;
 		wxSlider* pKeypointMatchingRatioSlider_;
 		wxTextCtrl* pKeypointMatchingRatioValTextCtrl_;
-		wxStaticText* m_staticText4;
-		wxChoice* pNumberOfThreadsChoice_;
-		wxStaticText* pKeypointSuggestedNumThreadsStaticText_;
-		
 		wxStdDialogButtonSizer* m_sdbSizer3;
 		wxButton* m_sdbSizer3OK;
 		wxButton* m_sdbSizer3Cancel;
@@ -668,7 +661,6 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnKeypointSensitivitySlider( wxScrollEvent& event ) = 0;
 		virtual void OnKeypointMatchingRatioSlider( wxScrollEvent& event ) = 0;
-		virtual void OnNumberOfThreadsChoice( wxCommandEvent& event ) = 0;
 		
 	
 	public:
@@ -701,6 +693,7 @@ class Regard3DTriangulationDialogBase : public wxDialog
 			ID_REGARD3DTRIANGULATIONDIALOG = 1000,
 			ID_TRIANGULATIONPANEL,
 			ID_TRIANGULATIONMETHODRADIOBOX,
+			ID_TREFINECAMERAINTRINSICSCHECKBOX,
 			ID_TINCREMENTALMETHODBOXSIZER,
 			ID_INCREMENTALMETHODBOXSPLITTER,
 			ID_INCREMENTALMETHODBOXLEFTPANEL,
@@ -710,10 +703,12 @@ class Regard3DTriangulationDialogBase : public wxDialog
 			ID_TPREVIEWWITHMATCHESCHECKBOX,
 			ID_TGLOBALMETHODBOXSIZER,
 			ID_TGLOBALROTAVGMETHODRATIOBOX,
+			ID_TGLOBALTRANSLAVGMETHODRADIOBOX,
 		};
 		
 		wxPanel* pTriangulationPanel_;
 		wxRadioBox* pTriangulationMethodRadioBox_;
+		wxCheckBox* pTRefineCameraIntrinsicsCheckBox_;
 		wxStaticBoxSizer* pTIncrementalMethodBoxSizer_;
 		wxPanel* pIncrementalMethodBoxLeftPanel_;
 		wxListCtrl* pTInitialImagePairListCtrl_;
@@ -723,6 +718,7 @@ class Regard3DTriangulationDialogBase : public wxDialog
 		
 		wxStaticBoxSizer* pTGlobalMethodBoxSizer_;
 		wxRadioBox* pTGlobalRotAvgMethodRatioBox_;
+		wxRadioBox* pTGlobalTranslAvgMethodRadioBox_;
 		wxStdDialogButtonSizer* m_sdbSizer4;
 		wxButton* m_sdbSizer4OK;
 		wxButton* m_sdbSizer4Cancel;

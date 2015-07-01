@@ -44,6 +44,9 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
 #include <pcl/TextureMesh.h>
+#if PCL_VERSION_COMPARE(<, 1, 7, 2)
+#include <pcl/io/vtk_lib_io.h>
+#endif
 
 // Asset Importer Library
 #include <assimp/Importer.hpp>      // C++ importer interface
@@ -914,7 +917,11 @@ bool Regard3DModelViewHelper::loadSurfaceModelPCL(osg::ref_ptr<osg::Group> root,
 	if(loadWithTexture)
 	{
 		pcl::TextureMesh surfaceModel;
+#if PCL_VERSION_COMPARE(<, 1, 7, 2)
+		if(pcl::io::loadPolygonFileOBJ(std::string(filename.mb_str()), surfaceModel) == -1)
+#else
 		if(pcl::io::load(std::string(filename.mb_str()), surfaceModel) == -1)
+#endif
 			return false;
 
 		// Convert points from surface to pcl::PointCloud
@@ -1048,7 +1055,11 @@ bool Regard3DModelViewHelper::loadSurfaceModelPCL(osg::ref_ptr<osg::Group> root,
 	else
 	{
 		pcl::PolygonMesh surfaceModel;
+#if PCL_VERSION_COMPARE(<, 1, 7, 2)
+		if(pcl::io::loadPolygonFileOBJ(std::string(filename.mb_str()), surfaceModel) == -1)
+#else
 		if(pcl::io::load(std::string(filename.mb_str()), surfaceModel) == -1)
+#endif
 			return false;
 
 		// Convert points from surface to pcl::PointCloud

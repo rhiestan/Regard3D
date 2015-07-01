@@ -14,6 +14,10 @@
 // Caution: Is empty if R3D_HAVE_OpenBLAS_VERSION is not defined
 #define R3D_OpenBLAS_VERSION ${OpenBLAS_VERSION}
 
+#cmakedefine R3D_HAVE_OPENMVG_VERSION 1
+// Caution: Is empty if R3D_HAVE_OPENMVG_VERSION is not defined
+#define OPENMVG_VERSION ${OPENMVG_VERSION}
+
 #cmakedefine R3D_WIN32 1
 #cmakedefine R3D_MACOSX 1
 #cmakedefine R3D_LINUX 1

@@ -54,7 +54,7 @@ bool R3DFeaturesThread::extractFeaturesAndDescriptors(
 	tasks.outDir_ = wxString(sOutDir.c_str(), *wxConvCurrent);
 	tasks.params_ = params;
 
-	int numberOfThreads = params.numberOfThreads_;
+	int numberOfThreads = std::max(1, wxThread::GetCPUCount() + 1);
 	std::vector<R3DFeaturesThread*> fts;
 	for(int i = 0; i < numberOfThreads; i++)
 	{
@@ -122,7 +122,7 @@ wxString R3DFeaturesThread::getNewWorkItem()
 void R3DFeaturesThread::processWorkItem(wxString &workItem)
 {
 	//Image<unsigned char> imageGray;
-	Image<float> imageGray;
+	openMVG::image::Image<float> imageGray;
 	Regard3DFeatures::KeypointSetR3D kpSet;
 
 	wxFileName fnImage(workItem);
@@ -177,15 +177,18 @@ void R3DFeaturesThread::processWorkItem(wxString &workItem)
 			// Convert to float
 			cv::Mat cvimg_float;
 			cvimg.convertTo(cvimg_float, CV_32FC3, 1.0/255.0, 0);
+			cvimg.release();		// Dispose of memory
 
 			// Convert to gray
 			cv::Mat cvimg_gray;
 			cv::cvtColor(cvimg_float, cvimg_gray, CV_BGR2GRAY);
+			cvimg_float.release();		// Dispose of memory
 			type = cvimg_gray.type();
 			channels = cvimg_gray.channels();
 
 
-			imageGray = Eigen::Map<Image<float>::Base>(cvimg_gray.ptr<float>(0), h, w);
+			imageGray = Eigen::Map<openMVG::image::Image<float>::Base>(cvimg_gray.ptr<float>(0), h, w);
+			cvimg_gray.release();		// Dispose of memory
 			int cols2 = imageGray.cols();
 			int rows2 = imageGray.rows();
 		}

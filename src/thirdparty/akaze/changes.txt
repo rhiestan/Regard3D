@@ -1,6 +1,7 @@
 
 Changes to original AKAZE code:
 
-- Replaced all occurrences of #ifdef _OPENMP to #ifdef AKAZE_USE_OPENMP, since we don't want that AKAZE uses OpenMP internally
+- Replaced all occurrences of #ifdef _OPENMP to #ifdef AKAZE_USE_OPENMP
 - Small performance optimisations: replaced pow(x, 2) with x*x, double constants with float where applicable etc.
 - Bug fix: Initialized matrix Lt and Lstep with 0 (was uninitialized memory access)
+- Added TBB threading

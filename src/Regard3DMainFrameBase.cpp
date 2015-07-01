@@ -926,7 +926,6 @@ BEGIN_EVENT_TABLE( Regard3DComputeMatchesDialogBase, wxDialog )
 	EVT_INIT_DIALOG( Regard3DComputeMatchesDialogBase::_wxFB_OnInitDialog )
 	EVT_COMMAND_SCROLL( ID_KEYPOINTSENSITIVITYSLIDER, Regard3DComputeMatchesDialogBase::_wxFB_OnKeypointSensitivitySlider )
 	EVT_COMMAND_SCROLL( ID_KEYPOINTMATCHINGRATIOSLIDER, Regard3DComputeMatchesDialogBase::_wxFB_OnKeypointMatchingRatioSlider )
-	EVT_CHOICE( ID_NUMBEROFTHREADSCHOICE, Regard3DComputeMatchesDialogBase::_wxFB_OnNumberOfThreadsChoice )
 END_EVENT_TABLE()
 
 Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
@@ -944,7 +943,7 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	sbSizer3 = new wxStaticBoxSizer( new wxStaticBox( pComputeMatchesDialogPanel_, wxID_ANY, wxT("Image correlations parameters") ), wxVERTICAL );
 	
 	wxFlexGridSizer* fgSizer1;
-	fgSizer1 = new wxFlexGridSizer( 3, 4, 0, 0 );
+	fgSizer1 = new wxFlexGridSizer( 2, 4, 0, 0 );
 	fgSizer1->AddGrowableCol( 2 );
 	fgSizer1->SetFlexibleDirection( wxHORIZONTAL );
 	fgSizer1->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
@@ -960,6 +959,7 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	
 	pKeypointSensitivitySlider_ = new wxSlider( pComputeMatchesDialogPanel_, ID_KEYPOINTSENSITIVITYSLIDER, 1, 0, 3, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_BOTH|wxSL_HORIZONTAL );
 	pKeypointSensitivitySlider_->SetToolTip( wxT("This parameter defines how many keypoints are generated. Lower value means higher sensitivity and thus more keypoints.") );
+	pKeypointSensitivitySlider_->SetMinSize( wxSize( 200,-1 ) );
 	
 	fgSizer1->Add( pKeypointSensitivitySlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
@@ -977,27 +977,12 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	
 	pKeypointMatchingRatioSlider_ = new wxSlider( pComputeMatchesDialogPanel_, ID_KEYPOINTMATCHINGRATIOSLIDER, 1, 0, 3, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_BOTH|wxSL_HORIZONTAL );
 	pKeypointMatchingRatioSlider_->SetToolTip( wxT("Nearest Neighbor distance ratio. This parameter defines how similar two keypoints must be in relation to the next best keypoint in order to be accepted.") );
+	pKeypointMatchingRatioSlider_->SetMinSize( wxSize( 200,-1 ) );
 	
 	fgSizer1->Add( pKeypointMatchingRatioSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
 	pKeypointMatchingRatioValTextCtrl_ = new wxTextCtrl( pComputeMatchesDialogPanel_, ID_KEYPOINTMATCHINGRATIOVALTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer1->Add( pKeypointMatchingRatioValTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
-	
-	m_staticText4 = new wxStaticText( pComputeMatchesDialogPanel_, wxID_ANY, wxT("Keypoint detection threads:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticText4->Wrap( -1 );
-	fgSizer1->Add( m_staticText4, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
-	
-	wxArrayString pNumberOfThreadsChoice_Choices;
-	pNumberOfThreadsChoice_ = new wxChoice( pComputeMatchesDialogPanel_, ID_NUMBEROFTHREADSCHOICE, wxDefaultPosition, wxDefaultSize, pNumberOfThreadsChoice_Choices, 0 );
-	pNumberOfThreadsChoice_->SetSelection( 0 );
-	fgSizer1->Add( pNumberOfThreadsChoice_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
-	
-	pKeypointSuggestedNumThreadsStaticText_ = new wxStaticText( pComputeMatchesDialogPanel_, ID_KEYPOINTSUGGESTEDNUMTHREADSSTATICTEXT, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
-	pKeypointSuggestedNumThreadsStaticText_->Wrap( -1 );
-	fgSizer1->Add( pKeypointSuggestedNumThreadsStaticText_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
-	
-	
-	fgSizer1->Add( 0, 0, 1, wxEXPAND, 5 );
 	
 	sbSizer3->Add( fgSizer1, 0, wxEXPAND, 3 );
 	
@@ -1049,11 +1034,20 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	wxStaticBoxSizer* sbSizer4;
 	sbSizer4 = new wxStaticBoxSizer( new wxStaticBox( pTriangulationPanel_, wxID_ANY, wxT("Triangulation parameters") ), wxVERTICAL );
 	
+	wxBoxSizer* bSizer55;
+	bSizer55 = new wxBoxSizer( wxHORIZONTAL );
+	
 	wxString pTriangulationMethodRadioBox_Choices[] = { wxT("Incremental Structure from Motion"), wxT("Global Structure from Motion") };
 	int pTriangulationMethodRadioBox_NChoices = sizeof( pTriangulationMethodRadioBox_Choices ) / sizeof( wxString );
 	pTriangulationMethodRadioBox_ = new wxRadioBox( pTriangulationPanel_, ID_TRIANGULATIONMETHODRADIOBOX, wxT("Method"), wxDefaultPosition, wxDefaultSize, pTriangulationMethodRadioBox_NChoices, pTriangulationMethodRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
 	pTriangulationMethodRadioBox_->SetSelection( 0 );
-	sbSizer4->Add( pTriangulationMethodRadioBox_, 0, wxALL, 3 );
+	bSizer55->Add( pTriangulationMethodRadioBox_, 0, wxALL, 3 );
+	
+	pTRefineCameraIntrinsicsCheckBox_ = new wxCheckBox( pTriangulationPanel_, ID_TREFINECAMERAINTRINSICSCHECKBOX, wxT("Refine camera intrinsics"), wxDefaultPosition, wxDefaultSize, 0 );
+	pTRefineCameraIntrinsicsCheckBox_->SetValue(true); 
+	bSizer55->Add( pTRefineCameraIntrinsicsCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	sbSizer4->Add( bSizer55, 0, wxEXPAND, 5 );
 	
 	pTIncrementalMethodBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pTriangulationPanel_, ID_TINCREMENTALMETHODBOXSIZER, wxT("Initial image pair for incremental method") ), wxVERTICAL );
 	
@@ -1098,13 +1092,19 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	
 	sbSizer4->Add( pTIncrementalMethodBoxSizer_, 1, wxALL|wxEXPAND, 3 );
 	
-	pTGlobalMethodBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pTriangulationPanel_, ID_TGLOBALMETHODBOXSIZER, wxT("Global method parameters") ), wxVERTICAL );
+	pTGlobalMethodBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pTriangulationPanel_, ID_TGLOBALMETHODBOXSIZER, wxT("Global method parameters") ), wxHORIZONTAL );
 	
-	wxString pTGlobalRotAvgMethodRatioBox_Choices[] = { wxT("MST based rotation + L1 rotation averaging"), wxT("Dense L2 global rotation computation") };
+	wxString pTGlobalRotAvgMethodRatioBox_Choices[] = { wxT(" L1 rotation averaging (Chatterjee)"), wxT("L2 rotation averaging (Martinec)") };
 	int pTGlobalRotAvgMethodRatioBox_NChoices = sizeof( pTGlobalRotAvgMethodRatioBox_Choices ) / sizeof( wxString );
 	pTGlobalRotAvgMethodRatioBox_ = new wxRadioBox( pTriangulationPanel_, ID_TGLOBALROTAVGMETHODRATIOBOX, wxT("Rotation averaging method"), wxDefaultPosition, wxDefaultSize, pTGlobalRotAvgMethodRatioBox_NChoices, pTGlobalRotAvgMethodRatioBox_Choices, 1, wxRA_SPECIFY_COLS );
-	pTGlobalRotAvgMethodRatioBox_->SetSelection( 0 );
+	pTGlobalRotAvgMethodRatioBox_->SetSelection( 1 );
 	pTGlobalMethodBoxSizer_->Add( pTGlobalRotAvgMethodRatioBox_, 0, wxALL, 3 );
+	
+	wxString pTGlobalTranslAvgMethodRadioBox_Choices[] = { wxT("L1 translation averaging (Moulon)"), wxT("L2 translation averaging (Wilson)") };
+	int pTGlobalTranslAvgMethodRadioBox_NChoices = sizeof( pTGlobalTranslAvgMethodRadioBox_Choices ) / sizeof( wxString );
+	pTGlobalTranslAvgMethodRadioBox_ = new wxRadioBox( pTriangulationPanel_, ID_TGLOBALTRANSLAVGMETHODRADIOBOX, wxT("Translation averaging method"), wxDefaultPosition, wxDefaultSize, pTGlobalTranslAvgMethodRadioBox_NChoices, pTGlobalTranslAvgMethodRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
+	pTGlobalTranslAvgMethodRadioBox_->SetSelection( 0 );
+	pTGlobalMethodBoxSizer_->Add( pTGlobalTranslAvgMethodRadioBox_, 0, wxALL, 3 );
 	
 	sbSizer4->Add( pTGlobalMethodBoxSizer_, 0, wxALL|wxEXPAND, 3 );
 	

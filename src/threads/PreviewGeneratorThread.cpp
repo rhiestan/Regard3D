@@ -273,7 +273,7 @@ bool PreviewGeneratorThread::createPreview(wxImage &localPreviewImage, PreviewIn
 			// Load features from file
 			Regard3DFeatures::FeatsR3D features;
 			std::string kpfilename(previewInfo.kpFilename1_.mb_str());
-			if(openMVG::loadFeatsFromFile(kpfilename, features))
+			if(openMVG::features::loadFeatsFromFile(kpfilename, features))
 			{
 				// Convert to OpenCV keypoints
 				std::vector< cv::KeyPoint > vec_keypoints;
@@ -310,7 +310,7 @@ bool PreviewGeneratorThread::createPreview(wxImage &localPreviewImage, PreviewIn
                 std::vector< cv::KeyPoint > vec_keypoints1, vec_keypoints2;
                 Regard3DFeatures::FeatsR3D features;
                 std::string kpfilename(previewInfo.kpFilename1_.mb_str());
-                if(openMVG::loadFeatsFromFile(kpfilename, features))
+				if(openMVG::features::loadFeatsFromFile(kpfilename, features))
                 {
                     // Convert to OpenCV keypoints
                     vec_keypoints1.reserve(features.size());
@@ -322,7 +322,7 @@ bool PreviewGeneratorThread::createPreview(wxImage &localPreviewImage, PreviewIn
                 }
                 features.clear();
                 kpfilename = previewInfo.kpFilename2_.mb_str();
-                if(openMVG::loadFeatsFromFile(kpfilename, features))
+				if(openMVG::features::loadFeatsFromFile(kpfilename, features))
                 {
                     // Convert to OpenCV keypoints
                     vec_keypoints2.reserve(features.size());

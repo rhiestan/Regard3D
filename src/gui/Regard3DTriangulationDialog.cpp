@@ -36,6 +36,7 @@ Regard3DTriangulationDialog::Regard3DTriangulationDialog(wxWindow *pParent)
 	aTimer_(this, ID_R3D_TD_TIMER),
 	pPreviewGeneratorThread_(NULL),
 	pProject_(NULL), pComputeMatches_(NULL), pPictureSet_(NULL),
+	isGlobalSfmAvailable_(false), initialImagePairListIsEmpty_(false),
 	ipSortColumn_(0)
 {
 	for(int i = 0; i < 5; i++)
@@ -65,8 +66,57 @@ void Regard3DTriangulationDialog::setComputeMatches(R3DProject *pProject, R3DPro
 	pProject_->getProjectPathsCM(paths_, pComputeMatches);
 }
 
+bool Regard3DTriangulationDialog::isTriangulationPossible()
+{
+	// Check whether preconditions of incremental or global chain are met
+	bool isIncrementalTriPossible = false, isGlobalTriPossible = false;
+
+	// Incremental: At least one pair with known focal length
+	OpenMVGHelper::ImagePairList imgPairList = OpenMVGHelper::getBestValidatedPairs(paths_, paths_.matchesFFilename_, 0);
+	if(!imgPairList.empty())
+	{
+		const ImageInfoVector &imageInfoVector = pPictureSet_->imageList_;
+		for(size_t i = 0; i < imgPairList.size(); i++)
+		{
+			const OpenMVGHelper::ImagePair &imgPair = imgPairList[i];
+
+			bool focalLengthKnown1 = false, focalLengthKnown2 = false;
+			if(imageInfoVector.size() > imgPair.indexA_)
+			{
+				const ImageInfo &imageInfo = imageInfoVector[imgPair.indexA_];
+				focalLengthKnown1 = ((imageInfo.sensorWidth_ != 0)
+					&& (imageInfo.focalLength_ != 0));
+			}
+			if(imageInfoVector.size() > imgPair.indexB_)
+			{
+				const ImageInfo &imageInfo = imageInfoVector[imgPair.indexB_];
+				focalLengthKnown2 = ((imageInfo.sensorWidth_ != 0)
+					&& (imageInfo.focalLength_ != 0));
+			}
+
+			if(focalLengthKnown1 && focalLengthKnown2)
+			{
+				isIncrementalTriPossible = true;
+			}
+		}
+	}
+	else
+	{
+		isIncrementalTriPossible = false;
+	}
+	// Store for later
+	initialImagePairListIsEmpty_ = !isIncrementalTriPossible;
+
+	// Global triangulation
+	isGlobalTriPossible = OpenMVGHelper::isGlobalSfmAvailable(paths_, pPictureSet_);
+	isGlobalSfmAvailable_ = isGlobalTriPossible;	// Store for later
+
+	return (isIncrementalTriPossible || isGlobalTriPossible);
+}
+
 void Regard3DTriangulationDialog::getResults(bool &global, size_t &initialImageID1, size_t &initialImageID2,
-	bool &globalMSTBasedRot)
+	int &rotAveraging, int &transAveraging,
+	bool &refineIntrinsics)
 {
 	if(pTriangulationMethodRadioBox_->GetSelection() > 0)
 		global = true;
@@ -90,9 +140,9 @@ void Regard3DTriangulationDialog::getResults(bool &global, size_t &initialImageI
 		}
 	}
 
-	globalMSTBasedRot = true;
-	if(global && pTGlobalRotAvgMethodRatioBox_->GetSelection() > 0)
-		globalMSTBasedRot = false;
+	rotAveraging = pTGlobalRotAvgMethodRatioBox_->GetSelection() + 1;
+	transAveraging = pTGlobalTranslAvgMethodRadioBox_->GetSelection() + 1;
+	refineIntrinsics = pTRefineCameraIntrinsicsCheckBox_->GetValue();
 }
 
 void Regard3DTriangulationDialog::OnPreviewFinished()
@@ -115,6 +165,7 @@ void Regard3DTriangulationDialog::OnInitDialog( wxInitDialogEvent& event )
 {
 	updateInitialImagePairListCtrl();
 	updateTriangulationMethodChoice();
+
 	Regard3DSettings::getInstance().loadTriangulationLayoutFromConfig(this);
 	aTimer_.Start(50);
 }
@@ -127,6 +178,7 @@ void Regard3DTriangulationDialog::OnTriangulationMethodRadioBox( wxCommandEvent&
 		pTInitialImagePairListCtrl_->Enable();
 		pTPreviewWithMatchesCheckBox_->Enable();
 		pTGlobalRotAvgMethodRatioBox_->Disable();
+		pTGlobalTranslAvgMethodRadioBox_->Disable();
 	}
 	else
 	{
@@ -134,6 +186,7 @@ void Regard3DTriangulationDialog::OnTriangulationMethodRadioBox( wxCommandEvent&
 		pTInitialImagePairListCtrl_->Disable();
 		pTPreviewWithMatchesCheckBox_->Disable();
 		pTGlobalRotAvgMethodRatioBox_->Enable();
+		pTGlobalTranslAvgMethodRadioBox_->Enable();
 	}
 }
 
@@ -294,6 +347,11 @@ void Regard3DTriangulationDialog::updateInitialImagePairListCtrl()
 {
 	pTInitialImagePairListCtrl_->ClearAll();
 	imageIDList_.clear();
+
+	// This was checked before in isTriangulationPossible()
+	if(initialImagePairListIsEmpty_)
+		return;
+
 	OpenMVGHelper::ImagePairList imgPairList = OpenMVGHelper::getBestValidatedPairs(paths_, paths_.matchesFFilename_, 0);
 	if(!imgPairList.empty())
 	{
@@ -316,21 +374,23 @@ void Regard3DTriangulationDialog::updateInitialImagePairListCtrl()
 			wxFileName imageAFN(imageFilenameA);
 			wxFileName imageBFN(imageFilenameB);
 
-			bool sensorSizeKnown1 = false, sensorSizeKnown2 = false;
+			bool focalLengthKnown1 = false, focalLengthKnown2 = false;
 			if(imageInfoVector.size() > imgPair.indexA_)
 			{
 				const ImageInfo &imageInfo = imageInfoVector[imgPair.indexA_];
 				imageAFN = wxFileName(imageInfo.filename_);
-				sensorSizeKnown1 = (imageInfo.sensorWidth_ != 0);
+				focalLengthKnown1 = ((imageInfo.sensorWidth_ != 0)
+					&& (imageInfo.focalLength_ != 0));
 			}
 			if(imageInfoVector.size() > imgPair.indexB_)
 			{
 				const ImageInfo &imageInfo = imageInfoVector[imgPair.indexB_];
 				imageBFN = wxFileName(imageInfo.filename_);
-				sensorSizeKnown2 = (imageInfo.sensorWidth_ != 0);
+				focalLengthKnown2 = ((imageInfo.sensorWidth_ != 0)
+					&& (imageInfo.focalLength_ != 0));
 			}
 
-			if(sensorSizeKnown1 && sensorSizeKnown2)
+			if(focalLengthKnown1 && focalLengthKnown2)
 			{
 				pTInitialImagePairListCtrl_->InsertItem(newID, wxString::Format(wxT("%d"), imgPair.indexA_));
 				pTInitialImagePairListCtrl_->SetItem(newID, 1, imageAFN.GetFullName());
@@ -346,26 +406,29 @@ void Regard3DTriangulationDialog::updateInitialImagePairListCtrl()
 			}
 		}
 
-		int stateMask = wxLIST_STATE_SELECTED;
-		pTInitialImagePairListCtrl_->SetItemState(0, stateMask, stateMask);	// Select first item
-		pTInitialImagePairListCtrl_->SetColumnWidth(0, wxLIST_AUTOSIZE);
-		pTInitialImagePairListCtrl_->SetColumnWidth(1, wxLIST_AUTOSIZE);
-		pTInitialImagePairListCtrl_->SetColumnWidth(2, wxLIST_AUTOSIZE);
-		pTInitialImagePairListCtrl_->SetColumnWidth(3, wxLIST_AUTOSIZE);
-		pTInitialImagePairListCtrl_->SetColumnWidth(4, wxLIST_AUTOSIZE);
+		if(newID > 0)
+		{
+			int stateMask = wxLIST_STATE_SELECTED;
+			pTInitialImagePairListCtrl_->SetItemState(0, stateMask, stateMask);	// Select first item
+			pTInitialImagePairListCtrl_->SetColumnWidth(0, wxLIST_AUTOSIZE);
+			pTInitialImagePairListCtrl_->SetColumnWidth(1, wxLIST_AUTOSIZE);
+			pTInitialImagePairListCtrl_->SetColumnWidth(2, wxLIST_AUTOSIZE);
+			pTInitialImagePairListCtrl_->SetColumnWidth(3, wxLIST_AUTOSIZE);
+			pTInitialImagePairListCtrl_->SetColumnWidth(4, wxLIST_AUTOSIZE);
+		}
 	}
 }
 
 void Regard3DTriangulationDialog::updateTriangulationMethodChoice()
 {
-	bool isGlobalSfmAvailable = OpenMVGHelper::isGlobalSfmAvailable(paths_);
-	pTriangulationMethodRadioBox_->Enable(1, isGlobalSfmAvailable);
+	pTriangulationMethodRadioBox_->Enable(1, isGlobalSfmAvailable_);
 	pTriangulationMethodRadioBox_->Select(0);
 
 	// Enable controls for incremental method, disable controls for global method
 	pTInitialImagePairListCtrl_->Enable();
 	pTPreviewWithMatchesCheckBox_->Enable();
 	pTGlobalRotAvgMethodRatioBox_->Disable();
+	pTGlobalTranslAvgMethodRadioBox_->Disable();
 
 	pTriangulationPanel_->Layout();
 }

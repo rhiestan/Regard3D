@@ -135,6 +135,15 @@ void R3DSmallTasksThread::combineDenseModels(R3DProject::Densification *pDensifi
 	this->Run();
 }
 
+void R3DSmallTasksThread::exportOldSfM_Output(R3DProject::Densification *pDensification)
+{
+	type_ = R3DSmallTasksThread::STTExportOldSfM_Output;
+	pDensification_ = pDensification;
+
+	this->Create();
+	this->Run();
+}
+
 wxThread::ExitCode R3DSmallTasksThread::Entry()
 {
 	if(type_ == STTLoadModel)
@@ -172,6 +181,12 @@ wxThread::ExitCode R3DSmallTasksThread::Entry()
 	else if(type_ == STTCombineDenseModels)
 	{
 		R3DModelOperations::combineDenseModels(pDensification_, numberOfClusters_);
+	}
+	else if(type_ == STTExportOldSfM_Output)
+	{
+		R3DProjectPaths paths;
+		R3DProject::getInstance()->getProjectPathsDns(paths, pDensification_);
+		OpenMVGHelper::exportOldSfM_output(paths);
 	}
 
 	sendFinishedEvent();

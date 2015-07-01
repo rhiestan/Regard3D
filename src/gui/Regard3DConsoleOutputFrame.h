@@ -26,7 +26,12 @@ class minilog_mutex_impl_wx;
 
 #include "Regard3DMainFrameBase.h"
 
-
+#if defined(_WIN32)
+// Does not seem to work with MinGW
+//#define USE_STDOUT_REDIRECT
+#endif
+// Works, but is extremely slow
+//#define USE_STREAM_TO_TEXT_REDIRECT
 
 #include <wx/minifram.h>
 
@@ -43,9 +48,13 @@ protected:
 	virtual void OnTimer( wxTimerEvent &event );
 
 private:
+#if defined(USE_STREAM_TO_TEXT_REDIRECT)
 	wxStreamToTextRedirector *pStreamToTextRedirectorStdOut_;
 	wxStreamToTextRedirector *pStreamToTextRedirectorStdErr_;
+#endif
+#if defined(USE_STDOUT_REDIRECT) && defined(_WIN32)
 	StdOutRedirect *pStdOutRedirect_;
+#endif
 	minilog_mutex_impl_wx *pminilog_mutex_impl_wx_;
 
 	wxTimer aTimer_;

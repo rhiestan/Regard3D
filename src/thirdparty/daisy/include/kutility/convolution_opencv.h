@@ -43,8 +43,14 @@
 
 #if defined(WITH_OPENCV) && defined(WITH_OPENCV_EXTRAS)
 
-#include "cv.h"
-#include "highgui.h"
+//#include "cv.h"
+//#include "highgui.h"
+
+#include "opencv2/core/core_c.h"
+#include "opencv2/imgproc/imgproc_c.h"
+#include "opencv2/photo/photo_c.h"
+#include "opencv2/highgui/highgui_c.h"
+
 
 namespace kutility
 {

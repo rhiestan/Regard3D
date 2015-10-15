@@ -196,8 +196,10 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 		if(rotAveraging_ == 1)
 			iRotationAveragingMethod = openMVG::sfm::ROTATION_AVERAGING_L1;
 		int iTranslationAveragingMethod = openMVG::sfm::TRANSLATION_AVERAGING_L1;
-		if(transAveraging_ == 1)
-			iTranslationAveragingMethod = openMVG::sfm::TRANSLATION_AVERAGING_L2;
+		if(transAveraging_ == 2)
+			iTranslationAveragingMethod = openMVG::sfm::TRANSLATION_AVERAGING_L2_DISTANCE_CHORDAL;
+		else if(transAveraging_ == 3)
+			iTranslationAveragingMethod = openMVG::sfm::TRANSLATION_AVERAGING_SOFTL1;
 		bool bRefineIntrinsics = refineIntrinsics_;
 		std::string sSfM_Data_Filename(paths_.matchesSfmDataFilename_);
 

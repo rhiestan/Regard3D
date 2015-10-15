@@ -868,7 +868,7 @@ bool R3DProject::getProjectPathsTri(R3DProjectPaths &paths, R3DProject::Triangul
 	paths.relativeSfmOutPath_ = std::string(outPathSfMFN.GetPath(wxPATH_GET_VOLUME).mb_str(wxConvLibc));
 
 	wxFileName outPathMVESceneDirFN(outPathFN);
-	outPathMVESceneDirFN.AppendDir(wxT("MVE_SCENE_DIR"));
+	outPathMVESceneDirFN.AppendDir(wxT("MVE2_SCENE_DIR"));
 	paths.relativeMVESceneDir_  = std::string(outPathMVESceneDirFN.GetPath(wxPATH_GET_VOLUME).mb_str(wxConvLibc));
 
 	return true;

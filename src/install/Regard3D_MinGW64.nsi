@@ -97,9 +97,7 @@ Section "Main program" Section_Main
 	WriteRegStr HKCU "Software\hiesti.ch\Regard3D" "" $INSTDIR
 
 	; Put files there
-	File ..\..\build_mingw64_492_msys\Regard3D.exe
-	File /nonfatal ..\..\build_mingw64_492_msys\*omp*.dll
-	File /nonfatal ..\..\build_mingw64_492_msys\*pthread*.dll
+	File ..\..\build_mingw64_492_09_msys\Regard3D.exe
 	WriteUninstaller "$INSTDIR\Uninstall.exe"
 
 	SetOutPath $INSTDIR\poisson

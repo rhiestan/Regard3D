@@ -493,10 +493,10 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadSurfaceModel(const wxString
 	wxFileName fn(filename);
 
 	bool isOK = false;
-	if(fn.GetExt().IsSameAs(wxT("obj"), false))
+//	if(fn.GetExt().IsSameAs(wxT("obj"), false))
 		isOK = loadSurfaceModelAssImp(root, filename, false);
-	else
-		isOK = loadSurfaceModelOSG(root, filename, false);
+//	else
+//		isOK = loadSurfaceModelOSG(root, filename, false);
 //	isOK = loadSurfaceModelPCL(root, filename, false);
 
 	osg::Node *pRotSphereNode = createRotationSphere();

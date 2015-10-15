@@ -1100,10 +1100,10 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	pTGlobalRotAvgMethodRatioBox_->SetSelection( 1 );
 	pTGlobalMethodBoxSizer_->Add( pTGlobalRotAvgMethodRatioBox_, 0, wxALL, 3 );
 	
-	wxString pTGlobalTranslAvgMethodRadioBox_Choices[] = { wxT("L1 translation averaging (Moulon)"), wxT("L2 translation averaging (Wilson)") };
+	wxString pTGlobalTranslAvgMethodRadioBox_Choices[] = { wxT("L1 minimization"), wxT("L2 minimization of sum of squared Chordal distances"), wxT("SoftL1 minimization") };
 	int pTGlobalTranslAvgMethodRadioBox_NChoices = sizeof( pTGlobalTranslAvgMethodRadioBox_Choices ) / sizeof( wxString );
 	pTGlobalTranslAvgMethodRadioBox_ = new wxRadioBox( pTriangulationPanel_, ID_TGLOBALTRANSLAVGMETHODRADIOBOX, wxT("Translation averaging method"), wxDefaultPosition, wxDefaultSize, pTGlobalTranslAvgMethodRadioBox_NChoices, pTGlobalTranslAvgMethodRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
-	pTGlobalTranslAvgMethodRadioBox_->SetSelection( 0 );
+	pTGlobalTranslAvgMethodRadioBox_->SetSelection( 2 );
 	pTGlobalMethodBoxSizer_->Add( pTGlobalTranslAvgMethodRadioBox_, 0, wxALL, 3 );
 	
 	sbSizer4->Add( pTGlobalMethodBoxSizer_, 0, wxALL|wxEXPAND, 3 );

@@ -76,13 +76,13 @@ void R3DComputeMatches::addImages(const ImageInfoVector &iiv)
 #include "openMVG/sfm/pipelines/sfm_engine.hpp"
 #include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
 #include "openMVG/sfm/pipelines/sfm_regions_provider.hpp"
-#include "software/SfM/io_regions_type.hpp"
+//#include "software/SfM/io_regions_type.hpp"
 #endif
 #include "openMVG/matching_image_collection/GeometricFilter.hpp"
 #include "openMVG/matching_image_collection/F_ACRobust.hpp"
 #include "openMVG/matching_image_collection/E_ACRobust.hpp"
 #include "openMVG/matching_image_collection/H_ACRobust.hpp"
-#include "software/SfM/pairwiseAdjacencyDisplay.hpp"
+#include "openMVG/matching/pairwiseAdjacencyDisplay.hpp"
 #include "software/SfM/SfMIOHelper.hpp"
 #include "openMVG/matching/matcher_brute_force.hpp"
 #include "openMVG/matching/matcher_kdtree_flann.hpp"
@@ -104,8 +104,11 @@ void R3DComputeMatches::addImages(const ImageInfoVector &iiv)
 #endif
 
 using namespace openMVG;
+using namespace openMVG::cameras;
 using namespace openMVG::matching;
 using namespace openMVG::robust;
+using namespace openMVG::sfm;
+using namespace openMVG::matching_image_collection;
 using namespace std;
 
 enum eGeometricModel
@@ -274,9 +277,9 @@ static bool ComputeCVFeatAndDesc_Test(const openMVG::image::Image<unsigned char>
   std::vector< cv::KeyPoint > vec_keypoints;
   cv::Mat m_desc;
 
-  cv::Ptr<cv::FeatureDetector> fd(cv::FeatureDetector::create(std::string("ORB")));
+  cv::Ptr<cv::FeatureDetector> fd(cv::ORB::create());
   fd->detect(img, vec_keypoints);
-
+/*
   {
     std::vector<std::string> parameters;
 	fd->getParams(parameters);
@@ -312,19 +315,19 @@ static bool ComputeCVFeatAndDesc_Test(const openMVG::image::Image<unsigned char>
             break;
         }
 	}
-  }
+  }*/
 
 
 
 
 
   //detectAndDescribeClass(img, cv::Mat(), vec_keypoints, m_desc);
-  cv::Ptr<cv::DescriptorExtractor> de(cv::DescriptorExtractor::create(std::string("BRISK")));
+  cv::Ptr<cv::DescriptorExtractor> de(cv::BRISK::create());
   int descrSize = de->descriptorSize();
   int descrType = de->descriptorType();
 
 
-  {
+  /*{
     std::vector<std::string> parameters;
 	de->getParams(parameters);
 
@@ -359,7 +362,7 @@ static bool ComputeCVFeatAndDesc_Test(const openMVG::image::Image<unsigned char>
             break;
         }
 	}
-  }
+  }*/
 
 
 
@@ -702,6 +705,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
 
   std::unique_ptr<openMVG::features::Regions> regions_type(new Regard3DFeatures::R3D_AKAZE_LIOP_Regions);
   std::string sMatchesDirectory(paths.relativeMatchesPath_);
+  std::shared_ptr<Regions_Provider> regions_provider = std::make_shared<Regions_Provider>();
 #endif
 
 
@@ -934,11 +938,13 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
       (vec_fileNames, sOutDir, map_PutativesMatches, fDistRatio);
 #else
     std::unique_ptr<Matcher_Regions_AllInMemory> collectionMatcher(new Matcher_Regions_AllInMemory(fDistRatio, ANN_L2));
-    if(collectionMatcher->loadData(regions_type, vec_fileNames, sMatchesDirectory))
+	if(regions_provider->load(sfm_data, sMatchesDirectory, regions_type))
+    //if(collectionMatcher->loadData(regions_type, vec_fileNames, sMatchesDirectory))
     {
       Pair_Set pairs = exhaustivePairs(sfm_data.GetViews().size());
 	  // Photometric matching of putative pairs
-	  collectionMatcher->Match(vec_fileNames, pairs, map_PutativesMatches);
+	  //collectionMatcher->Match(vec_fileNames, pairs, map_PutativesMatches);
+	  collectionMatcher->Match(sfm_data, regions_provider, pairs, map_PutativesMatches);
 	  //-- Export putative matches
 	  std::ofstream file(std::string(sMatchesDirectory + "/matches.putative.txt").c_str());
 	  if(file.is_open())
@@ -972,18 +978,24 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
     std::cerr << std::endl << "Invalid features." << std::endl;
 	return false;	// EXIT_FAILURE;
   }
-  ImageCollectionGeometricFilter collectionGeomFilter(feats_provider.get());
+  ImageCollectionGeometricFilter collectionGeomFilter(&sfm_data, regions_provider);
+  int imax_iteration = 2048;
+  bool bGuided_matching = false;
 #endif
   {
     if(params.computeFundalmentalMatrix_)
     {
       map_GeometricMatches.clear();
       updateProgress(0.8, wxT("Calculate fundamental matrix"));
-      collectionGeomFilter.Filter(
-        GeometricFilter_FMatrix_AC(maxResidualError),
-        map_PutativesMatches,
-        map_GeometricMatches,
-        vec_imagesSize);
+//      collectionGeomFilter.Filter(
+//        GeometricFilter_FMatrix_AC(maxResidualError),
+//        map_PutativesMatches,
+//        map_GeometricMatches,
+//        vec_imagesSize);
+	  collectionGeomFilter.Robust_model_estimation(GeometricFilter_FMatrix_AC(4.0, imax_iteration),
+		  map_PutativesMatches, bGuided_matching);
+	  map_GeometricMatches = collectionGeomFilter.Get_geometric_matches();
+
       //---------------------------------------
       //-- Export geometric filtered matches
       //---------------------------------------
@@ -1004,7 +1016,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
         map_GeometricMatches,
         vec_imagesSize);
 #else
-	  // Build the intrinsic parameter map for each view
+/*	  // Build the intrinsic parameter map for each view
 	  std::map<IndexT, Mat3> map_K;
 	  size_t cpt = 0;
 	  for(openMVG::sfm::Views::const_iterator iter = sfm_data.GetViews().begin();
@@ -1031,7 +1043,10 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
 		  GeometricFilter_EMatrix_AC(map_K, maxResidualError),
 		  map_PutativesMatches,
 		  map_GeometricMatches,
-		  vec_imagesSize);
+		  vec_imagesSize);*/
+	  collectionGeomFilter.Robust_model_estimation(GeometricFilter_EMatrix_AC(4.0, imax_iteration),
+		  map_PutativesMatches, bGuided_matching);
+	  map_GeometricMatches = collectionGeomFilter.Get_geometric_matches();
 #endif
 	  //-- Perform an additional check to remove pairs with poor overlap
 	  std::vector<PairWiseMatches::key_type> vec_toRemove;
@@ -1066,11 +1081,17 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
     {
       map_GeometricMatches.clear();
       updateProgress(0.95, wxT("Calculate homography matrix"));
-      collectionGeomFilter.Filter(
+/*      collectionGeomFilter.Filter(
         GeometricFilter_HMatrix_AC(maxResidualError),
         map_PutativesMatches,
         map_GeometricMatches,
-        vec_imagesSize);
+        vec_imagesSize);*/
+	  const bool bGeometric_only_guided_matching = true;
+	  collectionGeomFilter.Robust_model_estimation(GeometricFilter_HMatrix_AC(4.0, imax_iteration),
+		  map_PutativesMatches, bGuided_matching,
+		  bGeometric_only_guided_matching ? -1.0 : 0.6);
+	  map_GeometricMatches = collectionGeomFilter.Get_geometric_matches();
+
       //---------------------------------------
       //-- Export geometric filtered matches
       //---------------------------------------

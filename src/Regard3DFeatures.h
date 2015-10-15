@@ -57,7 +57,7 @@ public:
 
 		std::vector<std::string> keypointDetectorList_;
 		float threshold_;	// AKAZE, DoG, BRISK (int)
-		int nFeatures_;		// GFTT, HARRIS, ORB
+		int nFeatures_;		// GFTT, ORB
 
 		float distRatio_;	// Nearest Neighbor distance ratio
 

@@ -106,7 +106,6 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 	{
 		wxString poissonReconExe = R3DExternalPrograms::getInstance().getPoissonReconPath();
 		wxString surfaceTrimmerExe = R3DExternalPrograms::getInstance().getSurfaceTrimmerPath();
-		wxString makesceneExe = R3DExternalPrograms::getInstance().getMakescenePath();
 		wxString texreconExe = R3DExternalPrograms::getInstance().getTexReconPath();
 
 		wxString poissonReconCmd = poissonReconExe + wxT(" --in ") + wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc)
@@ -134,14 +133,6 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 
 		if(pSurface->colorizationType_ == R3DProject::CTTextures)
 		{
-			if(!wxFileName::DirExists(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc)))
-			{
-				// Make MVE scene
-				cmds_.Add(makesceneExe + wxT(" ") + wxString(paths.relativeSfmOutPath_.c_str(), wxConvLibc)
-					+ wxT(" ") + wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc));
-				progressTexts_.Add(wxT("Exporting scene to MVE"));
-			}
-
 			wxFileName surfaceFN(relativeSurfacePath, surfaceFilename);
 			relativeSurfaceFilename = surfaceFN.GetFullPath();
 
@@ -150,17 +141,8 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 	}
 	else if(pSurface->surfaceType_ == R3DProject::STFSSRecon)
 	{
-		wxString makesceneExe = R3DExternalPrograms::getInstance().getMakescenePath();
 		wxString fssReconExe = R3DExternalPrograms::getInstance().getFSSReconPath();
 		wxString meshcleanExe = R3DExternalPrograms::getInstance().getMeshCleanPath();
-
-		if(!wxFileName::DirExists(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc)))
-		{
-			// Make MVE scene
-			cmds_.Add(makesceneExe + wxT(" ") + wxString(paths.relativeSfmOutPath_.c_str(), wxConvLibc)
-				+ wxT(" ") + wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc));
-			progressTexts_.Add(wxT("Exporting scene to MVE"));
-		}
 
 		wxString surfaceModelName(wxT("surface_model.ply"));
 		wxString cleanedSurfaceModelName(wxT("surface_clean_model.ply"));

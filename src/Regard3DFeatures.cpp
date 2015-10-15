@@ -54,6 +54,7 @@ extern "C" {
 // OpenCV Includes
 #include "opencv2/core/eigen.hpp" //To Convert Eigen matrix to cv matrix
 #include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/features2d.hpp"
 
 // Daisy
 #include "daisy/daisy.h"
@@ -181,7 +182,6 @@ std::vector<std::string> Regard3DFeatures::getKeypointDetectors()
 	ret.push_back( std::string( "ORB" ) );			// OpenCV
 	ret.push_back( std::string( "BRISK" ) );		// OpenCV
 	ret.push_back( std::string( "GFTT" ) );			// OpenCV
-	ret.push_back( std::string( "HARRIS" ) );		// OpenCV
 #if defined(R3D_HAVE_VLFEAT)
 	ret.push_back( std::string( "DOG" ) );			// VLFEAT
 #endif
@@ -377,8 +377,9 @@ void Regard3DFeatures::detectAndExtractVLFEAT_MSER_LIOP(const openMVG::image::Im
 	fd->detect(cvimg, vec_keypoints);
 */
 	std::vector<std::vector<cv::Point> > contours;
-	cv::MSER mser;	//(5, 3, maxArea, 0.25, 0.2);
-	mser(cvimg, contours);
+	std::vector<cv::Rect> bboxes;
+	cv::Ptr<cv::MSER> mser = cv::MSER::create();	//(5, 3, maxArea, 0.25, 0.2);
+	mser->detectRegions(cvimg, contours, bboxes);
 
 	double expandPatchFactor = 2.0;		// This expands the extracted patch around the found MSER. Seems to help...
 	int patchResolution = 20;
@@ -725,12 +726,14 @@ void Regard3DFeatures::detectKeypoints(const openMVG::image::Image<float> &img,
 
 		// Convert string to C locale
 //		std::string fdname_cloc = boost::locale::conv::from_utf(fdname, "C");
-		cv::Ptr<cv::FeatureDetector> fd(cv::FeatureDetector::create(fdname));
+		//cv::Ptr<cv::FeatureDetector> fd(cv::FeatureDetector::create(fdname));
+		cv::Ptr<cv::FeatureDetector> fd;
 
-		assert(!fd.empty());
+		//assert(!fd.empty());
 
 		if(fdname == std::string( "MSER" ))
 		{
+			fd = cv::MSER::create();
 			/*int nrPixels = img.Width() * img.Height();
 			int maxArea = static_cast<int>(nrPixels * 0.75);
 			fd->setInt("delta", 5);
@@ -741,19 +744,18 @@ void Regard3DFeatures::detectKeypoints(const openMVG::image::Image<float> &img,
 		}
 		else if(fdname == std::string( "ORB" ))
 		{
-			fd->setInt("nFeatures", params.nFeatures_);
+//			fd->setInt("nFeatures", params.nFeatures_);
+			fd = cv::ORB::create(params.nFeatures_);
 		}
 		else if(fdname == std::string( "BRISK" ))
 		{
 //			fd->setInt("thres", static_cast<int>(params.threshold_));
+			fd = cv::BRISK::create();
 		}
 		else if(fdname == std::string( "GFTT" ))
 		{
-			fd->setInt("nfeatures", params.nFeatures_);
-		}
-		else if(fdname == std::string( "HARRIS" ))
-		{
-			fd->setInt("nfeatures", params.nFeatures_);
+			//fd->setInt("nfeatures", params.nFeatures_);
+			fd = cv::GFTTDetector::create(params.nFeatures_);
 		}
 //	fd->setDouble("edgeThreshold", 0.01);	// for SIFT
 

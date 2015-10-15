@@ -205,7 +205,7 @@ Regard3DMainFrame::Regard3DMainFrame(wxWindow* parent)
 
 	pMainFrameToolBar_->AddTool( ID_NEWPROJECTTOOL, wxT("New project"), documentNewBitmap, wxNullBitmap, wxITEM_NORMAL, wxT("Create new project..."), wxT("Create new project...") );
 	pMainFrameToolBar_->AddTool( ID_OPENPROJECTTOOL, wxT("Open project"), documentOpenBitmap, wxNullBitmap, wxITEM_NORMAL, wxT("Open project..."), wxT("Open project...") ); 
-//	pMainFrameToolBar_->AddTool( ID_TEMP_DEV_TOOL, wxT("Dev tool"), documentOpenBitmap, wxNullBitmap, wxITEM_NORMAL, wxT("Dev tool"), wxT("Dev tool") ); 
+	//pMainFrameToolBar_->AddTool( ID_TEMP_DEV_TOOL, wxT("Dev tool"), documentOpenBitmap, wxNullBitmap, wxITEM_NORMAL, wxT("Dev tool"), wxT("Dev tool") ); 
 
 	pMainFrameToolBar_->Realize();
 
@@ -1119,8 +1119,31 @@ void Regard3DMainFrame::OnResetViewButton( wxCommandEvent& event )
 #include <osgDB/ReadFile>
 #include <osgUtil/Optimizer>
 */
+
+#include "openMVG/sfm/sfm_data.hpp"
+#include "openMVG/sfm/sfm_data_io.hpp"
+
 void Regard3DMainFrame::OnTempDevToolClicked( wxCommandEvent& event )
 {
+
+	wxTreeItemId selId = pProjectTreeCtrl_->GetSelection();
+	R3DProject::Triangulation *pTriangulation = getSpecializedProjectItem<R3DProject::Triangulation>(selId,
+		R3DProject::R3DTreeItem::TypeTriangulation);
+	if(pTriangulation == NULL)
+		return;
+
+	R3DProjectPaths paths;
+	project_.getProjectPathsTri(paths, pTriangulation);
+
+
+	wxString outDir(paths.relativeMVESceneDir_.c_str(), *wxConvCurrent);
+	outDir.Append(wxT("2"));
+	openMVG::sfm::SfM_Data sfm_data;
+	if(openMVG::sfm::Load(sfm_data, paths.relativeTriSfmDataFilename_, openMVG::sfm::ESfM_Data(openMVG::sfm::ALL)))
+	{
+		bool isOK = OpenMVGHelper::exportToMVE2Format(sfm_data, outDir);
+	}
+
 /*	wxArrayString strings;
 	strings.Add(wxT("str1"));
 	strings.Add(wxT("str2"));
@@ -1423,7 +1446,7 @@ void Regard3DMainFrame::OnSurfaceGenFinished( wxCommandEvent &event )
 	}
 }
 
-void Regard3DMainFrame::OnSmallTaskFinished( wxCommandEvent &event )
+void Regard3DMainFrame::OnSmallTaskFinished(wxCommandEvent &event)
 {
 	if(pR3DSmallTasksThread_ == NULL)
 		return;
@@ -1432,7 +1455,7 @@ void Regard3DMainFrame::OnSmallTaskFinished( wxCommandEvent &event )
 	R3DProject::Surface *pSurface = NULL;	// Special case, see below STTColorizeSurface
 	R3DProject::Densification *pDensification = NULL;	// Dito, see STTCombineDenseModels
 	pR3DSmallTasksThread_->stopThread();
-	
+
 	R3DSmallTasksThread::SmallTaskType type = pR3DSmallTasksThread_->getType();
 	if(type == R3DSmallTasksThread::STTLoadModel
 		|| type == R3DSmallTasksThread::STTLoadSurfaceModel)
@@ -1486,6 +1509,24 @@ void Regard3DMainFrame::OnSmallTaskFinished( wxCommandEvent &event )
 		R3DProject::Densification *pDensification = pR3DSmallTasksThread_->getDensification();
 		pDensificationProcess_ = new R3DDensificationProcess(this);
 		pDensificationProcess_->runDensificationProcess(pDensification);
+		endProgressDialog = false;
+	}
+	else if(type == R3DSmallTasksThread::STTExportToMVE2)
+	{
+		// Decide whether we are in densification or surface generation mode
+		R3DProject::Densification *pDensification = pR3DSmallTasksThread_->getDensification();
+		R3DProject::Surface *pSurface = pR3DSmallTasksThread_->getSurface();
+
+		if(pDensification != NULL)
+		{
+			pDensificationProcess_ = new R3DDensificationProcess(this);
+			pDensificationProcess_->runDensificationProcess(pDensification);
+		}
+		else if(pSurface != NULL)
+		{
+			pR3DSurfaceGenProcess_ = new R3DSurfaceGenProcess(this);
+			pR3DSurfaceGenProcess_->runSurfaceGenProcess(pSurface);
+		}
 		endProgressDialog = false;
 	}
 
@@ -2061,8 +2102,10 @@ void Regard3DMainFrame::updateProjectDetails()
 							params.Append(wxT("L2 rotation averaging, "));
 						if(pTriangulation->transAveraging_ == 1)
 							params.Append(wxT("L1 translation averaging)"));
-						else
+						else if(pTriangulation->transAveraging_ == 2)
 							params.Append(wxT("L2 translation averaging)"));
+						else
+							params.Append(wxT("SoftL1 translation averaging)"));
 					}
 					else
 					{
@@ -2440,6 +2483,15 @@ void Regard3DMainFrame::deleteComputeMatches(R3DProject::ComputeMatches *pComput
 
 void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriangulation)
 {
+	R3DProjectPaths paths;
+	project_.getProjectPathsTri(paths, pTriangulation);
+	if(!OpenMVGHelper::hasTriSfM_DataFile(paths))
+	{
+		wxMessageBox(wxT("This triangulation has been created with a Regard3D version before 0.8.\nPlease create a triangulation with the current version\nand rerun the densification."),
+			wxT("Densification error"), wxICON_ERROR | wxOK);
+		return;
+	}
+
 	Regard3DDensificationDialog dlg(this);
 	if(dlg.ShowModal() == wxID_OK)
 	{
@@ -2488,8 +2540,17 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 		}
 		else
 		{
-			pDensificationProcess_ = new R3DDensificationProcess(this);
-			pDensificationProcess_->runDensificationProcess(pDensification);
+			pProgressDialog_->Pulse(wxT("Exporting project to MVE"));
+
+			if(pR3DSmallTasksThread_ != NULL)
+				delete pR3DSmallTasksThread_;
+
+			pR3DSmallTasksThread_ = new R3DSmallTasksThread();
+			pR3DSmallTasksThread_->setMainFrame(this);
+			pR3DSmallTasksThread_->exportToMVE2(pDensification, NULL);
+
+/*			pDensificationProcess_ = new R3DDensificationProcess(this);
+			pDensificationProcess_->runDensificationProcess(pDensification);*/
 /*			pProgressDialog_->Pulse(wxT("Exporting project to MVE"));
 
 			if(pR3DSmallTasksThread_ != NULL)
@@ -2543,6 +2604,15 @@ void Regard3DMainFrame::deleteTriangulation(R3DProject::Triangulation *pTriangul
 
 void Regard3DMainFrame::createSurface(R3DProject::Densification *pDensification)
 {
+	R3DProjectPaths paths;
+	project_.getProjectPathsDns(paths, pDensification);
+	if(!OpenMVGHelper::hasTriSfM_DataFile(paths))
+	{
+		wxMessageBox(wxT("This triangulation has been created with a Regard3D version before 0.8.\nPlease create a triangulation with the current version\nand rerun the densification."),
+			wxT("Surface generation error"), wxICON_ERROR | wxOK);
+		return;
+	}
+
 	Regard3DSurfaceDialog dlg(this);
 	dlg.setParams(pDensification);
 	if(dlg.ShowModal() == wxID_OK)
@@ -2578,10 +2648,15 @@ void Regard3DMainFrame::createSurface(R3DProject::Densification *pDensification)
 
 		project_.prepareSurface(pSurface);
 
-		pR3DSurfaceGenProcess_ = new R3DSurfaceGenProcess(this);
-		pR3DSurfaceGenProcess_->runSurfaceGenProcess(pSurface);
-	}
+		pProgressDialog_->Pulse(wxT("Exporting project to MVE"));
 
+		if(pR3DSmallTasksThread_ != NULL)
+			delete pR3DSmallTasksThread_;
+
+		pR3DSmallTasksThread_ = new R3DSmallTasksThread();
+		pR3DSmallTasksThread_->setMainFrame(this);
+		pR3DSmallTasksThread_->exportToMVE2(NULL, pSurface);
+	}
 }
 
 void Regard3DMainFrame::showDensePoints(R3DProject::Densification *pDensification)

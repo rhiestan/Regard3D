@@ -24,6 +24,9 @@
 #include "OpenMVGHelper.h"
 #include "R3DModelOperations.h"
 
+#include "openMVG/sfm/sfm_data.hpp"
+#include "openMVG/sfm/sfm_data_io.hpp"
+
 R3DSmallTasksThread::R3DSmallTasksThread() :
 	wxThread(wxTHREAD_JOINABLE),
 	pMainFrame_(NULL), type_(R3DSmallTasksThread::STTLoadModel),
@@ -144,6 +147,16 @@ void R3DSmallTasksThread::exportOldSfM_Output(R3DProject::Densification *pDensif
 	this->Run();
 }
 
+void R3DSmallTasksThread::exportToMVE2(R3DProject::Densification *pDensification, R3DProject::Surface *pSurface)
+{
+	type_ = R3DSmallTasksThread::STTExportToMVE2;
+	pDensification_ = pDensification;
+	pSurface_ = pSurface;
+
+	this->Create();
+	this->Run();
+}
+
 wxThread::ExitCode R3DSmallTasksThread::Entry()
 {
 	if(type_ == STTLoadModel)
@@ -187,6 +200,25 @@ wxThread::ExitCode R3DSmallTasksThread::Entry()
 		R3DProjectPaths paths;
 		R3DProject::getInstance()->getProjectPathsDns(paths, pDensification_);
 		OpenMVGHelper::exportOldSfM_output(paths);
+	}
+	else if(type_ == STTExportToMVE2)
+	{
+		R3DProjectPaths paths;
+		if(pDensification_ != NULL)
+			R3DProject::getInstance()->getProjectPathsDns(paths, pDensification_);
+		else if(pSurface_ != NULL)
+			R3DProject::getInstance()->getProjectPathsSrf(paths, pSurface_);
+
+		// Check if MVE path exists
+		wxFileName mveSceneDir(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc), wxT(""));
+		if(!mveSceneDir.DirExists())
+		{
+			openMVG::sfm::SfM_Data sfm_data;
+			if(openMVG::sfm::Load(sfm_data, paths.relativeTriSfmDataFilename_, openMVG::sfm::ESfM_Data(openMVG::sfm::ALL)))
+			{
+				OpenMVGHelper::exportToMVE2Format(sfm_data, wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc));
+			}
+		}
 	}
 
 	sendFinishedEvent();

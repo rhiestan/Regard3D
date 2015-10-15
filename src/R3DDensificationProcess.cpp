@@ -137,19 +137,11 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 	}
 	else if(pDensification->densificationType_ == R3DProject::DTMVE)
 	{
-		wxString makesceneExe = R3DExternalPrograms::getInstance().getMakescenePath();
 		wxString dmreconExe = R3DExternalPrograms::getInstance().getDMReconPath();
 		wxString scene2psetExe = R3DExternalPrograms::getInstance().getScene2PsetPath();
 		wxString mveSceneDir = wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc);
 		wxString outputModelFilename = wxT("mve_model.ply");
 
-		if(!wxFileName::DirExists(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc)))
-		{
-			// Make MVE scene
-			cmds_.Add(makesceneExe + wxT(" ") + wxString(paths.relativeSfmOutPath_.c_str(), wxConvLibc)
-				+ wxT(" ") + mveSceneDir);
-			progressTexts_.Add(wxT("Exporting scene to MVE"));
-		}
 		cmds_.Add(dmreconExe + wxString::Format(wxT(" --scale=%d --filter-width=%d --force "),
 			pDensification->mveScale_, pDensification->mveFilterWidth_) + mveSceneDir);
 		progressTexts_.Add(wxT("Densify point cloud (MVE)"));

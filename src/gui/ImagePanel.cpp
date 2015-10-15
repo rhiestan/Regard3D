@@ -19,6 +19,7 @@
 
 #include "CommonIncludes.h"
 #include "ImagePanel.h"
+#include "OpenCVHelper.h"
 #include <cmath>
 
 // For double buffering
@@ -53,7 +54,8 @@ void ImagePanel::setImage(const wxImage &img)
 	img_ = img;
 
 	// Convert image to OpenCV
-	imgCV_.create(img.GetHeight(), img.GetWidth(), CV_8UC3);
+	OpenCVHelper::convertWxImageToCVMat(img, imgCV_);
+/*	imgCV_.create(img.GetHeight(), img.GetWidth(), CV_8UC3);
 	cv::Vec3b *cvPtr = imgCV_.ptr<cv::Vec3b>(0);
 	unsigned char *wxPtr = img.GetData();
 	for(int y = 0; y < img.GetHeight(); y++)
@@ -65,7 +67,7 @@ void ImagePanel::setImage(const wxImage &img)
 			(*cvPtr)[0] = *(wxPtr++);
 			cvPtr++;
 		}
-	}
+	}*/
 }
 
 void ImagePanel::setZoomFactor(double newZoomFactor, int centerXIn, int centerYIn, bool isZoomIn)
@@ -214,6 +216,8 @@ void ImagePanel::OnPaint( wxPaintEvent& event )
 		cv::resize(imgCV_, scaledImageCV, cv::Size(newWidth, newHeight), 0, 0, interp);
 	}
 
+	OpenCVHelper::convertCVMatToWxImage(scaledImageCV, scaledImage);
+/*
 	// Copy back to wxImage
 	scaledImage.Create(scaledImageCV.cols, scaledImageCV.rows);
 	cv::Vec3b *cvPtr = scaledImageCV.ptr<cv::Vec3b>(0);
@@ -228,7 +232,7 @@ void ImagePanel::OnPaint( wxPaintEvent& event )
 			cvPtr++;
 		}
 	}
-
+*/
 	wxBitmap bmp(scaledImage);	// Convert to wxBitmap
 	dc.DrawBitmap(bmp, viewStartX, viewStartY);	// Draw bitmap
 

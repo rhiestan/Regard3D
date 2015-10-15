@@ -74,6 +74,11 @@ public:
 	static void calculateResiduals(const openMVG::sfm::SfM_Data &sfm_data, std::vector<float> &residuals);
 
 	static void exportOldSfM_output(const R3DProjectPaths &paths);
+
+	static bool exportToMVE2Format(const openMVG::sfm::SfM_Data & sfm_data, const wxString &sOutDirectory);
+
+	static bool exportToMVSTexturing(const openMVG::sfm::SfM_Data & sfm_data, const wxString &sOutDirectory);
+
 #endif
 
 private:

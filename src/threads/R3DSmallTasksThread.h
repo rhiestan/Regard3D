@@ -51,7 +51,8 @@ public:
 		STTExportSurface,
 		STTColorizeSurface,
 		STTCombineDenseModels,
-		STTExportOldSfM_Output
+		STTExportOldSfM_Output,
+		STTExportToMVE2
 	};
 
 	R3DSmallTasksThread();
@@ -75,6 +76,7 @@ public:
 	void colorizeSurface(R3DProject::Surface *pSurface);
 	void combineDenseModels(R3DProject::Densification *pDensification, int numberOfClusters);
 	void exportOldSfM_Output(R3DProject::Densification *pDensification);
+	void exportToMVE2(R3DProject::Densification *pDensification, R3DProject::Surface *pSurface);
 
 protected:
 	virtual wxThread::ExitCode Entry();

@@ -22,12 +22,16 @@
 // OpenCV
 #include "opencv2/imgproc/imgproc.hpp"
 
+// OpenMVG
+#include "openMVG/image/image.hpp"
 
 class OpenCVHelper
 {
 public:
 	static void convertWxImageToCVMat(const wxImage &img, cv::Mat &cvimg);
 	static void convertCVMatToWxImage(const cv::Mat &cvimg, wxImage &img);
+	static openMVG::image::Image<openMVG::image::RGBColor> createThumbnail(
+		const openMVG::image::Image<openMVG::image::RGBColor> &orig, int thWidth, int thHeight);
 
 private:
 	OpenCVHelper() { }

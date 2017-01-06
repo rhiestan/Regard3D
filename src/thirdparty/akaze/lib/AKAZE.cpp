@@ -212,12 +212,6 @@ void AKAZE::Compute_Multiscale_Derivatives() {
     compute_scharr_derivatives(evolution_[i].Lx, evolution_[i].Lxx, 1, 0, sigma_size_);
     compute_scharr_derivatives(evolution_[i].Ly, evolution_[i].Lyy, 0, 1, sigma_size_);
     compute_scharr_derivatives(evolution_[i].Lx, evolution_[i].Lxy, 0, 1, sigma_size_);
-
-    evolution_[i].Lx = evolution_[i].Lx*((sigma_size_));
-    evolution_[i].Ly = evolution_[i].Ly*((sigma_size_));
-    evolution_[i].Lxx = evolution_[i].Lxx*((sigma_size_)*(sigma_size_));
-    evolution_[i].Lxy = evolution_[i].Lxy*((sigma_size_)*(sigma_size_));
-    evolution_[i].Lyy = evolution_[i].Lyy*((sigma_size_)*(sigma_size_));
   }
 #if defined(AKAZE_USE_TBB_THREADING)
   });
@@ -234,9 +228,13 @@ void AKAZE::Compute_Determinant_Hessian_Response() {
   Compute_Multiscale_Derivatives();
 
   for (size_t i = 0; i < evolution_.size(); i++) {
-    if (options_.verbosity == true) {
+
+    if (options_.verbosity == true)
       cout << "Computing detector response. Determinant of Hessian. Evolution time: " << evolution_[i].etime << endl;
-    }
+
+    float ratio = pow(2.0f,(float)evolution_[i].octave);
+    int sigma_size = fRound(evolution_[i].esigma*options_.derivative_factor/ratio);
+    int sigma_size_quat = sigma_size*sigma_size*sigma_size*sigma_size;
 
     for (int ix = 0; ix < evolution_[i].Ldet.rows; ix++) {
       const float* lxx = evolution_[i].Lxx.ptr<float>(ix);
@@ -244,7 +242,7 @@ void AKAZE::Compute_Determinant_Hessian_Response() {
       const float* lyy = evolution_[i].Lyy.ptr<float>(ix);
       float* ldet = evolution_[i].Ldet.ptr<float>(ix);
       for (int jx = 0; jx < evolution_[i].Ldet.cols; jx++)
-        ldet[jx] = lxx[jx]*lyy[jx]-lxy[jx]*lxy[jx];
+        ldet[jx] = (lxx[jx]*lyy[jx]-lxy[jx]*lxy[jx])*sigma_size_quat;
     }
   }
 }
@@ -340,14 +338,14 @@ void AKAZE::Find_Scale_Space_Extrema(std::vector<cv::KeyPoint>& kpts) {
 
             if (is_out == false) {
               if (is_repeated == false) {
-                point.pt.x *= ratio;
-                point.pt.y *= ratio;
+                point.pt.x = point.pt.x*ratio + .5*(ratio-1.0);
+                point.pt.y = point.pt.y*ratio + .5*(ratio-1.0);
                 kpts_aux.push_back(point);
                 npoints++;
               }
               else {
-                point.pt.x *= ratio;
-                point.pt.y *= ratio;
+                point.pt.x = point.pt.x*ratio + .5*(ratio-1.0);
+                point.pt.y = point.pt.y*ratio + .5*(ratio-1.0);
                 kpts_aux[id_repeated] = point;
               }
             } // if is_out
@@ -438,8 +436,8 @@ void AKAZE::Do_Subpixel_Refinement(std::vector<cv::KeyPoint>& kpts) {
       kpts[i].pt.x = x + dst(0);
       kpts[i].pt.y = y + dst(1);
       int power = powf(2, evolution_[kpts[i].class_id].octave);
-      kpts[i].pt.x *= power;
-      kpts[i].pt.y *= power;
+      kpts[i].pt.x = kpts[i].pt.x*power + .5*(power-1);
+      kpts[i].pt.y = kpts[i].pt.y*power + .5*(power-1);
       kpts[i].angle = 0.0;
 
       // In OpenCV the size of a keypoint its the diameter
@@ -609,8 +607,7 @@ void AKAZE::Compute_Main_Orientation(cv::KeyPoint& kpt) const {
         sumX+=resX[k];
         sumY+=resY[k];
       }
-      else if (ang2 < ang1 &&
-               ((ang > 0 && ang < ang2) || (ang > ang1 && ang < 2.0*CV_PI) )) {
+      else if (ang2 < ang1 && ((ang > 0 && ang < ang2) || (ang > ang1 && ang < 2.0*CV_PI))) {
         sumX+=resX[k];
         sumY+=resY[k];
       }

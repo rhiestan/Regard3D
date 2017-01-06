@@ -335,7 +335,7 @@ bool PreviewGeneratorThread::createPreview(wxImage &localPreviewImage, PreviewIn
                 // Load matches from file
                 std::string sMatchFile(previewInfo.matchesFilename_.mb_str());
                 openMVG::matching::PairWiseMatches map_Matches;
-                openMVG::matching::PairedIndMatchImport(sMatchFile, map_Matches);
+				openMVG::matching::Load(map_Matches, sMatchFile);
 
 				std::vector< cv::DMatch > matches1to2;
 
@@ -385,8 +385,8 @@ bool PreviewGeneratorThread::createPreview(wxImage &localPreviewImage, PreviewIn
 							for(size_t i = 0; i < vec_FilteredMatches.size(); i++)
 							{
 								const openMVG::matching::IndMatch &match = vec_FilteredMatches[i];
-								size_t kpIndex1 = match._i;
-								size_t kpIndex2 = match._j;
+								size_t kpIndex1 = match.i_;
+								size_t kpIndex2 = match.j_;
 								matches1to2.push_back(cv::DMatch(kpIndex1, kpIndex2, 1.0f));
 							}
 						}

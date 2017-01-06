@@ -86,7 +86,7 @@
 #include <opencv2/opencv.hpp>
 
 // SuiteSparse
-#include "SuiteSparse_config.h"
+//#include "SuiteSparse_config.h"
 
 // Ceres
 #include "ceres/version.h"
@@ -597,13 +597,13 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 	descrString.Append( wxString(CV_VERSION, *wxConvCurrent) );
 	descrString.Append(wxT("\n "));
 	descrString.Append(wxString("PointCloudLibrary " PCL_VERSION_PRETTY, *wxConvCurrent));
-	descrString.Append(wxT("\n SuiteSparse "));
+//	descrString.Append(wxT("\n SuiteSparse "));
 #if defined(SUITESPARSE_HAS_VERSION_FUNCTION)
 	int ss_version[3];
 	SuiteSparse_version(ss_version);
 	descrString.Append(wxString::Format(wxT("%d.%d.%d"), ss_version[0], ss_version[1], ss_version[2]));
 #else
-	descrString.Append(wxString::Format(wxT("%d.%d.%d"), SUITESPARSE_MAIN_VERSION, SUITESPARSE_SUB_VERSION, SUITESPARSE_SUBSUB_VERSION));
+//	descrString.Append(wxString::Format(wxT("%d.%d.%d"), SUITESPARSE_MAIN_VERSION, SUITESPARSE_SUB_VERSION, SUITESPARSE_SUBSUB_VERSION));
 #endif
 	descrString.Append(wxT("\n Ceres ") );
 	descrString.Append( wxString(CERES_VERSION_STRING, *wxConvCurrent) );

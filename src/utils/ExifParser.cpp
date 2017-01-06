@@ -24,7 +24,7 @@
 
 bool ExifParser::extractExifInfo(const wxString &filename, ExifParser::EPExifInfo &epExifInfo)
 {
-	EXIFInfo exifInfo;
+	easyexif::EXIFInfo exifInfo;
 
 	// Read file into memory
 	wxFile imageFile(filename, wxFile::read);

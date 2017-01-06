@@ -82,7 +82,10 @@ void R3DComputeMatches::addImages(const ImageInfoVector &iiv)
 #include "openMVG/matching_image_collection/F_ACRobust.hpp"
 #include "openMVG/matching_image_collection/E_ACRobust.hpp"
 #include "openMVG/matching_image_collection/H_ACRobust.hpp"
+#include "openMVG/matching_image_collection/Pair_Builder.hpp"
 #include "openMVG/matching/pairwiseAdjacencyDisplay.hpp"
+#include "openMVG/matching/indMatch_utils.hpp"
+
 #include "software/SfM/SfMIOHelper.hpp"
 #include "openMVG/matching/matcher_brute_force.hpp"
 #include "openMVG/matching/matcher_kdtree_flann.hpp"
@@ -382,7 +385,7 @@ static bool ComputeCVFeatAndDesc_Test(const openMVG::image::Image<unsigned char>
       openMVG::features::SIOPointFeature feat((*i_keypoint).pt.x, (*i_keypoint).pt.y, (*i_keypoint).size, (*i_keypoint).angle);
       feats.push_back(feat);
 
-      memcpy(descriptor.getData(),
+      memcpy(descriptor.data(),
              m_desc.ptr<DescriptorT_BRISK_Test::bin_type>(cpt),
              DescriptorT_BRISK_Test::static_size*sizeof(DescriptorT_BRISK_Test::bin_type));
       descs.push_back(descriptor);
@@ -946,10 +949,13 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
 	  //collectionMatcher->Match(vec_fileNames, pairs, map_PutativesMatches);
 	  collectionMatcher->Match(sfm_data, regions_provider, pairs, map_PutativesMatches);
 	  //-- Export putative matches
-	  std::ofstream file(std::string(sMatchesDirectory + "/matches.putative.txt").c_str());
-	  if(file.is_open())
-        PairedIndMatchToStream(map_PutativesMatches, file);
-      file.close();
+      if (!Save(map_PutativesMatches, std::string(sMatchesDirectory + "/matches.putative.txt")))
+      {
+        MLOG
+          << "Cannot save computed matches in: "
+          << std::string(sMatchesDirectory + "/matches.putative.txt");
+        return EXIT_FAILURE;
+      }
     }
 	//-- export putative matches Adjacency matrix
 	PairWiseMatchingToAdjacencyMatrixSVG(vec_fileNames.size(),
@@ -999,10 +1005,14 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
       //---------------------------------------
       //-- Export geometric filtered matches
       //---------------------------------------
-	  std::ofstream file(paths.matchesFFilename_.c_str());		//pProject->getMatchesFFilename().c_str());
-      if (file.is_open())
-        PairedIndMatchToStream(map_GeometricMatches, file);
-      file.close();
+      if(!Save(map_GeometricMatches,
+        std::string(paths.matchesFFilename_.c_str())))
+      {
+        MLOG
+            << "Cannot save computed matches in: "
+            << std::string(paths.matchesFFilename_.c_str());
+        return EXIT_FAILURE;
+      }
       statistics_.fundamentalMatches_ = map_GeometricMatches;
     }
     if(params.computeEssentialMatrix_)
@@ -1071,10 +1081,14 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
       //---------------------------------------
       //-- Export geometric filtered matches
       //---------------------------------------
-	  std::ofstream file (paths.matchesEFilename_.c_str());			//pProject->getMatchesEFilename().c_str());
-      if (file.is_open())
-        PairedIndMatchToStream(map_GeometricMatches, file);
-      file.close();
+      if(!Save(map_GeometricMatches,
+        std::string(paths.matchesEFilename_.c_str())))
+      {
+        MLOG
+            << "Cannot save computed matches in: "
+            << std::string(paths.matchesEFilename_.c_str());
+        return EXIT_FAILURE;
+      }
       statistics_.essentialMatches_ = map_GeometricMatches;
     }
     if(params.computeHomographyMatrix_)
@@ -1095,10 +1109,14 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
       //---------------------------------------
       //-- Export geometric filtered matches
       //---------------------------------------
-	  std::ofstream file (paths.matchesHFilename_.c_str());			//pProject->getMatchesHFilename().c_str());
-      if (file.is_open())
-        PairedIndMatchToStream(map_GeometricMatches, file);
-      file.close();
+      if(!Save(map_GeometricMatches,
+        std::string(paths.matchesHFilename_.c_str())))
+      {
+        MLOG
+            << "Cannot save computed matches in: "
+            << std::string(paths.matchesEFilename_.c_str());
+        return EXIT_FAILURE;
+      }
       statistics_.homographyMatches_ = map_GeometricMatches;
     }
 

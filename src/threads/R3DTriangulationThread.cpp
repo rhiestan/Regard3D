@@ -228,7 +228,12 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 					sfmEngine.SetMatchesProvider(matches_provider.get());
 
 					// Configure reconstruction parameters
-					sfmEngine.Set_bFixedIntrinsics(!bRefineIntrinsics);
+					//sfmEngine.Set_bFixedIntrinsics(!bRefineIntrinsics);
+					cameras::Intrinsic_Parameter_Type intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::ADJUST_ALL;
+					if(!bRefineIntrinsics)
+						intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
+					sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
+					sfmEngine.Set_Use_Motion_Prior(false);		// Currently unsupported
 
 					// Configure motion averaging method
 					sfmEngine.SetRotationAveragingMethod(
@@ -412,7 +417,13 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 					sfmEngine.SetMatchesProvider(matches_provider.get());
 
 					// Configure reconstruction parameters
-					sfmEngine.Set_bFixedIntrinsics(!bRefineIntrinsics);
+					//sfmEngine.Set_bFixedIntrinsics(!bRefineIntrinsics);
+					cameras::Intrinsic_Parameter_Type intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::ADJUST_ALL;
+					if(!bRefineIntrinsics)
+						intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
+					sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
+					sfmEngine.Set_Use_Motion_Prior(false);		// Currently unsupported
+
 					sfmEngine.SetUnknownCameraType(i_User_camera_model);
 
 					// Handle Initial pair parameter

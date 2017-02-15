@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2015 Roman Hiestand
+ * Copyright (C) 2017 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -17,36 +17,20 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "CommonIncludes.h"
-#include "ExifParser.h"
+#ifndef OPENMVGEXPORTTOMVS_H
+#define OPENMVGEXPORTTOMVS_H
 
-#include "third_party/easyexif/exif.h"
+#include "R3DProject.h"
 
-bool ExifParser::extractExifInfo(const wxString &filename, ExifParser::EPExifInfo &epExifInfo)
+class OpenMVGExportToMVS
 {
-	easyexif::EXIFInfo exifInfo;
+public:
 
-	// Read file into memory
-	wxFile imageFile(filename, wxFile::read);
-	if(!imageFile.IsOpened())
-		return false;
-	wxFileOffset fileSize = imageFile.Length();
-	std::vector<unsigned char> buf(fileSize);
-	ssize_t bytesRead = imageFile.Read(&(buf[0]), fileSize);
-	if(bytesRead == wxInvalidOffset)
-		return false;
-	imageFile.Close();
+	static bool exportToOpenMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
 
+private:
+	OpenMVGExportToMVS() { }
+	~OpenMVGExportToMVS() { }
+};
 
-	int retVal = exifInfo.parseFrom(&(buf[0]), fileSize);
-	if(retVal != PARSE_EXIF_SUCCESS)
-		return false;
-
-	epExifInfo.width_ = exifInfo.ImageWidth;
-	epExifInfo.height_ = exifInfo.ImageHeight;
-	epExifInfo.cameraMaker_ = wxString(exifInfo.Make.c_str(), wxConvLibc).Trim(false).Trim(true);
-	epExifInfo.cameraModel_ = wxString(exifInfo.Model.c_str(), wxConvLibc).Trim(false).Trim(true);
-	epExifInfo.focalLength_ = exifInfo.FocalLength;
-
-	return true;
-}
+#endif

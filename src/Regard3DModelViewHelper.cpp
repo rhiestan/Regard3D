@@ -37,7 +37,7 @@
 #include <osgUtil/Optimizer>
 #include <osgText/Style>
 #include <osgText/Text3D>
-
+/*
 // PointCloudLibrary
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/common/io.h>
@@ -47,11 +47,19 @@
 #if PCL_VERSION_COMPARE(<, 1, 7, 2)
 #include <pcl/io/vtk_lib_io.h>
 #endif
-
+*/
 // Asset Importer Library
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post processing flags
+
+// Tinyply
+#include "tinyply.h"
+
+// boost
+#include "boost/filesystem.hpp"
+#include "boost/filesystem/fstream.hpp"
+
 
 /**
  * Updates the point size.
@@ -393,51 +401,83 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 	// https://github.com/adasta/osgpcl
 
 	osg::ref_ptr<osg::Group> root = new osg::Group;
-/*
-	// OSG version doesn't load the colors from openMVG-generated PLY files
-	osg::ref_ptr<osg::Node> loadedModel = osgDB::readNodeFile(std::string(filename.mb_str()));
-	if (!loadedModel)
-	{
-		//std::cout << argv[0] <<": No data loaded." << std::endl;
-		//return false;
-	}
-	else
-	{
 
-		// optimize the scene graph, remove redundant nodes and state etc.
-//		osgUtil::Optimizer optimizer;
-//		optimizer.optimize(loadedModel.get());
-
-		loadedModel->setUpdateCallback(new PointSizeUpdater(this));
-
-		root->addChild(loadedModel.get());
-	}
-*/
-	pcl::PointCloud<pcl::PointXYZRGB> cloud;
-
-	if (pcl::io::loadPLYFile<pcl::PointXYZRGB> (std::string(filename.mb_str()), cloud) == -1)
+	try
 	{
-		//std::cerr << "Couldn't read file " << pcd_file << std::endl;
-	}
-	else
-	{
+#if defined(R3D_WIN32)
+		boost::filesystem::ifstream istream(boost::filesystem::path(filename.wc_str()), std::ios::binary);
+#else
+		boost::filesystem::ifstream istream(boost::filesystem::path(filename.mb_str()), std::ios::binary);
+#endif
+		//std::ifstream istream(std::string(filename.mb_str()), std::ios::binary);
+		tinyply::PlyFile file(istream);
+
+		tinyply::PlyProperty::Type coordinateType = tinyply::PlyProperty::Type::FLOAT32;
+		tinyply::PlyProperty::Type colorType = tinyply::PlyProperty::Type::UINT8;
+		bool hasDiffuseColors = false;
+		for (auto e : file.get_elements())
+		{
+			std::string name = e.name;
+			size_t sz = e.size;
+			for(auto p : e.properties)
+			{
+				std::string propN = p.name;
+				std::string propS = tinyply::PropertyTable[p.propertyType].str;
+
+				if(name == std::string("vertex")
+					&& propN == std::string("x"))
+					coordinateType = p.propertyType;
+				if(name == std::string("vertex")
+					&& propN == std::string("red"))
+					colorType = p.propertyType;
+				if(name == std::string("vertex")
+					&& propN == std::string("diffuse_red"))
+				{
+					colorType = p.propertyType;
+					hasDiffuseColors = true;
+				}
+
+			}
+		}
+
+		std::vector<float> vertsF;
+		std::vector<double> vertsD;
+		std::vector<uint8_t> colorsUI8;
+		size_t vertexCount = 0, colorCount = 0;
+
+		if(coordinateType == tinyply::PlyProperty::Type::FLOAT32)
+			vertexCount = file.request_properties_from_element("vertex", { "x", "y", "z" }, vertsF);
+		else
+			vertexCount = file.request_properties_from_element("vertex", { "x", "y", "z" }, vertsD);
+		if(hasDiffuseColors)
+			colorCount = file.request_properties_from_element("vertex", { "diffuse_red", "diffuse_green", "diffuse_blue" }, colorsUI8);
+		else
+			colorCount = file.request_properties_from_element("vertex", { "red", "green", "blue" }, colorsUI8);
+
+		file.read(istream);
+
+		size_t vertsSize = vertsF.size() + vertsD.size();
+		size_t colsSize = colorsUI8.size();
+		if(vertsSize != colsSize)
+			return root;
+		if(vertsSize < vertexCount*3)
+			return root;
+
 		osg::ref_ptr<osg::Geode> geode(new osg::Geode());
 		osg::ref_ptr<osg::Geometry> geometry (new osg::Geometry());
 
 		osg::ref_ptr<osg::Vec3Array> vertices(new osg::Vec3Array());
 		osg::ref_ptr<osg::Vec4Array> colors(new osg::Vec4Array());
 
-		for (size_t i = 0; i < cloud.points.size(); i++)
+		for (size_t i = 0; i < vertexCount; i++)
 		{
-			vertices->push_back( osg::Vec3(cloud.points[i].x, cloud.points[i].y, cloud.points[i].z) );
-			uint32_t rgb_val = *(reinterpret_cast<uint32_t *>( &(cloud.points[i].rgb) ) );	// "Cast" it to uint32
-
-			int r = (rgb_val >> 16) & 0xff;
-			int g = (rgb_val >> 8) & 0xff;
-			int b = rgb_val & 0xff;
-			colors->push_back(osg::Vec4f(static_cast<float>(r)/255.0f,
-				static_cast<float>(g)/255.0f,
-				static_cast<float>(b)/255.0f, 1.0f));
+			if(coordinateType == tinyply::PlyProperty::Type::FLOAT32)
+				vertices->push_back( osg::Vec3(vertsF[i*3], vertsF[i*3+1], vertsF[i*3+2]) );
+			else
+				vertices->push_back( osg::Vec3(vertsD[i*3], vertsD[i*3+1], vertsD[i*3+2]) );
+			colors->push_back(osg::Vec4f(static_cast<float>(colorsUI8[i*3])/255.0f,
+				static_cast<float>(colorsUI8[i*3+1])/255.0f,
+				static_cast<float>(colorsUI8[i*3+2])/255.0f, 1.0f));
 		}
 
 		vertices->setDataVariance(osg::Object::STATIC);
@@ -456,6 +496,10 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 		geode->setUpdateCallback(new PointSizeUpdater(this));
 
 		root->addChild(geode.get());
+	}
+	catch(std::exception &e)
+	{
+		int jj = 27;
 	}
 
 	osg::Node *pRotSphereNode = createRotationSphere();
@@ -909,6 +953,7 @@ bool Regard3DModelViewHelper::loadSurfaceModelAssImp(osg::ref_ptr<osg::Group> ro
  */
 bool Regard3DModelViewHelper::loadSurfaceModelPCL(osg::ref_ptr<osg::Group> root, const wxString &filename, bool debugOutput)
 {
+#if 0
 	bool loadWithTexture = false;
 	wxFileName fn(filename);
 	if(fn.GetExt().IsSameAs(wxT("obj"), false))
@@ -1156,6 +1201,6 @@ bool Regard3DModelViewHelper::loadSurfaceModelPCL(osg::ref_ptr<osg::Group> root,
 		if(debugOutput)
 			osgDB::writeNodeFile(*root, std::string("testout.osg"));
 	}
-
+#endif
 	return true;
 }

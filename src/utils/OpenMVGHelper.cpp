@@ -20,6 +20,7 @@
 #include "CommonIncludes.h"
 #include "OpenMVGHelper.h"
 #include "OpenCVHelper.h"
+#include "OpenMVGExportToMVS.h"
 
 #include <memory>
 #include <sstream>
@@ -47,6 +48,7 @@ using namespace svg;
 #include "openMVG/matching/indexed_sort.hpp"
 #else
 #include "openMVG/sfm/sfm.hpp"
+#include "openMVG/stl/stl.hpp"
 #include "openMVG/stl/indexed_sort.hpp"
 #include "openMVG/sfm/sfm_data.hpp"
 #include "openMVG/sfm/sfm_data_io.hpp"
@@ -111,6 +113,37 @@ void OpenMVGHelper::exportKeypoints(const std::vector<openMVG::SfMIO::CameraInfo
 	}
 }
 
+// Convert HUE color to RGB
+inline float hue2rgb(float p, float q, float t) {
+	if(t < 0) t += 1;
+	if(t > 1) t -= 1;
+	if(t < 1.f / 6.f) return p + (q - p) * 6.f * t;
+	if(t < 1.f / 2.f) return q;
+	if(t < 2.f / 3.f) return p + (q - p) * (2.f / 3.f - t) * 6.f;
+	return p;
+}
+
+//
+// Converts an HSL color value to RGB. Conversion formula
+// adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+// Assumes h, s, and l are contained in the set [0, 1] and
+// returns r, g, and b in the set [0, 255].
+void hslToRgb(
+	float h, float s, float l,
+	unsigned char & r, unsigned char & g, unsigned char & b)
+{
+	if(s == 0) {
+		r = g = b = static_cast<unsigned char>(l * 255.f); // achromatic
+	}
+	else {
+		const float q = l < 0.5f ? l * (1 + s) : l + s - l * s;
+		const float p = 2.f * l - q;
+		r = static_cast<unsigned char>(hue2rgb(p, q, h + 1.f / 3.f) * 255.f);
+		g = static_cast<unsigned char>(hue2rgb(p, q, h) * 255.f);
+		b = static_cast<unsigned char>(hue2rgb(p, q, h - 1.f / 3.f) * 255.f);
+	}
+}
+
 /**
  * Export matches to SVG.
  *
@@ -123,78 +156,106 @@ void OpenMVGHelper::exportMatches(const std::vector<openMVG::SfMIO::CameraInfo> 
 	const std::string &sOutDir,
 	const std::string &sMatchFile)
 {
-  //---------------------------------------
-  // Read matches
-  //---------------------------------------
+#if 0
+	//---------------------------------------
+	// Load SfM Scene regions
+	//---------------------------------------
+	// Init the regions_type from the image describer file (used for image regions extraction)
+	const std::string sImage_describer = stlplus::create_filespec(sMatchesDir, "image_describer", "json");
+	std::unique_ptr<Regions> regions_type = Init_region_type_from_file(sImage_describer);
+	if(!regions_type)
+	{
+		std::cerr << "Invalid: "
+			<< sImage_describer << " regions type file." << std::endl;
+		return;
+	}
 
-  openMVG::matching::PairWiseMatches map_Matches;
-  openMVG::matching::PairedIndMatchImport(sMatchFile, map_Matches);
+	// Read the features
+	std::shared_ptr<Features_Provider> feats_provider = std::make_shared<Features_Provider>();
+	if(!feats_provider->load(sfm_data, sMatchesDir, regions_type)) {
+		std::cerr << std::endl
+			<< "Invalid features." << std::endl;
+		return;
+	}
+	std::shared_ptr<Matches_Provider> matches_provider = std::make_shared<Matches_Provider>();
+	if(!matches_provider->load(sfm_data, sMatchFile)) {
+		std::cerr << "\nInvalid matches file." << std::endl;
+		return;
+	}
 
-  // ------------
-  // For each pair, export the matches
-  // ------------
+	// ------------
+	// For each pair, export the matches
+	// ------------
 
-  stlplus::folder_create(sOutDir);
-  for (openMVG::matching::PairWiseMatches::const_iterator iter = map_Matches.begin();
-    iter != map_Matches.end();
-    ++iter)
-  {
-    const size_t I = iter->first.first;
-    const size_t J = iter->first.second;
+	stlplus::folder_create(sOutDir);
+	std::cout << "\n Export pairwise matches" << std::endl;
+	const Pair_Set pairs = matches_provider->getPairs();
+	C_Progress_display my_progress_bar(pairs.size());
+	for(Pair_Set::const_iterator iter = pairs.begin();
+		iter != pairs.end();
+		++iter, ++my_progress_bar)
+	{
+		const size_t I = iter->first;
+		const size_t J = iter->second;
 
-    std::vector<SfMIO::CameraInfo>::const_iterator camInfoI = vec_camImageName.begin() + I;
-    std::vector<SfMIO::CameraInfo>::const_iterator camInfoJ = vec_camImageName.begin() + J;
+		const View * view_I = sfm_data.GetViews().at(I).get();
+		const std::string sView_I = stlplus::create_filespec(sfm_data.s_root_path,
+			view_I->s_Img_path);
+		const View * view_J = sfm_data.GetViews().at(J).get();
+		const std::string sView_J = stlplus::create_filespec(sfm_data.s_root_path,
+			view_J->s_Img_path);
 
-    const std::pair<size_t, size_t>
-      dimImage0 = std::make_pair(vec_focalGroup[camInfoI->m_intrinsicId].m_w, vec_focalGroup[camInfoI->m_intrinsicId].m_h),
-      dimImage1 = std::make_pair(vec_focalGroup[camInfoJ->m_intrinsicId].m_w, vec_focalGroup[camInfoJ->m_intrinsicId].m_h);
+		const std::pair<size_t, size_t>
+			dimImage_I = std::make_pair(view_I->ui_width, view_I->ui_height),
+			dimImage_J = std::make_pair(view_J->ui_width, view_J->ui_height);
 
-    svgDrawer svgStream( dimImage0.first + dimImage1.first, max(dimImage0.second, dimImage1.second));
-    svgStream.drawImage(stlplus::create_filespec(sImaDirectory,vec_camImageName[I].m_sImageName),
-      dimImage0.first,
-      dimImage0.second);
-    svgStream.drawImage(stlplus::create_filespec(sImaDirectory,vec_camImageName[J].m_sImageName),
-      dimImage1.first,
-      dimImage1.second, dimImage0.first);
+		svgDrawer svgStream(dimImage_I.first + dimImage_J.first, max(dimImage_I.second, dimImage_J.second));
+		svgStream.drawImage(sView_I,
+			dimImage_I.first,
+			dimImage_I.second);
+		svgStream.drawImage(sView_J,
+			dimImage_J.first,
+			dimImage_J.second, dimImage_I.first);
 
-    const vector<openMVG::matching::IndMatch> & vec_FilteredMatches = iter->second;
+		const vector<IndMatch> & vec_FilteredMatches = matches_provider->pairWise_matches_.at(*iter);
 
-    if (!vec_FilteredMatches.empty()) {
-      // Load the features from the features files
-      std::vector<openMVG::features::SIOPointFeature> vec_featI, vec_featJ;
-      loadFeatsFromFile(
-        stlplus::create_filespec(sMatchesDir, stlplus::basename_part(vec_camImageName[I].m_sImageName), ".feat"),
-        vec_featI);
-      loadFeatsFromFile(
-        stlplus::create_filespec(sMatchesDir, stlplus::basename_part(vec_camImageName[J].m_sImageName), ".feat"),
-        vec_featJ);
+		if(!vec_FilteredMatches.empty()) {
 
-      //-- Draw link between features :
-      for (size_t i=0; i< vec_FilteredMatches.size(); ++i)  {
-        const openMVG::features::SIOPointFeature & imaA = vec_featI[vec_FilteredMatches[i]._i];
-        const openMVG::features::SIOPointFeature & imaB = vec_featJ[vec_FilteredMatches[i]._j];
-        svgStream.drawLine(imaA.x(), imaA.y(),
-          imaB.x()+dimImage0.first, imaB.y(), svgStyle().stroke("green", 2.0));
-      }
+			const PointFeatures & vec_feat_I = feats_provider->getFeatures(view_I->id_view);
+			const PointFeatures & vec_feat_J = feats_provider->getFeatures(view_J->id_view);
 
-      //-- Draw features (in two loop, in order to have the features upper the link, svg layer order):
-      for (size_t i=0; i< vec_FilteredMatches.size(); ++i)  {
-        const openMVG::features::SIOPointFeature & imaA = vec_featI[vec_FilteredMatches[i]._i];
-        const openMVG::features::SIOPointFeature & imaB = vec_featJ[vec_FilteredMatches[i]._j];
-        svgStream.drawCircle(imaA.x(), imaA.y(), imaA.scale(),
-          svgStyle().stroke("yellow", 2.0));
-        svgStream.drawCircle(imaB.x() + dimImage0.first, imaB.y(), imaB.scale(),
-          svgStyle().stroke("yellow", 2.0));
-      }
-    }
-    std::ostringstream os;
-    os << stlplus::folder_append_separator(sOutDir)
-      << iter->first.first << "_" << iter->first.second
-      << "_" << iter->second.size() << "_.svg";
-    ofstream svgFile( os.str().c_str() );
-    svgFile << svgStream.closeSvgFile().str();
-    svgFile.close();
+			//-- Draw link between features :
+			for(size_t i = 0; i< vec_FilteredMatches.size(); ++i) {
+				const PointFeature & imaA = vec_feat_I[vec_FilteredMatches[i].i_];
+				const PointFeature & imaB = vec_feat_J[vec_FilteredMatches[i].j_];
+				// Compute a flashy colour for the correspondence
+				unsigned char r, g, b;
+				hslToRgb((rand() % 360) / 360., 1.0, .5, r, g, b);
+				std::ostringstream osCol;
+				osCol << "rgb(" << (int)r << ',' << (int)g << ',' << (int)b << ")";
+				svgStream.drawLine(imaA.x(), imaA.y(),
+					imaB.x() + dimImage_I.first, imaB.y(), svgStyle().stroke(osCol.str(), 2.0));
+			}
+
+			//-- Draw features (in two loop, in order to have the features upper the link, svg layer order):
+			for(size_t i = 0; i< vec_FilteredMatches.size(); ++i) {
+				const PointFeature & imaA = vec_feat_I[vec_FilteredMatches[i].i_];
+				const PointFeature & imaB = vec_feat_J[vec_FilteredMatches[i].j_];
+				svgStream.drawCircle(imaA.x(), imaA.y(), 3.0,
+					svgStyle().stroke("yellow", 2.0));
+				svgStream.drawCircle(imaB.x() + dimImage_I.first, imaB.y(), 3.0,
+					svgStyle().stroke("yellow", 2.0));
+			}
+		}
+		std::ostringstream os;
+		os << stlplus::folder_append_separator(sOutDir)
+			<< iter->first << "_" << iter->second
+			<< "_" << vec_FilteredMatches.size() << "_.svg";
+		ofstream svgFile(os.str().c_str());
+		svgFile << svgStream.closeSvgFile().str();
+		svgFile.close();
   }
+#endif
 }
 
 /**
@@ -305,7 +366,7 @@ OpenMVGHelper::ImagePairList OpenMVGHelper::getBestValidatedPairs(const R3DProje
 	//  - valid estimated Fundamental matrix.
     std::vector< size_t > vec_NbMatchesPerPair;
     std::vector<openMVG::matching::PairWiseMatches::const_iterator> vec_MatchesIterator;
-    const openMVG::matching::PairWiseMatches & map_Matches = matches_provider->_pairWise_matches;
+    const openMVG::matching::PairWiseMatches & map_Matches = matches_provider->pairWise_matches_;
     for (openMVG::matching::PairWiseMatches::const_iterator
       iter = map_Matches.begin();
       iter != map_Matches.end(); ++iter)
@@ -1714,6 +1775,17 @@ bool OpenMVGHelper::exportToExternalMVS(R3DProject::Triangulation *pTriangulatio
 		scriptFile.Write(scriptStr.c_str(), scriptStr.length());
 		scriptFile.Close();
 	}
+
+	// Export to OpenMVS
+	wxFileName openMVSOutDir(outDir);
+	openMVSOutDir.AppendDir(wxT("OpenMVS"));
+	if(!openMVSOutDir.DirExists())
+	{
+		if(!openMVSOutDir.Mkdir())
+			return false;
+	}
+
+	OpenMVGExportToMVS::exportToOpenMVS(pTriangulation, openMVSOutDir.GetPath());
 
 	return true;
 }

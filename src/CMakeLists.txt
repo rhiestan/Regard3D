@@ -151,6 +151,13 @@ FIND_PACKAGE(Eigen3 3.0.0 REQUIRED)
 MESSAGE("Found Eigen ${EIGEN3_VERSION}")
 INCLUDE_DIRECTORIES( ${EIGEN3_INCLUDE_DIR} )
 
+FIND_PACKAGE(MKL)
+IF(MKL_FOUND)
+	INCLUDE_DIRECTORIES(${MKL_INCLUDE_DIRS})
+	LINK_DIRECTORIES(${MKL_LIBRARY_DIRS})
+	ADD_DEFINITIONS(-DEIGEN_USE_MKL_ALL)
+ENDIF(MKL_FOUND)
+
 # Remark: Call find_package(PCL) first, as PCL also uses boost and overwrites boost variables like Boost_LIBRARIES
 
 # boost
@@ -181,7 +188,7 @@ ENDIF(UNIX AND NOT APPLE)
 
 # OpenCV
 SET(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${OpenCV_DIR}")
-FIND_PACKAGE( OpenCV REQUIRED core flann imgproc features2d calib3d highgui hal imgcodecs videoio ml )	# ml video legacy objdetect photo gpu videostab ts ocl superres nonfree stitching contrib
+FIND_PACKAGE( OpenCV REQUIRED core flann imgproc features2d calib3d highgui imgcodecs videoio ml )	# ml video legacy objdetect photo gpu videostab ts ocl superres nonfree stitching contrib
 # Workaround for OpenCV: Use Release libraries for RelWithDebInfo target
 # (found here: http://stackoverflow.com/questions/24262081/cmake-relwithdebinfo-links-to-debug-libs)
 SET_TARGET_PROPERTIES(${OpenCV_LIBS} PROPERTIES MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
@@ -293,6 +300,24 @@ ELSE (CERES_FOUND)
 ENDIF (CERES_FOUND)
 SET_TARGET_PROPERTIES(${CERES_LIBRARIES} PROPERTIES MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
 
+# Remove non-GPL parts of SuiteSparse
+foreach(tgt ${CERES_LIBRARIES})
+	get_property(v TARGET ${tgt} PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE)
+	message("Property of ${tgt}, before: ${v}")
+	set(v_new "")
+	foreach(v_part ${v})
+		if(${v_part} MATCHES ".*spqr.*")
+			# Remove this
+		else()
+			list(APPEND v_new ${v_part})
+		endif()
+	endforeach()
+	set_target_properties(${tgt} PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "${v_new}")
+	get_property(v2 TARGET ${tgt} PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE)
+	message("Property of ${tgt}, after: ${v2}")
+endforeach()
+
+
 IF(NOT DEFINED GLOG_INCLUDE_DIRS OR GLOG_INCLUDE_DIRS EQUAL "")
 	SET(GLOG_INCLUDE_DIRS ${CERES_INCLUDE_DIR}/ceres/internal/miniglog)
 ENDIF(NOT DEFINED GLOG_INCLUDE_DIRS OR GLOG_INCLUDE_DIRS EQUAL "")
@@ -323,6 +348,30 @@ IF(MSVC)
 	ELSE(SuiteSparse_FOUND)
 		MESSAGE(FATAL_ERROR "Can't find SuiteSparse. Please set SUITESPARSE_DIR")
 	ENDIF(SuiteSparse_FOUND)
+	
+	# Use only non-GPL parts
+	SET(SuiteSparse_LIBRARIES_NGPL "")
+	#message("SuiteSparse_LIBRARIES = ${SuiteSparse_LIBRARIES}")
+	FOREACH(sslib ${SuiteSparse_LIBRARIES})
+		IF(${sslib} MATCHES ".*spqr.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*umfpack.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*klu.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*btf.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*cxsparse.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*ldl.*")
+			# Remove this
+		ELSE()
+			list(APPEND SuiteSparse_LIBRARIES_NGPL ${sslib})
+		ENDIF()
+	endforeach()
+	SET(SuiteSparse_LIBRARIES ${SuiteSparse_LIBRARIES_NGPL})
+	#message("SuiteSparse_LIBRARIES = ${SuiteSparse_LIBRARIES}")
+	
 ELSE(MSVC)
 	# Use FindSuiteSparse.cmake in src/cmake directory (originally from ceres)
 	INCLUDE_DIRECTORIES(${SUITESPARSE_INCLUDE_DIRS})
@@ -332,7 +381,9 @@ ELSE(MSVC)
 	IF(METIS_FOUND)
 		LIST(APPEND SuiteSparse_LIBRARIES "${METIS_LIBRARY}")
 	ENDIF(METIS_FOUND)
+	#SET(SuiteSparse_LIBRARIES "")
 ENDIF(MSVC)
+
 
 # AssImp
 IF(WIN32 OR APPLE)
@@ -340,7 +391,11 @@ IF(WIN32 OR APPLE)
 	LIST(APPEND CMAKE_PREFIX_PATH "${ASSIMP_DIR}/lib/cmake/assimp-3.1" )
 	FIND_PACKAGE(assimp REQUIRED)
 	IF(WIN32)
-		SET(ASSIMP_LIBRARIES "optimized;assimp.lib;debug;assimpd.lib")	# Overwriting defaults
+		IF(MSVC)
+			SET(ASSIMP_LIBRARIES "optimized;assimp-vc140-mt.lib;debug;assimp-vc140-mtd.lib")	# Overwriting defaults
+		ELSE(MSVC)
+			SET(ASSIMP_LIBRARIES "optimized;assimp.lib;debug;assimpd.lib")	# Overwriting defaults
+		ENDIF(MSVC)
 	ENDIF(WIN32)
 ELSE(WIN32 OR APPLE)
 	pkg_check_modules(ASSIMP REQUIRED assimp)
@@ -396,116 +451,17 @@ ENDIF(R3D_USE_TBB)
 
 # OpenMVG
 SET(OPENMVG_EXCLUDE_PATENTED ON)
-ADD_SUBDIRECTORY(${OPENMVG_SRC_DIR} OpenMVG EXCLUDE_FROM_ALL)
-INCLUDE_DIRECTORIES(${OpenMVG_INCLUDE_DIRS})
+#ADD_SUBDIRECTORY(${OPENMVG_SRC_DIR} OpenMVG EXCLUDE_FROM_ALL)
+#INCLUDE_DIRECTORIES(${OpenMVG_INCLUDE_DIRS})
+
+FIND_PACKAGE(OpenMVG REQUIRED)
+INCLUDE_DIRECTORIES(${OPENMVG_INCLUDE_DIRS})
+
 IF(DEFINED OPENMVG_VERSION)
 	SET(R3D_HAVE_OPENMVG_VERSION TRUE)
 ENDIF(DEFINED OPENMVG_VERSION)
 
-message("OpenMVG_LIBRARIES: ${OpenMVG_LIBRARIES}")
-
-# Organize OpenMVG projects into folders
-# Solution found here: http://athile.net/library/blog/?p=288
-IF(MSVC)
-	SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
-	IF(TARGET vlsift)
-		SET_PROPERTY(TARGET vlsift	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	ENDIF(TARGET vlsift)
-	IF(TARGET ceres)
-		SET_PROPERTY(TARGET ceres	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	ENDIF(TARGET ceres)
-	IF(TARGET CppUnitLite)
-		SET_PROPERTY(TARGET CppUnitLite	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	ENDIF(TARGET CppUnitLite)
-#	SET_PROPERTY(TARGET cxsparse	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	IF(TARGET easyexif)
-		SET_PROPERTY(TARGET easyexif	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	ENDIF(TARGET easyexif)
-	IF(TARGET minilog)		
-		SET_PROPERTY(TARGET minilog		PROPERTY FOLDER "OpenMVG_projects/third-party")
-	ENDIF(TARGET minilog)
-#	SET_PROPERTY(TARGET flann_cpp	PROPERTY FOLDER "OpenMVG_projects/third-party")
-#	SET_PROPERTY(TARGET flann_cpp_s	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	SET_PROPERTY(TARGET check	PROPERTY FOLDER "OpenMVG_projects")
-	IF(TARGET dist)
-		SET_PROPERTY(TARGET dist	PROPERTY FOLDER "OpenMVG_projects")
-	ENDIF(TARGET dist)
-	IF(TARGET glfw)
-		SET_PROPERTY(TARGET glfw	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	ENDIF(TARGET glfw)
-	SET_PROPERTY(TARGET lemon	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	SET_PROPERTY(TARGET lib_clp	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	SET_PROPERTY(TARGET lib_CoinUtils	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	SET_PROPERTY(TARGET lib_Osi	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	SET_PROPERTY(TARGET lib_OsiClpSolver	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	IF(TARGET main_openmvg_exifParsing)
-		SET_PROPERTY(TARGET main_openmvg_exifParsing	PROPERTY FOLDER "OpenMVG_projects/main")
-	ENDIF(TARGET main_openmvg_exifParsing)
-	SET_PROPERTY(TARGET main_svgSample	PROPERTY FOLDER "OpenMVG_projects/main")
-#	SET_PROPERTY(TARGET miniglog	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	SET_PROPERTY(TARGET openMVG_image	PROPERTY FOLDER "OpenMVG_projects")
-	SET_PROPERTY(TARGET openMVG_kvld	PROPERTY FOLDER "OpenMVG_projects")
-	SET_PROPERTY(TARGET openMVG_lInftyComputerVision	PROPERTY FOLDER "OpenMVG_projects")
-	SET_PROPERTY(TARGET openMVG_main_ColHarmonize	PROPERTY FOLDER "OpenMVG_projects/main")
-	IF(TARGET openMVG_main_computeMatches)
-		SET_PROPERTY(TARGET openMVG_main_computeMatches	PROPERTY FOLDER "OpenMVG_projects/main")
-	ENDIF(TARGET openMVG_main_computeMatches)
-	IF(TARGET openMVG_main_CreateList)
-		SET_PROPERTY(TARGET openMVG_main_CreateList	PROPERTY FOLDER "OpenMVG_projects/main")
-	ENDIF(TARGET openMVG_main_CreateList)
-	SET_PROPERTY(TARGET openMVG_main_exportKeypoints	PROPERTY FOLDER "OpenMVG_projects/main")
-	SET_PROPERTY(TARGET openMVG_main_exportMatches	PROPERTY FOLDER "OpenMVG_projects/main")
-	SET_PROPERTY(TARGET openMVG_main_exportTracks	PROPERTY FOLDER "OpenMVG_projects/main")
-	SET_PROPERTY(TARGET openMVG_main_GlobalSfM	PROPERTY FOLDER "OpenMVG_projects/main")
-	SET_PROPERTY(TARGET openMVG_main_IncrementalSfM	PROPERTY FOLDER "OpenMVG_projects/main")
-	SET_PROPERTY(TARGET openMVG_main_openMVG2CMPMVS	PROPERTY FOLDER "OpenMVG_projects/main")
-	SET_PROPERTY(TARGET openMVG_main_openMVG2MESHLAB	PROPERTY FOLDER "OpenMVG_projects/main")
-	SET_PROPERTY(TARGET openMVG_main_openMVG2PMVS	PROPERTY FOLDER "OpenMVG_projects/main")
-	IF(TARGET openMVG_main_ParseDatabase)
-		SET_PROPERTY(TARGET openMVG_main_ParseDatabase	PROPERTY FOLDER "OpenMVG_projects/main")
-	ENDIF(TARGET openMVG_main_ParseDatabase)
-	IF(TARGET openMVG_main_sfmViewer)
-		SET_PROPERTY(TARGET openMVG_main_sfmViewer	PROPERTY FOLDER "OpenMVG_projects/main")
-	ENDIF(TARGET openMVG_main_sfmViewer)
-	SET_PROPERTY(TARGET openMVG_multiview	PROPERTY FOLDER "OpenMVG_projects")
-	SET_PROPERTY(TARGET openMVG_multiview_test_data	PROPERTY FOLDER "OpenMVG_projects")
-	SET_PROPERTY(TARGET openMVG_numeric	PROPERTY FOLDER "OpenMVG_projects")
-	IF(TARGET openMVG_sample_kvld)
-		SET_PROPERTY(TARGET openMVG_sample_kvld	PROPERTY FOLDER "OpenMVG_projects/sample")
-	ENDIF(TARGET openMVG_sample_kvld)
-	IF(TARGET openMVG_sample_robustEssential)
-		SET_PROPERTY(TARGET openMVG_sample_robustEssential	PROPERTY FOLDER "OpenMVG_projects/sample")
-	ENDIF(TARGET openMVG_sample_robustEssential)
-	IF(TARGET openMVG_sample_robustEssential_ba)
-		SET_PROPERTY(TARGET openMVG_sample_robustEssential_ba	PROPERTY FOLDER "OpenMVG_projects/sample")
-	ENDIF(TARGET openMVG_sample_robustEssential_ba)
-	IF(TARGET openMVG_sample_robustFundamental)
-		SET_PROPERTY(TARGET openMVG_sample_robustFundamental	PROPERTY FOLDER "OpenMVG_projects/sample")
-	ENDIF(TARGET openMVG_sample_robustFundamental)
-	IF(TARGET openMVG_sample_robustHomography)
-		SET_PROPERTY(TARGET openMVG_sample_robustHomography	PROPERTY FOLDER "OpenMVG_projects/sample")
-	ENDIF(TARGET openMVG_sample_robustHomography)
-	IF(TARGET openMVG_sample_robustHomography_guided)
-		SET_PROPERTY(TARGET openMVG_sample_robustHomography_guided	PROPERTY FOLDER "OpenMVG_projects/sample")
-	ENDIF(TARGET openMVG_sample_robustHomography_guided)
-	IF(TARGET openMVG_sample_siftPutative)
-		SET_PROPERTY(TARGET openMVG_sample_siftPutative	PROPERTY FOLDER "OpenMVG_projects/sample")
-	ENDIF(TARGET openMVG_sample_siftPutative)
-	IF(TARGET openMVG_sample_undistoBrown)
-		SET_PROPERTY(TARGET openMVG_sample_undistoBrown	PROPERTY FOLDER "OpenMVG_projects/sample")
-	ENDIF(TARGET openMVG_sample_undistoBrown)
-	IF(TARGET openMVG_SfM_Global)
-		SET_PROPERTY(TARGET openMVG_SfM_Global	PROPERTY FOLDER "OpenMVG_projects")
-	ENDIF(TARGET openMVG_SfM_Global)
-	IF(TARGET openMVG_SfM_Sequential)
-		SET_PROPERTY(TARGET openMVG_SfM_Sequential	PROPERTY FOLDER "OpenMVG_projects")
-	ENDIF(TARGET openMVG_SfM_Sequential)
-	SET_PROPERTY(TARGET openMVG_system	PROPERTY FOLDER "OpenMVG_projects")
-	SET_PROPERTY(TARGET stlplus	PROPERTY FOLDER "OpenMVG_projects/third-party")
-	IF(TARGET uninstall)
-		SET_PROPERTY(TARGET uninstall	PROPERTY FOLDER "OpenMVG_projects")
-	ENDIF(TARGET uninstall)
-ENDIF(MSVC)
+message("OPENMVG_LIBRARIES: ${OPENMVG_LIBRARIES}")
 
 # VLFEAT (optional)
 SET( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" )
@@ -558,8 +514,8 @@ IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 IF(MSVC)
-	SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${R3D_COMPILER_ARCH} /MP" )
-	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${R3D_COMPILER_ARCH} /MP" )
+	SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${R3D_COMPILER_ARCH} /bigobj /MP" )
+	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${R3D_COMPILER_ARCH} /bigobj /MP" )
 #	SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Ox /Ob2 /Oi /Ot /GL /GS- ${R3D_COMPILER_ARCH} /fp:fast /MP" )
 #	SET( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox /Ob2 /Oi /Ot /GL /GS- ${R3D_COMPILER_ARCH} /fp:fast /MP" )
 
@@ -635,6 +591,10 @@ INCLUDE_DIRECTORIES(thirdparty/akaze/lib)
 ADD_SUBDIRECTORY(thirdparty/liop)
 INCLUDE_DIRECTORIES(thirdparty/liop)
 
+# LIOP
+ADD_SUBDIRECTORY(thirdparty/tinyply)
+INCLUDE_DIRECTORIES(thirdparty/tinyply)
+
 ## Organize source files in folders
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
@@ -667,6 +627,9 @@ SET(ALL_SRC ${ALL_SRC} ${UTILS_SRC})
 SET(ALL_HEADERS ${ALL_HEADERS} ${UTILS_HEADERS})
 SOURCE_GROUP("Utils" FILES ${UTILS_SRC} ${UTILS_HEADERS})
 
+IF(MSVC)
+	SET_PROPERTY(SOURCE utils/OpenMVGHelper.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " /bigobj ")
+ENDIF(MSVC)
 
 IF(WIN32)
 	# Add resource definitions for Windows
@@ -705,9 +668,15 @@ IF(TARGET openMVG_SfM_Sequential)
 ENDIF(TARGET openMVG_SfM_Sequential)
 
 SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIES}
-	${Boost_LIBRARIES} ${PCL_LIBRARIES} daisy AKAZE liop ${OpenCV_LIBRARIES} ${OpenMVG_LIBRARIES}
+	${Boost_LIBRARIES} ${PCL_LIBRARIES} daisy AKAZE liop ${OpenCV_LIBRARIES} ${OPENMVG_LIBRARIES}
 	${CERES_LIBRARIES} ${GLOG_LIBRARIES} ${SuiteSparse_LIBRARIES} ${FLANN_LIBRARIES}
-	easyexif ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${ASSIMP_LIBRARIES} ${OPENGL_LIBRARIES} )
+	easyexif ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${ASSIMP_LIBRARIES} ${OPENGL_LIBRARIES}
+	optimized;minilog;debug;minilog_d tinyply)
+	
+IF(MKL_FOUND)
+	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${MKL_LIBRARIES} )
+ENDIF(MKL_FOUND)
+
 IF(MINGW)
 	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} blas)
 ENDIF(MINGW)

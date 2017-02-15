@@ -151,6 +151,13 @@ FIND_PACKAGE(Eigen3 3.0.0 REQUIRED)
 MESSAGE("Found Eigen ${EIGEN3_VERSION}")
 INCLUDE_DIRECTORIES( ${EIGEN3_INCLUDE_DIR} )
 
+FIND_PACKAGE(MKL)
+IF(MKL_FOUND)
+	INCLUDE_DIRECTORIES(${MKL_INCLUDE_DIRS})
+	LINK_DIRECTORIES(${MKL_LIBRARY_DIRS})
+	ADD_DEFINITIONS(-DEIGEN_USE_MKL_ALL)
+ENDIF(MKL_FOUND)
+
 # Remark: Call find_package(PCL) first, as PCL also uses boost and overwrites boost variables like Boost_LIBRARIES
 
 # boost
@@ -293,6 +300,24 @@ ELSE (CERES_FOUND)
 ENDIF (CERES_FOUND)
 SET_TARGET_PROPERTIES(${CERES_LIBRARIES} PROPERTIES MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
 
+# Remove non-GPL parts of SuiteSparse
+foreach(tgt ${CERES_LIBRARIES})
+	get_property(v TARGET ${tgt} PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE)
+	message("Property of ${tgt}, before: ${v}")
+	set(v_new "")
+	foreach(v_part ${v})
+		if(${v_part} MATCHES ".*spqr.*")
+			# Remove this
+		else()
+			list(APPEND v_new ${v_part})
+		endif()
+	endforeach()
+	set_target_properties(${tgt} PROPERTIES IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE "${v_new}")
+	get_property(v2 TARGET ${tgt} PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE)
+	message("Property of ${tgt}, after: ${v2}")
+endforeach()
+
+
 IF(NOT DEFINED GLOG_INCLUDE_DIRS OR GLOG_INCLUDE_DIRS EQUAL "")
 	SET(GLOG_INCLUDE_DIRS ${CERES_INCLUDE_DIR}/ceres/internal/miniglog)
 ENDIF(NOT DEFINED GLOG_INCLUDE_DIRS OR GLOG_INCLUDE_DIRS EQUAL "")
@@ -305,35 +330,59 @@ INCLUDE_DIRECTORIES(
 	${EIGEN_INCLUDE_DIRS})
 
 # SuiteSparse
-#IF(MSVC)
-#	LIST(APPEND CMAKE_MODULE_PATH "${SUITESPARSE_DIR};${SUITESPARSE_DIR}/cmake" )
-#	# Hack: Remove src/cmake from CMAKE_MODULE_PATH in order to use the one provided by the suitesparse-metis-for-windows project
-#	LIST(REMOVE_ITEM CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-#ENDIF(MSVC)
-#FIND_PACKAGE(SuiteSparse REQUIRED)
-#IF(MSVC)
-#	# Add src/cmake again
-#	LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-#
-#	# Use the SuiteSparseConfig.cmake file provided by the suitesparse-metis-for-windows project
-#	INCLUDE(${USE_SuiteSparse})
-#	INCLUDE_DIRECTORIES(${SuiteSparse_INCLUDE_DIR})
-#	IF(SuiteSparse_FOUND)
-#		MESSAGE("-- Found SuiteSparse: ${SUITESPARSE_INCLUDE_DIRS} ${SuiteSparse_INCLUDE_DIR}")
-#	ELSE(SuiteSparse_FOUND)
-#		MESSAGE(FATAL_ERROR "Can't find SuiteSparse. Please set SUITESPARSE_DIR")
-#	ENDIF(SuiteSparse_FOUND)
-#ELSE(MSVC)
-#	# Use FindSuiteSparse.cmake in src/cmake directory (originally from ceres)
-#	INCLUDE_DIRECTORIES(${SUITESPARSE_INCLUDE_DIRS})
-#
-#	# Use only non-GPL parts
-#	SET(SuiteSparse_LIBRARIES "${CHOLMOD_LIBRARY};${CCOLAMD_LIBRARY};${CAMD_LIBRARY};${COLAMD_LIBRARY};${AMD_LIBRARY};${SUITESPARSE_CONFIG_LIBRARY}")
-#	IF(METIS_FOUND)
-#		LIST(APPEND SuiteSparse_LIBRARIES "${METIS_LIBRARY}")
-#	ENDIF(METIS_FOUND)
-#ENDIF(MSVC)
-SET(SuiteSparse_LIBRARIES "")
+IF(MSVC)
+	LIST(APPEND CMAKE_MODULE_PATH "${SUITESPARSE_DIR};${SUITESPARSE_DIR}/cmake" )
+	# Hack: Remove src/cmake from CMAKE_MODULE_PATH in order to use the one provided by the suitesparse-metis-for-windows project
+	LIST(REMOVE_ITEM CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+ENDIF(MSVC)
+FIND_PACKAGE(SuiteSparse REQUIRED)
+IF(MSVC)
+	# Add src/cmake again
+	LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+	# Use the SuiteSparseConfig.cmake file provided by the suitesparse-metis-for-windows project
+	INCLUDE(${USE_SuiteSparse})
+	INCLUDE_DIRECTORIES(${SuiteSparse_INCLUDE_DIR})
+	IF(SuiteSparse_FOUND)
+		MESSAGE("-- Found SuiteSparse: ${SUITESPARSE_INCLUDE_DIRS} ${SuiteSparse_INCLUDE_DIR}")
+	ELSE(SuiteSparse_FOUND)
+		MESSAGE(FATAL_ERROR "Can't find SuiteSparse. Please set SUITESPARSE_DIR")
+	ENDIF(SuiteSparse_FOUND)
+	
+	# Use only non-GPL parts
+	SET(SuiteSparse_LIBRARIES_NGPL "")
+	#message("SuiteSparse_LIBRARIES = ${SuiteSparse_LIBRARIES}")
+	FOREACH(sslib ${SuiteSparse_LIBRARIES})
+		IF(${sslib} MATCHES ".*spqr.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*umfpack.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*klu.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*btf.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*cxsparse.*")
+			# Remove this
+		ELSEIF(${sslib} MATCHES ".*ldl.*")
+			# Remove this
+		ELSE()
+			list(APPEND SuiteSparse_LIBRARIES_NGPL ${sslib})
+		ENDIF()
+	endforeach()
+	SET(SuiteSparse_LIBRARIES ${SuiteSparse_LIBRARIES_NGPL})
+	#message("SuiteSparse_LIBRARIES = ${SuiteSparse_LIBRARIES}")
+	
+ELSE(MSVC)
+	# Use FindSuiteSparse.cmake in src/cmake directory (originally from ceres)
+	INCLUDE_DIRECTORIES(${SUITESPARSE_INCLUDE_DIRS})
+
+	# Use only non-GPL parts
+	SET(SuiteSparse_LIBRARIES "${CHOLMOD_LIBRARY};${CCOLAMD_LIBRARY};${CAMD_LIBRARY};${COLAMD_LIBRARY};${AMD_LIBRARY};${SUITESPARSE_CONFIG_LIBRARY}")
+	IF(METIS_FOUND)
+		LIST(APPEND SuiteSparse_LIBRARIES "${METIS_LIBRARY}")
+	ENDIF(METIS_FOUND)
+	#SET(SuiteSparse_LIBRARIES "")
+ENDIF(MSVC)
 
 
 # AssImp
@@ -623,6 +672,11 @@ SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIE
 	${CERES_LIBRARIES} ${GLOG_LIBRARIES} ${SuiteSparse_LIBRARIES} ${FLANN_LIBRARIES}
 	easyexif ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${ASSIMP_LIBRARIES} ${OPENGL_LIBRARIES}
 	optimized;minilog;debug;minilog_d tinyply)
+	
+IF(MKL_FOUND)
+	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${MKL_LIBRARIES} )
+ENDIF(MKL_FOUND)
+
 IF(MINGW)
 	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} blas)
 ENDIF(MINGW)

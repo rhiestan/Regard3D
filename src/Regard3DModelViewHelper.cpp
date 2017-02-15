@@ -405,15 +405,16 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 	try
 	{
 #if defined(R3D_WIN32)
-		//boost::filesystem::ifstream istream(boost::filesystem::path(filename.wc_str()), std::ios::binary);
+		boost::filesystem::ifstream istream(boost::filesystem::path(filename.wc_str()), std::ios::binary);
 #else
-		//boost::filesystem::ifstream istream(boost::filesystem::path(filename.mb_str()), std::ios::binary);
+		boost::filesystem::ifstream istream(boost::filesystem::path(filename.mb_str()), std::ios::binary);
 #endif
-		std::ifstream istream(std::string(filename.mb_str()), std::ios::binary);
+		//std::ifstream istream(std::string(filename.mb_str()), std::ios::binary);
 		tinyply::PlyFile file(istream);
 
 		tinyply::PlyProperty::Type coordinateType = tinyply::PlyProperty::Type::FLOAT32;
 		tinyply::PlyProperty::Type colorType = tinyply::PlyProperty::Type::UINT8;
+		bool hasDiffuseColors = false;
 		for (auto e : file.get_elements())
 		{
 			std::string name = e.name;
@@ -429,6 +430,12 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 				if(name == std::string("vertex")
 					&& propN == std::string("red"))
 					colorType = p.propertyType;
+				if(name == std::string("vertex")
+					&& propN == std::string("diffuse_red"))
+				{
+					colorType = p.propertyType;
+					hasDiffuseColors = true;
+				}
 
 			}
 		}
@@ -442,7 +449,10 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 			vertexCount = file.request_properties_from_element("vertex", { "x", "y", "z" }, vertsF);
 		else
 			vertexCount = file.request_properties_from_element("vertex", { "x", "y", "z" }, vertsD);
-		colorCount = file.request_properties_from_element("vertex", { "red", "green", "blue" }, colorsUI8);
+		if(hasDiffuseColors)
+			colorCount = file.request_properties_from_element("vertex", { "diffuse_red", "diffuse_green", "diffuse_blue" }, colorsUI8);
+		else
+			colorCount = file.request_properties_from_element("vertex", { "red", "green", "blue" }, colorsUI8);
 
 		file.read(istream);
 

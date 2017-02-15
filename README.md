@@ -18,6 +18,10 @@ The Regard3D source code is released under the [MIT license](http://opensource.o
 Version history
 ---------------
 
+###Version 0.9.1, 01.02.2017:
+- Upgraded to OpenMVG 1.1
+- Third-party programs (MVE, PoissonRecon) up to date
+
 ###Version 0.9.0, 15.10.2015:
 - Upgraded to OpenMVG 0.9.0
 - Third-party programs (MVE, PoissonRecon) up to date

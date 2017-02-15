@@ -20,6 +20,7 @@
 #include "CommonIncludes.h"
 #include "OpenMVGHelper.h"
 #include "OpenCVHelper.h"
+#include "OpenMVGExportToMVS.h"
 
 #include <memory>
 #include <sstream>
@@ -1774,6 +1775,17 @@ bool OpenMVGHelper::exportToExternalMVS(R3DProject::Triangulation *pTriangulatio
 		scriptFile.Write(scriptStr.c_str(), scriptStr.length());
 		scriptFile.Close();
 	}
+
+	// Export to OpenMVS
+	wxFileName openMVSOutDir(outDir);
+	openMVSOutDir.AppendDir(wxT("OpenMVS"));
+	if(!openMVSOutDir.DirExists())
+	{
+		if(!openMVSOutDir.Mkdir())
+			return false;
+	}
+
+	OpenMVGExportToMVS::exportToOpenMVS(pTriangulation, openMVSOutDir.GetPath());
 
 	return true;
 }

@@ -26,7 +26,7 @@
 #include <wx/mstream.h>
 
 // openMVG
-#include "openMVG/features/features.hpp"
+#include "openMVG/features/feature.hpp"
 #include "openMVG/matching/indMatch.hpp"
 #include "openMVG/matching/indMatch_utils.hpp"
 #include "openMVG/tracks/tracks.hpp"
@@ -351,7 +351,7 @@ bool PreviewGeneratorThread::createPreview(wxImage &localPreviewImage, PreviewIn
 					tracksBuilder.ExportToSTL(map_tracks);
 
 					openMVG::tracks::STLMAPTracks map_tracksCommon;
-					std::set<size_t> set_imageIndex;
+					std::set<uint32_t> set_imageIndex;
 					set_imageIndex.insert(previewInfo.index1_);
 					set_imageIndex.insert(previewInfo.index2_);
 					openMVG::tracks::TracksUtilsMap::GetTracksInImages(set_imageIndex, map_tracks, map_tracksCommon);

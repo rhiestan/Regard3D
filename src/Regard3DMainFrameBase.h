@@ -387,7 +387,7 @@ class NewProjectDialogBase : public wxDialog
 	public:
 		wxString projectName_; 
 		
-		NewProjectDialogBase( wxWindow* parent, wxWindowID id = ID_NEWPROJECTDIALOG, const wxString& title = wxT("Create new Regard3D project"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 558,272 ), long style = wxDEFAULT_DIALOG_STYLE );
+		NewProjectDialogBase( wxWindow* parent, wxWindowID id = ID_NEWPROJECTDIALOG, const wxString& title = wxT("Create new Regard3D project"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
 		~NewProjectDialogBase();
 	
 };
@@ -626,9 +626,11 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 	private:
 		
 		// Private event handlers
+		void _wxFB_OnClose( wxCloseEvent& event ){ OnClose( event ); }
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnKeypointSensitivitySlider( wxScrollEvent& event ){ OnKeypointSensitivitySlider( event ); }
 		void _wxFB_OnKeypointMatchingRatioSlider( wxScrollEvent& event ){ OnKeypointMatchingRatioSlider( event ); }
+		void _wxFB_OnOKButtonClick( wxCommandEvent& event ){ OnOKButtonClick( event ); }
 		
 	
 	protected:
@@ -642,6 +644,8 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 			ID_KEYPOINTMATCHINGRATIOTEXTCTRL,
 			ID_KEYPOINTMATCHINGRATIOSLIDER,
 			ID_KEYPOINTMATCHINGRATIOVALTEXTCTRL,
+			ID_KEYPOINTDETECTORRADIOBOX,
+			ID_ADDTBMRDETECTORCHECKBOX,
 		};
 		
 		wxPanel* pComputeMatchesDialogPanel_;
@@ -653,19 +657,23 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		wxTextCtrl* pKeypointMatchingRatioTextCtrl_;
 		wxSlider* pKeypointMatchingRatioSlider_;
 		wxTextCtrl* pKeypointMatchingRatioValTextCtrl_;
+		wxRadioBox* pKeypointDetectorRadioBox_;
+		wxCheckBox* pAddTBMRDetectorCheckBox_;
 		wxStdDialogButtonSizer* m_sdbSizer3;
 		wxButton* m_sdbSizer3OK;
 		wxButton* m_sdbSizer3Cancel;
 		
 		// Virtual event handlers, overide them in your derived class
+		virtual void OnClose( wxCloseEvent& event ) = 0;
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnKeypointSensitivitySlider( wxScrollEvent& event ) = 0;
 		virtual void OnKeypointMatchingRatioSlider( wxScrollEvent& event ) = 0;
+		virtual void OnOKButtonClick( wxCommandEvent& event ) = 0;
 		
 	
 	public:
 		
-		Regard3DComputeMatchesDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DCOMPUTEMATCHESDIALOG, const wxString& title = wxT("Compute Matches"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 684,233 ), long style = wxDEFAULT_DIALOG_STYLE );
+		Regard3DComputeMatchesDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DCOMPUTEMATCHESDIALOG, const wxString& title = wxT("Compute Matches"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
 		~Regard3DComputeMatchesDialogBase();
 	
 };

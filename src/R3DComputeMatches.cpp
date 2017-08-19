@@ -63,14 +63,17 @@ void R3DComputeMatches::addImages(const ImageInfoVector &iiv)
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#include "openMVG/image/image.hpp"
-#include "openMVG/features/features.hpp"
+#include "openMVG/image/image_container.hpp"
+#include "openMVG/image/pixel_types.hpp"
+#include "openMVG/image/image_io.hpp"
+#include "openMVG/features/feature.hpp"
 
 /// Generic Image Collection image matching
 #if defined(R3D_USE_OPENMVG_PRE08)
 #	include "openMVG/matching_image_collection/Matcher_AllInMemory.hpp"
 #else
-#	include "openMVG/matching_image_collection/Matcher_Regions_AllInMemory.hpp"
+//#	include "openMVG/matching_image_collection/Matcher_Regions_AllInMemory.hpp"
+#include "openMVG/matching_image_collection/Matcher_Regions.hpp"
 #include "openMVG/sfm/sfm_data.hpp"
 #include "openMVG/sfm/sfm_data_io.hpp"
 #include "openMVG/sfm/pipelines/sfm_engine.hpp"
@@ -683,7 +686,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
   //---------------------------------------
   openMVG::sfm::SfM_Data sfm_data;
   if(!Load(sfm_data, sSfM_Data_Filename, openMVG::sfm::ESfM_Data(openMVG::sfm::VIEWS | openMVG::sfm::INTRINSICS))) {
-	  std::cerr << std::endl
+	  MLOG << std::endl
 		  << "The input SfM_Data file \"" << sSfM_Data_Filename << "\" cannot be read." << std::endl;
 	  return false;	// EXIT_FAILURE;
   }
@@ -940,7 +943,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
     computePutativeDescriptorMatches<Regard3DFeatures::DescriptorR3D, Regard3DFeatures::KeypointSetR3D, MatcherR3D>
       (vec_fileNames, sOutDir, map_PutativesMatches, fDistRatio);
 #else
-    std::unique_ptr<Matcher_Regions_AllInMemory> collectionMatcher(new Matcher_Regions_AllInMemory(fDistRatio, ANN_L2));
+    std::unique_ptr<Matcher_Regions> collectionMatcher(new Matcher_Regions(fDistRatio, ANN_L2));
 	if(regions_provider->load(sfm_data, sMatchesDirectory, regions_type))
     //if(collectionMatcher->loadData(regions_type, vec_fileNames, sMatchesDirectory))
     {
@@ -981,7 +984,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
   // Load the features
   std::shared_ptr<openMVG::sfm::Features_Provider> feats_provider = std::make_shared<openMVG::sfm::Features_Provider>();
   if(!feats_provider->load(sfm_data, sMatchesDirectory, regions_type)) {
-    std::cerr << std::endl << "Invalid features." << std::endl;
+    MLOG << std::endl << "Invalid features." << std::endl;
 	return false;	// EXIT_FAILURE;
   }
   ImageCollectionGeometricFilter collectionGeomFilter(&sfm_data, regions_provider);

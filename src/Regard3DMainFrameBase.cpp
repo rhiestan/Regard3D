@@ -542,7 +542,7 @@ END_EVENT_TABLE()
 
 NewProjectDialogBase::NewProjectDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
 {
-	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+	this->SetSizeHints( wxSize( 550,270 ), wxDefaultSize );
 	
 	wxBoxSizer* bSizer13;
 	bSizer13 = new wxBoxSizer( wxVERTICAL );
@@ -562,6 +562,8 @@ NewProjectDialogBase::NewProjectDialogBase( wxWindow* parent, wxWindowID id, con
 	sbSizer7->Add( pSetProjectPathRadioButton_, 0, wxALL, 3 );
 	
 	pProjectPathDirPicker_ = new wxDirPickerCtrl( m_panel7, ID_PROJECTPATHDIRPICKER, wxEmptyString, wxT("Select a folder"), wxDefaultPosition, wxDefaultSize, wxDIRP_DEFAULT_STYLE );
+	pProjectPathDirPicker_->SetMinSize( wxSize( 500,25 ) );
+	
 	sbSizer7->Add( pProjectPathDirPicker_, 1, wxALL|wxEXPAND, 5 );
 	
 	bSizer14->Add( sbSizer7, 0, wxALL|wxEXPAND, 3 );
@@ -613,6 +615,7 @@ NewProjectDialogBase::NewProjectDialogBase( wxWindow* parent, wxWindowID id, con
 	
 	this->SetSizer( bSizer13 );
 	this->Layout();
+	bSizer13->Fit( this );
 	
 	this->Centre( wxBOTH );
 }
@@ -923,14 +926,16 @@ Regard3DPictureSetDialogBase::~Regard3DPictureSetDialogBase()
 }
 
 BEGIN_EVENT_TABLE( Regard3DComputeMatchesDialogBase, wxDialog )
+	EVT_CLOSE( Regard3DComputeMatchesDialogBase::_wxFB_OnClose )
 	EVT_INIT_DIALOG( Regard3DComputeMatchesDialogBase::_wxFB_OnInitDialog )
 	EVT_COMMAND_SCROLL( ID_KEYPOINTSENSITIVITYSLIDER, Regard3DComputeMatchesDialogBase::_wxFB_OnKeypointSensitivitySlider )
 	EVT_COMMAND_SCROLL( ID_KEYPOINTMATCHINGRATIOSLIDER, Regard3DComputeMatchesDialogBase::_wxFB_OnKeypointMatchingRatioSlider )
+	EVT_BUTTON( wxID_OK, Regard3DComputeMatchesDialogBase::_wxFB_OnOKButtonClick )
 END_EVENT_TABLE()
 
 Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
 {
-	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+	this->SetSizeHints( wxSize( 680,230 ), wxDefaultSize );
 	
 	wxBoxSizer* bSizer35;
 	bSizer35 = new wxBoxSizer( wxVERTICAL );
@@ -986,6 +991,20 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	
 	sbSizer3->Add( fgSizer1, 0, wxEXPAND, 3 );
 	
+	wxBoxSizer* bSizer57;
+	bSizer57 = new wxBoxSizer( wxHORIZONTAL );
+	
+	wxString pKeypointDetectorRadioBox_Choices[] = { wxT("Classic A-KAZE"), wxT("Fast A-KAZE") };
+	int pKeypointDetectorRadioBox_NChoices = sizeof( pKeypointDetectorRadioBox_Choices ) / sizeof( wxString );
+	pKeypointDetectorRadioBox_ = new wxRadioBox( pComputeMatchesDialogPanel_, ID_KEYPOINTDETECTORRADIOBOX, wxT("Keypoint detector"), wxDefaultPosition, wxDefaultSize, pKeypointDetectorRadioBox_NChoices, pKeypointDetectorRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
+	pKeypointDetectorRadioBox_->SetSelection( 0 );
+	bSizer57->Add( pKeypointDetectorRadioBox_, 0, wxALL, 3 );
+	
+	pAddTBMRDetectorCheckBox_ = new wxCheckBox( pComputeMatchesDialogPanel_, ID_ADDTBMRDETECTORCHECKBOX, wxT("Add TBMR"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer57->Add( pAddTBMRDetectorCheckBox_, 0, wxALL, 3 );
+	
+	sbSizer3->Add( bSizer57, 0, wxEXPAND, 5 );
+	
 	bSizer36->Add( sbSizer3, 1, wxALL|wxEXPAND, 3 );
 	
 	m_sdbSizer3 = new wxStdDialogButtonSizer();
@@ -1003,6 +1022,7 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	
 	this->SetSizer( bSizer35 );
 	this->Layout();
+	bSizer35->Fit( this );
 	
 	this->Centre( wxBOTH );
 }

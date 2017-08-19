@@ -41,6 +41,13 @@
 #include <pcl/io/vtk_lib_io.h>
 #endif
 
+#include <assimp/postprocess.h>
+#include <assimp/version.h>
+#include <assimp/scene.h>
+#include <assimp/Importer.hpp>
+#include <assimp/DefaultLogger.hpp>
+#include <assimp/Exporter.hpp>
+
 void R3DModelOperations::combineDenseModels(R3DProject::Densification *pDensification, int numModels)
 {
 	wxString combinedModelName(wxT("pmvs_combined.ply"));
@@ -240,6 +247,9 @@ bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxSt
 
 	bool retVal = true;
 
+	Assimp::Importer imp;
+	Assimp::Exporter exp;
+
 	// Determine original surface file type
 	wxFileName exportFN(filename);
 	if(surfaceModelFN.GetExt().IsSameAs(wxT("ply"), false))
@@ -257,13 +267,20 @@ bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxSt
 #endif
 					retVal = false;
 
-				std::string tmpfn("tmp/temp_surface.obj");
-				retVal &= (pcl::io::saveOBJFile(tmpfn, mesh, 7) == 0);
-				retVal &= wxCopyFile(wxString(tmpfn.c_str(), wxConvLibc), filename, true);
+//				const aiScene* pScene = imp.ReadFile(surfaceModelFNStr.c_str(), aiProcess_JoinIdenticalVertices);
+//				if(pScene == NULL)
+//					retVal = false;
+//				else
+				{
+					std::string tmpfn("tmp/temp_surface.obj");
+					retVal &= (pcl::io::saveOBJFile(tmpfn, mesh, 7) == 0);
+					//const aiReturn res = exp.Export(pScene, "obj", tmpfn.c_str());
+					retVal &= wxCopyFile(wxString(tmpfn.c_str(), wxConvLibc), filename, true);
+				}
 			}
 			else
 			{
-				// PointCloudLibrary does not support textures in PLY files
+				// PointCloudLibrary/AssImp does not support textures in PLY files
 				retVal = false;
 			}
 		}
@@ -279,16 +296,23 @@ bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxSt
 		{
 			if(pSurface->colorizationType_ == R3DProject::CTColoredVertices)
 			{
-				pcl::PolygonMesh mesh;
+/*				pcl::PolygonMesh mesh;
 #if PCL_VERSION_COMPARE(<, 1, 7, 2)
 				if(pcl::io::loadPolygonFileOBJ(surfaceModelFNStr, mesh) == -1)
 #else
 				if(pcl::io::loadOBJFile(surfaceModelFNStr, mesh) == -1)
 #endif
-					retVal = false;
+					retVal = false;*/
 
-				std::string fn(filename.mb_str());
-				retVal = (pcl::io::savePLYFile(fn, mesh) == 0);
+				const aiScene* pScene = imp.ReadFile(surfaceModelFNStr.c_str(), aiProcess_JoinIdenticalVertices);
+				if(pScene == NULL)
+					retVal = false;
+				else
+				{
+					std::string fn(filename.mb_str());
+					//retVal = (pcl::io::savePLYFile(fn, mesh) == 0);
+					const aiReturn res = exp.Export(pScene, "ply", fn.c_str());
+				}
 			}
 			else
 			{
@@ -299,27 +323,83 @@ bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxSt
 		else
 		{
 			// Load and save OBJ
-			pcl::TextureMesh mesh;
+/*			pcl::TextureMesh mesh;
 #if PCL_VERSION_COMPARE(<, 1, 7, 2)
 			if(pcl::io::loadPolygonFileOBJ(surfaceModelFNStr, mesh) == -1)
 #else
 			if(pcl::io::loadOBJFile(surfaceModelFNStr, mesh) == -1)
 #endif
+				retVal = false;*/
+			const aiScene* pScene = imp.ReadFile(surfaceModelFNStr.c_str(), aiProcess_JoinIdenticalVertices);
+			if(pScene == NULL)
 				retVal = false;
+			else
+			{
+				std::string exportNameC(exportFN.GetName().ToAscii());		// Converted to ASCII
+				wxString exportNameASCII(wxString::FromAscii(exportNameC.c_str()));
 
-			// Problem: We would like to eventually have 3 files:
-			// - Model file with name filename
-			// - Material file with same or similar name, but .mtl extension
-			// - Texture file with same or similar name (PNG format)
-			// This is a problem on Windows, since the pcl::io methods only accept
-			// C-Strings (instead  of Unicode) and the name of the material file is stored
-			// in the OBJ file.
-			// It is also unclear how the textual representation of the material file name
-			// and the texture file name is interpreted, since the OBJ and the material files
-			// are text files.
-			// Workaround: map name to ASCII as good as possble, use it to store
-			// OBJ file and material file. Rename OBJ file to user requested filename.
-			std::string exportNameC(exportFN.GetName().ToAscii());		// Converted to ASCII
+				wxFileName tempFN(wxT("tmp"), exportNameASCII, wxT("obj"));
+				std::string tmpfn(std::string( tempFN.GetFullPath(wxPATH_UNIX).ToAscii() ));
+				const aiReturn res = exp.Export(pScene, "obj", tmpfn.c_str());
+				retVal &= wxCopyFile(tempFN.GetFullPath(), filename, true);
+
+				// Problem: We would like to eventually have 3 files:
+				// - Model file with name filename
+				// - Material file with same or similar name, but .mtl extension
+				// - Texture file with same or similar name (PNG format)
+				// This is a problem on Windows, since the pcl::io methods/AssImp only accept
+				// C-Strings (instead of Unicode) and the name of the material file is stored
+				// in the OBJ file.
+				// It is also unclear how the textual representation of the material file name
+				// and the texture file name is interpreted, since the OBJ and the material files
+				// are text files.
+				// Workaround: map name to ASCII as good as possble, use it to store
+				// OBJ file and material file. Rename OBJ file to user requested filename.
+				wxFileName materialInFN(tempFN), materialOutFN(filename);
+				materialInFN.SetExt(wxT("mtl"));
+				materialOutFN.SetName( exportNameASCII );
+				materialOutFN.SetExt(wxT("mtl"));
+				retVal &= wxCopyFile(materialInFN.GetFullPath(), materialOutFN.GetFullPath(), true);
+
+				bool hasTexture = false;
+				for(int i = 0; i < static_cast<int>(pScene->mNumMeshes); i++)
+				{
+					aiMesh *pMesh = pScene->mMeshes[i];
+					if(pMesh != NULL)
+					{
+						if(pMesh->GetNumUVChannels() > 0
+							&& pMesh->HasTextureCoords(0))
+							hasTexture = true;
+
+						if(hasTexture)
+						{
+							unsigned int usedMaterial = pMesh->mMaterialIndex;
+							if(usedMaterial < pScene->mNumMaterials)
+							{
+								const aiMaterial *pMaterial = pScene->mMaterials[usedMaterial];
+								unsigned int textureCount = pMaterial->GetTextureCount(aiTextureType_DIFFUSE);
+								for(unsigned int j = 0; j < textureCount; j++)
+								{
+									aiString path;
+									aiTextureMapping mapping;
+									unsigned int uvindex;
+									float blend;
+									aiTextureOp op;
+									aiTextureMapMode mapmode[3];
+									pMaterial->GetTexture(aiTextureType_DIFFUSE, j, &path, &mapping, &uvindex, &blend, &op, mapmode);
+
+									wxFileName textureFromFN(surfaceModelFN), textureToFN(filename);
+									textureFromFN.SetFullName( wxString( path.C_Str(), wxConvUTF8 ) );
+									textureToFN.SetFullName( wxString( path.C_Str(), wxConvUTF8 ) );
+									retVal &= wxCopyFile(textureFromFN.GetFullPath(), textureToFN.GetFullPath(), true);
+								}
+							}
+						}
+					}
+				}
+			}
+
+/*			std::string exportNameC(exportFN.GetName().ToAscii());		// Converted to ASCII
 			wxString exportNameASCII(wxString::FromAscii(exportNameC.c_str()));
 
 			// Copy texture files
@@ -348,7 +428,7 @@ bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxSt
 			materialInFN.SetExt(wxT("mtl"));
 			materialOutFN.SetName( exportNameASCII );
 			materialOutFN.SetExt(wxT("mtl"));
-			retVal &= wxCopyFile(materialInFN.GetFullPath(), materialOutFN.GetFullPath(), true);
+			retVal &= wxCopyFile(materialInFN.GetFullPath(), materialOutFN.GetFullPath(), true);*/
 		}
 	}
 	else

@@ -22,8 +22,9 @@
 #include "Regard3DMainFrame.h"
 
 // OpenMVG
-#include "openMVG/image/image.hpp"
-#include "openMVG/features/features.hpp"
+#include "openMVG/image/image_io.hpp"
+#include "openMVG/image/pixel_types.hpp"
+#include "openMVG/features/feature.hpp"
 
 // OpenCV
 #include "opencv2/highgui/highgui.hpp"

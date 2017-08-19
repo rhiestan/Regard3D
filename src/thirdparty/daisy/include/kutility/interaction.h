@@ -41,7 +41,7 @@
 #ifndef KUTILITY_INTERACTION_H
 #define KUTILITY_INTERACTION_H
 
-#include "kutility/kutility.def"
+#include "kutility/kutility_def.h"
 
 namespace kutility
 {

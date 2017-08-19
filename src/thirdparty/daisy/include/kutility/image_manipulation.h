@@ -41,7 +41,7 @@
 #ifndef KUTILITY_IMAGE_MANIPULATION_H
 #define KUTILITY_IMAGE_MANIPULATION_H
 
-#include "kutility/kutility.def"
+#include "kutility/kutility_def.h"
 #include "kutility/general.h"
 
 namespace kutility

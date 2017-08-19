@@ -5609,10 +5609,10 @@
             <property name="hidden">0</property>
             <property name="id">ID_NEWPROJECTDIALOG</property>
             <property name="maximum_size"></property>
-            <property name="minimum_size"></property>
+            <property name="minimum_size">550,270</property>
             <property name="name">NewProjectDialogBase</property>
             <property name="pos"></property>
-            <property name="size">558,272</property>
+            <property name="size">-1,-1</property>
             <property name="style">wxDEFAULT_DIALOG_STYLE</property>
             <property name="subclass"></property>
             <property name="title">Create new Regard3D project</property>
@@ -5856,7 +5856,7 @@
                                             <property name="id">ID_PROJECTPATHDIRPICKER</property>
                                             <property name="maximum_size"></property>
                                             <property name="message">Select a folder</property>
-                                            <property name="minimum_size"></property>
+                                            <property name="minimum_size">500,25</property>
                                             <property name="name">pProjectPathDirPicker_</property>
                                             <property name="permission">protected</property>
                                             <property name="pos"></property>
@@ -8497,10 +8497,10 @@
             <property name="hidden">0</property>
             <property name="id">ID_REGARD3DCOMPUTEMATCHESDIALOG</property>
             <property name="maximum_size"></property>
-            <property name="minimum_size"></property>
+            <property name="minimum_size">680,230</property>
             <property name="name">Regard3DComputeMatchesDialogBase</property>
             <property name="pos"></property>
-            <property name="size">684,233</property>
+            <property name="size">-1,-1</property>
             <property name="style">wxDEFAULT_DIALOG_STYLE</property>
             <property name="subclass"></property>
             <property name="title">Compute Matches</property>
@@ -8515,7 +8515,7 @@
             <event name="OnActivate"></event>
             <event name="OnActivateApp"></event>
             <event name="OnChar"></event>
-            <event name="OnClose"></event>
+            <event name="OnClose">OnClose</event>
             <event name="OnEnterWindow"></event>
             <event name="OnEraseBackground"></event>
             <event name="OnHibernate"></event>
@@ -9139,6 +9139,133 @@
                                             </object>
                                         </object>
                                     </object>
+                                    <object class="sizeritem" expanded="1">
+                                        <property name="border">5</property>
+                                        <property name="flag">wxEXPAND</property>
+                                        <property name="proportion">0</property>
+                                        <object class="wxBoxSizer" expanded="1">
+                                            <property name="minimum_size"></property>
+                                            <property name="name">bSizer57</property>
+                                            <property name="orient">wxHORIZONTAL</property>
+                                            <property name="permission">none</property>
+                                            <object class="sizeritem" expanded="1">
+                                                <property name="border">3</property>
+                                                <property name="flag">wxALL</property>
+                                                <property name="proportion">0</property>
+                                                <object class="wxRadioBox" expanded="1">
+                                                    <property name="bg"></property>
+                                                    <property name="choices">&quot;Classic A-KAZE&quot; &quot;Fast A-KAZE&quot;</property>
+                                                    <property name="context_help"></property>
+                                                    <property name="context_menu">1</property>
+                                                    <property name="enabled">1</property>
+                                                    <property name="fg"></property>
+                                                    <property name="font"></property>
+                                                    <property name="hidden">0</property>
+                                                    <property name="id">ID_KEYPOINTDETECTORRADIOBOX</property>
+                                                    <property name="label">Keypoint detector</property>
+                                                    <property name="majorDimension">1</property>
+                                                    <property name="maximum_size"></property>
+                                                    <property name="minimum_size"></property>
+                                                    <property name="name">pKeypointDetectorRadioBox_</property>
+                                                    <property name="permission">protected</property>
+                                                    <property name="pos"></property>
+                                                    <property name="selection">0</property>
+                                                    <property name="size"></property>
+                                                    <property name="style">wxRA_SPECIFY_COLS</property>
+                                                    <property name="subclass"></property>
+                                                    <property name="tooltip"></property>
+                                                    <property name="validator_data_type"></property>
+                                                    <property name="validator_style">wxFILTER_NONE</property>
+                                                    <property name="validator_type">wxDefaultValidator</property>
+                                                    <property name="validator_variable"></property>
+                                                    <property name="window_extra_style"></property>
+                                                    <property name="window_name"></property>
+                                                    <property name="window_style"></property>
+                                                    <event name="OnChar"></event>
+                                                    <event name="OnEnterWindow"></event>
+                                                    <event name="OnEraseBackground"></event>
+                                                    <event name="OnKeyDown"></event>
+                                                    <event name="OnKeyUp"></event>
+                                                    <event name="OnKillFocus"></event>
+                                                    <event name="OnLeaveWindow"></event>
+                                                    <event name="OnLeftDClick"></event>
+                                                    <event name="OnLeftDown"></event>
+                                                    <event name="OnLeftUp"></event>
+                                                    <event name="OnMiddleDClick"></event>
+                                                    <event name="OnMiddleDown"></event>
+                                                    <event name="OnMiddleUp"></event>
+                                                    <event name="OnMotion"></event>
+                                                    <event name="OnMouseEvents"></event>
+                                                    <event name="OnMouseWheel"></event>
+                                                    <event name="OnPaint"></event>
+                                                    <event name="OnRadioBox"></event>
+                                                    <event name="OnRightDClick"></event>
+                                                    <event name="OnRightDown"></event>
+                                                    <event name="OnRightUp"></event>
+                                                    <event name="OnSetFocus"></event>
+                                                    <event name="OnSize"></event>
+                                                    <event name="OnUpdateUI"></event>
+                                                </object>
+                                            </object>
+                                            <object class="sizeritem" expanded="1">
+                                                <property name="border">3</property>
+                                                <property name="flag">wxALL</property>
+                                                <property name="proportion">0</property>
+                                                <object class="wxCheckBox" expanded="1">
+                                                    <property name="bg"></property>
+                                                    <property name="checked">0</property>
+                                                    <property name="context_help"></property>
+                                                    <property name="context_menu">1</property>
+                                                    <property name="enabled">1</property>
+                                                    <property name="fg"></property>
+                                                    <property name="font"></property>
+                                                    <property name="hidden">0</property>
+                                                    <property name="id">ID_ADDTBMRDETECTORCHECKBOX</property>
+                                                    <property name="label">Add TBMR</property>
+                                                    <property name="maximum_size"></property>
+                                                    <property name="minimum_size"></property>
+                                                    <property name="name">pAddTBMRDetectorCheckBox_</property>
+                                                    <property name="permission">protected</property>
+                                                    <property name="pos"></property>
+                                                    <property name="size"></property>
+                                                    <property name="style"></property>
+                                                    <property name="subclass"></property>
+                                                    <property name="tooltip"></property>
+                                                    <property name="validator_data_type"></property>
+                                                    <property name="validator_style">wxFILTER_NONE</property>
+                                                    <property name="validator_type">wxDefaultValidator</property>
+                                                    <property name="validator_variable"></property>
+                                                    <property name="window_extra_style"></property>
+                                                    <property name="window_name"></property>
+                                                    <property name="window_style"></property>
+                                                    <event name="OnChar"></event>
+                                                    <event name="OnCheckBox"></event>
+                                                    <event name="OnEnterWindow"></event>
+                                                    <event name="OnEraseBackground"></event>
+                                                    <event name="OnKeyDown"></event>
+                                                    <event name="OnKeyUp"></event>
+                                                    <event name="OnKillFocus"></event>
+                                                    <event name="OnLeaveWindow"></event>
+                                                    <event name="OnLeftDClick"></event>
+                                                    <event name="OnLeftDown"></event>
+                                                    <event name="OnLeftUp"></event>
+                                                    <event name="OnMiddleDClick"></event>
+                                                    <event name="OnMiddleDown"></event>
+                                                    <event name="OnMiddleUp"></event>
+                                                    <event name="OnMotion"></event>
+                                                    <event name="OnMouseEvents"></event>
+                                                    <event name="OnMouseWheel"></event>
+                                                    <event name="OnPaint"></event>
+                                                    <event name="OnRightDClick"></event>
+                                                    <event name="OnRightDown"></event>
+                                                    <event name="OnRightUp"></event>
+                                                    <event name="OnSetFocus"></event>
+                                                    <event name="OnSize"></event>
+                                                    <event name="OnUpdateUI"></event>
+                                                </object>
+                                            </object>
+                                        </object>
+                                    </object>
                                 </object>
                             </object>
                             <object class="sizeritem" expanded="1">
@@ -9162,7 +9289,7 @@
                                     <event name="OnContextHelpButtonClick"></event>
                                     <event name="OnHelpButtonClick"></event>
                                     <event name="OnNoButtonClick"></event>
-                                    <event name="OnOKButtonClick"></event>
+                                    <event name="OnOKButtonClick">OnOKButtonClick</event>
                                     <event name="OnSaveButtonClick"></event>
                                     <event name="OnYesButtonClick"></event>
                                 </object>

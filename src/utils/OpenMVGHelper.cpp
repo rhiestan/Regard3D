@@ -38,8 +38,10 @@ using namespace std;
 
 // OpenMVG
 #include "openMVG/multiview/projection.hpp"
-#include "openMVG/image/image.hpp"
-#include "openMVG/features/features.hpp"
+#include "openMVG/image/image_container.hpp"
+#include "openMVG/image/pixel_types.hpp"
+#include "openMVG/image/image_io.hpp"
+#include "openMVG/features/feature.hpp"
 #include "third_party/vectorGraphics/svgDrawer.hpp"
 using namespace svg;
 #include "openMVG/matching/indMatch.hpp"
@@ -62,6 +64,7 @@ using namespace svg;
 using namespace openMVG;
 using namespace openMVG::cameras;
 using namespace openMVG::sfm;
+using namespace openMVG::image;
 
 /**
  * Export keypoints to SVG.
@@ -616,7 +619,7 @@ bool OpenMVGHelper::exportToBundlerFormat(
 
     size_t trackIndex = 0;
 
-    for (std::map< size_t, tracks::submapTrack >::const_iterator
+    for (std::map< uint32_t, tracks::submapTrack >::const_iterator
       iterTracks = doc._tracks.begin();
       iterTracks != doc._tracks.end();
       ++iterTracks,++trackIndex)
@@ -1500,7 +1503,7 @@ bool OpenMVGHelper::exportToExternalMVS(R3DProject::Triangulation *pTriangulatio
 		image_neighbours.resize(doc._map_camera.size());
 
 		int trackIndex = 0;
-		for (std::map< size_t, tracks::submapTrack >::const_iterator
+		for (std::map< uint32_t, tracks::submapTrack >::const_iterator
 			iterTracks = doc._tracks.begin();
 			iterTracks != doc._tracks.end();
 			++iterTracks,++trackIndex)

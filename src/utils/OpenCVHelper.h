@@ -23,7 +23,8 @@
 #include "opencv2/imgproc/imgproc.hpp"
 
 // OpenMVG
-#include "openMVG/image/image.hpp"
+#include "openMVG/image/image_container.hpp"
+#include "openMVG/image/pixel_types.hpp"
 
 class OpenCVHelper
 {

@@ -25,7 +25,9 @@
 #include "openMVG/image/image_container.hpp"
 #include "openMVG/features/feature.hpp"
 #include "openMVG/features/descriptor.hpp"
-#include "openMVG/features/keypointSet.hpp"
+//#include "openMVG/features/keypointSet.hpp"
+#include "keypointSet.hpp"
+#include "openMVG/features/scalar_regions.hpp"
 #if !defined(R3D_USE_OPENMVG_PRE08)
 #	include "openMVG/features/regions.hpp"
 #endif

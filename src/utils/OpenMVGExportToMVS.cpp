@@ -17,12 +17,15 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+
 #include "CommonIncludes.h"
 #include "OpenMVGExportToMVS.h"
 #include "OpenMVGHelper.h"
 
 #include "openMVG/sfm/sfm.hpp"
-#include "openMVG/image/image.hpp"
+#include "openMVG/image/image_container.hpp"
+#include "openMVG/image/pixel_types.hpp"
+#include "openMVG/image/image_io.hpp"
 
 //#include "opencv2/core/matx.hpp"
 
@@ -237,7 +240,7 @@ bool OpenMVGExportToMVS::exportToOpenMVS(R3DProject::Triangulation *pTriangulati
   }
 
   // write OpenMVS data
-  if (!ARCHIVE::SerializeSave(scene, sOutFile))
+  if (!MVS::ARCHIVE::SerializeSave(scene, sOutFile))
   {
 	  MLOG << "Could not write scene.mvs" << std::endl;
     return false;
@@ -249,4 +252,3 @@ bool OpenMVGExportToMVS::exportToOpenMVS(R3DProject::Triangulation *pTriangulati
     << "\t" << scene.vertices.size() << " Landmarks\n";
   return true;
 }
-

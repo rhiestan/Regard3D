@@ -30,12 +30,16 @@ public:
 	void setMaxPixelCount(long long maxPixelCount);
 
 	void getResults(float &keypointSensitivity,
-		float &keypointMatchingRatio);
+		float &keypointMatchingRatio,
+		int &keypointDetectorType,
+		bool &addTBMR);
 
 protected:
+	virtual void OnClose( wxCloseEvent& event );
 	virtual void OnInitDialog( wxInitDialogEvent& event );
 	virtual void OnKeypointSensitivitySlider( wxScrollEvent& event );
 	virtual void OnKeypointMatchingRatioSlider( wxScrollEvent& event );
+	virtual void OnOKButtonClick( wxCommandEvent& event );
 
 	void updateICKeypointSensitivityText();
 	void updateICKeypointMatchingRatioText();
@@ -44,6 +48,8 @@ private:
 	float keypointSensitivity_;
 	float keypointMatchingRatio_;
 	long long maxPixelCount_;
+	int keyPointDetectorType_;
+	bool addTBMR_;
 
 	DECLARE_EVENT_TABLE()
 };

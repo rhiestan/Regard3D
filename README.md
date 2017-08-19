@@ -18,6 +18,11 @@ The Regard3D source code is released under the [MIT license](http://opensource.o
 Version history
 ---------------
 
+###Version 0.9.2, 19.08.2017:
+- Upgraded to OpenMVG 1.2, AssImp 4.0.1
+- Added Fast-AKAZE, TBMR keypoint detectors
+- Bugfix: Export of textured surfaces now works again (Issue #4)
+
 ###Version 0.9.1, 01.02.2017:
 - Upgraded to OpenMVG 1.1
 - Third-party programs (MVE, PoissonRecon) up to date

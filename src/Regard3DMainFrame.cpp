@@ -2037,7 +2037,12 @@ void Regard3DMainFrame::updateProjectDetails()
 			if(pComputeMatches != NULL)
 			{
 				name = pComputeMatches->name_;
-				params = wxString::Format(wxT("Threshold: %3g/Dist ratio: %3g"), pComputeMatches->threshold_, pComputeMatches->distRatio_);
+				if(!pComputeMatches->featureDetector_.IsEmpty())
+					params = wxString::Format(wxT("Detector(s): %s/Threshold: %3g/Dist ratio: %3g"),
+						pComputeMatches->featureDetector_, pComputeMatches->threshold_, pComputeMatches->distRatio_);
+				else
+					params = wxString::Format(wxT("Threshold: %3g/Dist ratio: %3g"),
+						pComputeMatches->threshold_, pComputeMatches->distRatio_);
 				if(!pComputeMatches->numberOfKeypoints_.empty())
 				{
 					using namespace boost::accumulators;
@@ -2321,16 +2326,31 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 	if(dlg.ShowModal() == wxID_OK)
 	{
 		// Start compute matches
-		float keypointSensitivity, keypointMatchingRatio;
+		float keypointSensitivity = 0, keypointMatchingRatio = 0;
+		int keypointDetectorType = 0;
+		bool addTBMR = false;
 
-		dlg.getResults(keypointSensitivity, keypointMatchingRatio);
+		dlg.getResults(keypointSensitivity, keypointMatchingRatio, keypointDetectorType, addTBMR);
 
 		Regard3DFeatures::R3DFParams params;
 		params.threshold_ = keypointSensitivity;
 		params.distRatio_ = keypointMatchingRatio;
+		params.keypointDetectorList_.clear();
+		if(keypointDetectorType == 0)
+			params.keypointDetectorList_.push_back(std::string("AKAZE"));
+		else
+			params.keypointDetectorList_.push_back(std::string("Fast-AKAZE"));
+		if(addTBMR)
+			params.keypointDetectorList_.push_back(std::string("TBMR"));
 		bool svgOutput = false;	// TODO: Make configurable?
 
-		wxString featureDetector(wxT("AKAZE")), descriptorExtractor(wxT("LIOP"));
+		wxString featureDetector, descriptorExtractor(wxT("LIOP"));
+		for(const auto &kd : params.keypointDetectorList_)
+		{
+			if(!featureDetector.IsEmpty())
+				featureDetector.Append(wxT(";"));
+			featureDetector.Append( wxString(kd.c_str()) );
+		}
 		int newID = project_.addComputeMatches(pPictureSet, featureDetector, descriptorExtractor,
 			keypointSensitivity, keypointMatchingRatio);
 		if(newID >= 0)

@@ -62,6 +62,13 @@ extern "C" {
 // AKAZE
 #include "AKAZE.h"
 
+// Fast-AKAZE
+#include "features2d_akaze2.hpp"
+
+// OpenMVG
+#include "features/tbmr/tbmr.hpp"
+#include "openMVG/features/feature.hpp"
+
 
 // Helper class for locking the AKAZE semaphore (based on wxMutexLocker)
 class AKAZESemaLocker
@@ -126,7 +133,8 @@ Regard3DFeatures::R3DFParams::R3DFParams()
 	computeHomographyMatrix_(true),
 	computeFundalmentalMatrix_(true), computeEssentialMatrix_(true)
 {
-	keypointDetectorList_.push_back( std::string("AKAZE") );
+	keypointDetectorList_.push_back( std::string("Fast-AKAZE") );
+	//keypointDetectorList_.push_back( std::string("TBMR") );
 }
 
 Regard3DFeatures::R3DFParams::R3DFParams(const Regard3DFeatures::R3DFParams &o)
@@ -178,6 +186,7 @@ std::vector<std::string> Regard3DFeatures::getKeypointDetectors()
 {
 	std::vector<std::string> ret;
 	ret.push_back( std::string( "AKAZE" ) );		// Own
+	ret.push_back( std::string( "Fast-AKAZE" ) );	// Own
 	ret.push_back( std::string( "MSER" ) );			// OpenCV
 	ret.push_back( std::string( "ORB" ) );			// OpenCV
 	ret.push_back( std::string( "BRISK" ) );		// OpenCV
@@ -216,6 +225,27 @@ void Regard3DFeatures::detectAndExtract(const openMVG::image::Image<float> &img,
 		float kpSizeFactor = getKpSizeFactor(keypointDetector);
 		extractLIOPFeatures(img, vec_keypoints, kpSizeFactor, feats, descs);
 	}
+/*
+	cv::Mat cvimg;
+	cv::eigen2cv(img.GetMat(), cvimg);
+	cv::Mat img_uchar;
+	cvimg.convertTo(img_uchar, CV_8U, 255.0, 0);
+
+	std::vector<openMVG::features::AffinePointFeature> features;
+	openMVG::image::Image<unsigned char> imaChar;
+	imaChar = Eigen::Map<openMVG::image::Image<unsigned char>::Base>(img_uchar.ptr<unsigned char>(0), img_uchar.rows, img_uchar.cols);
+
+	bool bUpRight = false;
+	using namespace openMVG::features;
+	std::unique_ptr<Image_describer> image_describer;
+    image_describer.reset(new AKAZE_Image_describer
+	    (AKAZE_Image_describer::Params(AKAZE::Params(), AKAZE_LIOP), !bUpRight));
+	image_describer->Set_configuration_preset(EDESCRIBER_PRESET::HIGH_PRESET);
+
+	// Compute features and descriptors
+    std::unique_ptr<Regions> regions;
+    image_describer->Describe(imaChar, regions, nullptr);
+*/
 }
 
 void Regard3DFeatures::detectAndExtract_NLOPT(const openMVG::image::Image<unsigned char> &img,
@@ -715,8 +745,55 @@ void Regard3DFeatures::detectKeypoints(const openMVG::image::Image<float> &img,
 	} );
 #endif
 	}
+	else if(fdname == std::string("Fast-AKAZE"))
+	{
+		AKAZESemaLocker akazeLocker;	// Only allow one thread in this area
+
+		// Convert image to OpenCV data
+		cv::Mat cvimg;
+		cv::eigen2cv(img.GetMat(), cvimg);
+
+//		cv::Mat img_32;
+//		cvimg.convertTo(img_32, CV_32F, 1.0/255.0, 0); // Convert to float, value range 0..1
+
+		cv::Ptr<cv::AKAZE2> fd = cv::AKAZE2::create();
+		fd->setThreshold(params.threshold_);
+		fd->detect(cvimg, vec_keypoints);
+		for(int i = 0; i < static_cast<int>(vec_keypoints.size()); i++)
+		{
+			// Convert from radians to degrees
+			(vec_keypoints[i].angle) *= 180.0 / CV_PI;
+			vec_keypoints[i].angle += 90.0f;
+			while(vec_keypoints[i].angle < 0)
+				vec_keypoints[i].angle += 360.0f;
+			while(vec_keypoints[i].angle > 360.0f)
+				vec_keypoints[i].angle -= 360.0f;
+		}
+	}
 	else if(fdname == std::string("DOG"))		// VLFEAT
 	{
+	}
+	else if(fdname == std::string( "TBMR" ))
+	{
+		cv::Mat cvimg;
+		cv::eigen2cv(img.GetMat(), cvimg);
+		cv::Mat img_uchar;
+		cvimg.convertTo(img_uchar, CV_8U, 255.0, 0);
+
+		std::vector<openMVG::features::AffinePointFeature> features;
+		openMVG::image::Image<unsigned char> imaChar;
+		imaChar = Eigen::Map<openMVG::image::Image<unsigned char>::Base>(img_uchar.ptr<unsigned char>(0), img_uchar.rows, img_uchar.cols);
+		openMVG::features::tbmr::Extract_tbmr(imaChar, features);
+
+		vec_keypoints.resize(features.size());
+		for(size_t i = 0; i < features.size(); i++)
+		{
+			const auto &f = features[i];
+			vec_keypoints[i].pt.x = f.coords().x();
+			vec_keypoints[i].pt.y = f.coords().y();
+			vec_keypoints[i].size = std::sqrt(f.l1()*f.l1() + f.l2()*f.l2());
+			vec_keypoints[i].angle = 180.0 * f.orientation() / M_PI;
+		}
 	}
 	else	// OpenCV
 	{
@@ -757,6 +834,7 @@ void Regard3DFeatures::detectKeypoints(const openMVG::image::Image<float> &img,
 			//fd->setInt("nfeatures", params.nFeatures_);
 			fd = cv::GFTTDetector::create(params.nFeatures_);
 		}
+
 //	fd->setDouble("edgeThreshold", 0.01);	// for SIFT
 
 		fd->detect(cvimg, vec_keypoints);
@@ -774,6 +852,8 @@ float Regard3DFeatures::getKpSizeFactor(const std::string &fdname)
 
 	if(fdname == std::string("AKAZE"))
 		retVal = 8.0f;
+	if(fdname == std::string("Fast-AKAZE"))
+		retVal = 8.0f;
 	else if(fdname == std::string("DOG"))
 		retVal = 0.25f;
 	else if(fdname == std::string( "MSER" ))
@@ -788,6 +868,8 @@ float Regard3DFeatures::getKpSizeFactor(const std::string &fdname)
 		retVal = 0.25f;
 	else if(fdname == std::string( "SimpleBlob" ))
 		retVal = 1.0f;	// No working parameters found
+	else if(fdname == std::string("TBMR"))
+		retVal = 1.0f;
 
 	return retVal;
 }

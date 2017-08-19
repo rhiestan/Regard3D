@@ -387,8 +387,8 @@ ENDIF(MSVC)
 
 # AssImp
 IF(WIN32 OR APPLE)
-	LIST(APPEND CMAKE_MODULE_PATH "${ASSIMP_DIR}/lib/cmake/assimp-3.1" )
-	LIST(APPEND CMAKE_PREFIX_PATH "${ASSIMP_DIR}/lib/cmake/assimp-3.1" )
+	LIST(APPEND CMAKE_MODULE_PATH "${ASSIMP_DIR}/lib/cmake/assimp-4.0" )
+	LIST(APPEND CMAKE_PREFIX_PATH "${ASSIMP_DIR}/lib/cmake/assimp-4.0" )
 	FIND_PACKAGE(assimp REQUIRED)
 	IF(WIN32)
 		IF(MSVC)
@@ -455,13 +455,19 @@ SET(OPENMVG_EXCLUDE_PATENTED ON)
 #INCLUDE_DIRECTORIES(${OpenMVG_INCLUDE_DIRS})
 
 FIND_PACKAGE(OpenMVG REQUIRED)
+message("OPENMVG_LIBRARIES: ${OPENMVG_LIBRARIES}")
+message("OPENMVG_INCLUDE_DIRS: ${OPENMVG_INCLUDE_DIRS}")
+foreach(CURDIR ${OPENMVG_INCLUDE_DIRS})
+	IF(IS_DIRECTORY "${CURDIR}/third_party")
+		LIST(APPEND OPENMVG_INCLUDE_DIRS "${CURDIR}/third_party")
+	ENDIF()
+endforeach()
+message("OPENMVG_INCLUDE_DIRS: ${OPENMVG_INCLUDE_DIRS}")
 INCLUDE_DIRECTORIES(${OPENMVG_INCLUDE_DIRS})
 
 IF(DEFINED OPENMVG_VERSION)
 	SET(R3D_HAVE_OPENMVG_VERSION TRUE)
 ENDIF(DEFINED OPENMVG_VERSION)
-
-message("OPENMVG_LIBRARIES: ${OPENMVG_LIBRARIES}")
 
 # VLFEAT (optional)
 SET( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" )
@@ -587,6 +593,10 @@ INCLUDE_DIRECTORIES(thirdparty/daisy/include)
 ADD_SUBDIRECTORY(thirdparty/akaze)
 INCLUDE_DIRECTORIES(thirdparty/akaze/lib)
 
+# Fast-AKAZE
+ADD_SUBDIRECTORY(thirdparty/fast-akaze)
+INCLUDE_DIRECTORIES(thirdparty/fast-akaze)
+
 # LIOP
 ADD_SUBDIRECTORY(thirdparty/liop)
 INCLUDE_DIRECTORIES(thirdparty/liop)
@@ -637,7 +647,7 @@ IF(WIN32)
 ENDIF(WIN32)
 
 # For Apple set the icns file containing icons
-if(APPLE)
+IF(APPLE)
 	# icon files to copy in the bundle
 	SET( OSX_ICON_FILES ${CMAKE_CURRENT_SOURCE_DIR}/res/osx/regard3d.icns )
 	# set where in the bundle to put the icns files
@@ -668,7 +678,7 @@ IF(TARGET openMVG_SfM_Sequential)
 ENDIF(TARGET openMVG_SfM_Sequential)
 
 SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIES}
-	${Boost_LIBRARIES} ${PCL_LIBRARIES} daisy AKAZE liop ${OpenCV_LIBRARIES} ${OPENMVG_LIBRARIES}
+	${Boost_LIBRARIES} ${PCL_LIBRARIES} daisy AKAZE fast-akaze liop ${OpenCV_LIBRARIES} ${OPENMVG_LIBRARIES}
 	${CERES_LIBRARIES} ${GLOG_LIBRARIES} ${SuiteSparse_LIBRARIES} ${FLANN_LIBRARIES}
 	easyexif ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${ASSIMP_LIBRARIES} ${OPENGL_LIBRARIES}
 	optimized;minilog;debug;minilog_d tinyply)
@@ -699,6 +709,15 @@ ENDIF(R3D_HAVE_TBB)
 IF(DEFINED R3D_ADDITIONAL_LINK_LIBRARIES)
 	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${R3D_ADDITIONAL_LINK_LIBRARIES})
 ENDIF(DEFINED R3D_ADDITIONAL_LINK_LIBRARIES)
+
+IF(APPLE)
+	# Add frameworks CoreText QuickLook ApplicationServices CoreServices
+	FIND_LIBRARY(CORE_TEXT_LIBRARY CoreText )
+	FIND_LIBRARY(QUICK_LOOK_LIBRARY QuickLook )
+	FIND_LIBRARY(APP_SERVICES_LIBRARY ApplicationServices )
+	FIND_LIBRARY(CORE_SERVICES_LIBRARY CoreServices )
+	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${CORE_TEXT_LIBRARY} ${QUICK_LOOK_LIBRARY} ${APP_SERVICES_LIBRARY} ${CORE_SERVICES_LIBRARY})
+ENDIF(APPLE)
 
 # Workaround for MSYS: Replace /c/path with c:/path
 # MinGW doesn't like the /c/path syntax in linklibs.rsp
@@ -738,13 +757,13 @@ IF(APPLE)
 			FILE(COPY "${CMAKE_BINARY_DIR}/../thirdparty_omp/poisson" DESTINATION "${CMAKE_BINARY_DIR}/Regard3D.app/Contents/MacOS")
 			FILE(COPY "${CMAKE_BINARY_DIR}/../thirdparty_omp/mve" DESTINATION "${CMAKE_BINARY_DIR}/Regard3D.app/Contents/MacOS")
 
-			# Copy libiomp5.dylib to executable directory
-			FIND_FILE(omp_dylib libiomp5.dylib PATHS ENV DYLD_LIBRARY_PATH)
+			# Copy libomp.dylib to executable directory
+			FIND_FILE(omp_dylib libomp.dylib PATHS ENV DYLD_LIBRARY_PATH "/Users/romanhiestand/dev/clang_openmp/clang+llvm-3.9.0-x86_64-apple-darwin/lib")
 			FILE(COPY ${omp_dylib} DESTINATION "${CMAKE_BINARY_DIR}/Regard3D.app/Contents/MacOS")
 
-			# Set search path of libiomp5.dylib to the executable path on OS X
+			# Set search path of libomp.dylib to the executable path on OS X
 			ADD_CUSTOM_COMMAND(TARGET Regard3D POST_BUILD
-				COMMAND install_name_tool -change libiomp5.dylib @executable_path/libiomp5.dylib "${CMAKE_BINARY_DIR}/Regard3D.app/Contents/MacOS/Regard3D" )
+				COMMAND install_name_tool -change libomp.dylib @executable_path/libomp.dylib "${CMAKE_BINARY_DIR}/Regard3D.app/Contents/MacOS/Regard3D" )
 		ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 	ELSE(OPENMP_FOUND)

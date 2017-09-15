@@ -52,7 +52,7 @@
 #include "R3DSmallTasksThread.h"
 #include "Regard3DSettings.h"
 #include "Regard3DPropertiesDialog.h"
-
+#include "Regard3DUserCameraDBDialog.h"
 
 // wxWidgets
 #include <wx/mstream.h>
@@ -68,9 +68,6 @@
 #if !defined(R3D_SPEEDUP_COMPILATION)
 // Eigen
 #include <Eigen/Core>
-
-// PointCloudLibrary
-#include <pcl/pcl_config.h>
 
 // boost
 #include <boost/version.hpp>
@@ -470,6 +467,13 @@ void Regard3DMainFrame::OnPropertiesMenuItem( wxCommandEvent& event )
 	}
 }
 
+void Regard3DMainFrame::OnEditUserCameraDBMenuSelection(wxCommandEvent& event)
+{
+	Regard3DUserCameraDBDialog dlg(this);
+
+	dlg.ShowModal();
+}
+
 void Regard3DMainFrame::OnViewConsoleOutputFrameMenuItem( wxCommandEvent& event )
 {
 	pRegard3DConsoleOutputFrame_->Show(event.IsChecked());
@@ -595,8 +599,6 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 	descrString.Append(wxT("\n "));
 	descrString.Append( wxT("OpenCV ") );
 	descrString.Append( wxString(CV_VERSION, *wxConvCurrent) );
-	descrString.Append(wxT("\n "));
-	descrString.Append(wxString("PointCloudLibrary " PCL_VERSION_PRETTY, *wxConvCurrent));
 //	descrString.Append(wxT("\n SuiteSparse "));
 #if defined(SUITESPARSE_HAS_VERSION_FUNCTION)
 	int ss_version[3];
@@ -2037,12 +2039,26 @@ void Regard3DMainFrame::updateProjectDetails()
 			if(pComputeMatches != NULL)
 			{
 				name = pComputeMatches->name_;
+				wxString cameraModelString;
+				if(pComputeMatches->cameraModel_ == 1)
+					cameraModelString = wxT("Pinhole");
+				else if(pComputeMatches->cameraModel_ == 2)
+					cameraModelString = wxT("Pinhole radial 1");
+				else if(pComputeMatches->cameraModel_ == 3)
+					cameraModelString = wxT("Pinhole radial 3");
+				else if(pComputeMatches->cameraModel_ == 4)
+					cameraModelString = wxT("Pinhole brown 2");
+				else if(pComputeMatches->cameraModel_ == 5)
+					cameraModelString = wxT("Pinhole Fisheye");
+
 				if(!pComputeMatches->featureDetector_.IsEmpty())
-					params = wxString::Format(wxT("Detector(s): %s/Threshold: %3g/Dist ratio: %3g"),
+					params = wxString::Format(wxT("Detector(s): %s/Threshold: %3g/Dist ratio: %3g/Camera model: "),
 						pComputeMatches->featureDetector_, pComputeMatches->threshold_, pComputeMatches->distRatio_);
 				else
-					params = wxString::Format(wxT("Threshold: %3g/Dist ratio: %3g"),
+					params = wxString::Format(wxT("Threshold: %3g/Dist ratio: %3g/Camera model:"),
 						pComputeMatches->threshold_, pComputeMatches->distRatio_);
+				params.Append(cameraModelString);
+
 				if(!pComputeMatches->numberOfKeypoints_.empty())
 				{
 					using namespace boost::accumulators;
@@ -2329,8 +2345,9 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 		float keypointSensitivity = 0, keypointMatchingRatio = 0;
 		int keypointDetectorType = 0;
 		bool addTBMR = false;
+		int cameraModel = 3;
 
-		dlg.getResults(keypointSensitivity, keypointMatchingRatio, keypointDetectorType, addTBMR);
+		dlg.getResults(keypointSensitivity, keypointMatchingRatio, keypointDetectorType, addTBMR, cameraModel);
 
 		Regard3DFeatures::R3DFParams params;
 		params.threshold_ = keypointSensitivity;
@@ -2352,7 +2369,7 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 			featureDetector.Append( wxString(kd.c_str()) );
 		}
 		int newID = project_.addComputeMatches(pPictureSet, featureDetector, descriptorExtractor,
-			keypointSensitivity, keypointMatchingRatio);
+			keypointSensitivity, keypointMatchingRatio, cameraModel);
 		if(newID >= 0)
 		{
 			project_.populateTreeControl(pProjectTreeCtrl_);
@@ -2374,7 +2391,7 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 			delete pR3DComputeMatchesThread_;
 		pR3DComputeMatchesThread_ = new R3DComputeMatchesThread();
 		pR3DComputeMatchesThread_->setMainFrame(this);
-		pR3DComputeMatchesThread_->setParameters(params, svgOutput);
+		pR3DComputeMatchesThread_->setParameters(params, svgOutput, cameraModel);
 		pR3DComputeMatchesThread_->setComputeMatches(pComputeMatches, pPictureSet);
 		pR3DComputeMatchesThread_->startComputeMatchesThread();
 
@@ -2387,7 +2404,7 @@ void Regard3DMainFrame::showMatches(R3DProject::ComputeMatches *pComputeMatches)
 {
 	R3DProjectPaths paths;
 	project_.getProjectPathsCM(paths, pComputeMatches);
-	project_.ensureSfmDataExists(paths);
+	project_.ensureSfmDataExists(paths, 3);
 
 	Regard3DMatchingResultsDialog dlg(this);
 	dlg.setPreviewGeneratorThread(&previewGeneratorThread_);
@@ -2411,7 +2428,7 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 {
 	R3DProjectPaths paths;
 	project_.getProjectPathsCM(paths, pComputeMatches);
-	project_.ensureSfmDataExists(paths);
+	project_.ensureSfmDataExists(paths, 3);
 
 	Regard3DTriangulationDialog dlg(this);
 	dlg.setPreviewGeneratorThread(&previewGeneratorThread_);
@@ -2479,7 +2496,8 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 		pR3DTriangulationThread_ = new R3DTriangulationThread();
 		pR3DTriangulationThread_->setMainFrame(this);
-		pR3DTriangulationThread_->setParameters(useGlobalAlgorithm, initialPairA, initialPairB, rotAveraging, transAveraging, refineIntrinsics);
+		pR3DTriangulationThread_->setParameters(useGlobalAlgorithm, initialPairA, initialPairB,
+			rotAveraging, transAveraging, refineIntrinsics);
 		pR3DTriangulationThread_->setTriangulation(&project_, pTriangulation);
 		pR3DTriangulationThread_->startTriangulationThread();
 	}
@@ -2767,7 +2785,7 @@ void Regard3DMainFrame::exportPointCloud(R3DProject::Densification *pDensificati
 {
 	wxFileDialog dlg(this, wxT("Select directory and filename for exported point cloud"),
 		wxEmptyString, wxT("pointcloud.ply"),
-		wxT("Stanford Polygon File Format (*.ply)|*.ply|Point Cloud Data (*.pcd)|*.pcd"),
+		wxT("Stanford Polygon File Format (*.ply)|*.ply"),
 		wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 	if(dlg.ShowModal() == wxID_OK)
 	{

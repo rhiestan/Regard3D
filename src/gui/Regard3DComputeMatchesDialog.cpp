@@ -24,7 +24,7 @@ Regard3DComputeMatchesDialog::Regard3DComputeMatchesDialog(wxWindow *pParent)
 	: Regard3DComputeMatchesDialogBase(pParent),
 	keypointSensitivity_(0.0007f), keypointMatchingRatio_(0.6f),
 	maxPixelCount_(0), 	keyPointDetectorType_(0),
-	addTBMR_(false)
+	addTBMR_(false), cameraModel_(3)
 {
 }
 
@@ -40,18 +40,17 @@ void Regard3DComputeMatchesDialog::setMaxPixelCount(long long maxPixelCount)
 void Regard3DComputeMatchesDialog::getResults(float &keypointSensitivity,
 	float &keypointMatchingRatio,
 	int &keypointDetectorType,
-	bool &addTBMR)
+	bool &addTBMR, int &cameraModel)
 {
 	keypointSensitivity = keypointSensitivity_;
 	keypointMatchingRatio = keypointMatchingRatio_;
 	keypointDetectorType = keyPointDetectorType_;
 	addTBMR = addTBMR_;
+	cameraModel = cameraModel_;
 }
 
 void Regard3DComputeMatchesDialog::OnClose(wxCloseEvent& event)
 {
-	keyPointDetectorType_ = pKeypointDetectorRadioBox_->GetSelection();
-	addTBMR_ = pAddTBMRDetectorCheckBox_->GetValue();
 }
 
 void Regard3DComputeMatchesDialog::OnInitDialog( wxInitDialogEvent& event )
@@ -84,6 +83,7 @@ void Regard3DComputeMatchesDialog::OnOKButtonClick(wxCommandEvent& event)
 	{
 		keyPointDetectorType_ = pKeypointDetectorRadioBox_->GetSelection();
 		addTBMR_ = pAddTBMRDetectorCheckBox_->GetValue();
+		cameraModel_ = pCameraModelChoice_->GetCurrentSelection() + 1;
 		EndModal(wxID_OK);
 	}
 }

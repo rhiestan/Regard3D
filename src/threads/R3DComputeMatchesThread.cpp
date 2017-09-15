@@ -32,7 +32,7 @@
 
 R3DComputeMatchesThread::R3DComputeMatchesThread() : wxThread(wxTHREAD_JOINABLE),
 	pMainFrame_(NULL), pR3DComputeMatches_(NULL), isOK_(true), svgOutput_(false),
-	pComputeMatches_(NULL), pPictureSet_(NULL)
+	pComputeMatches_(NULL), pPictureSet_(NULL), cameraModel_(3)
 {
 }
 
@@ -45,10 +45,11 @@ void R3DComputeMatchesThread::setMainFrame(Regard3DMainFrame *pMainFrame)
 	pMainFrame_ = pMainFrame;
 }
 
-void R3DComputeMatchesThread::setParameters(const Regard3DFeatures::R3DFParams &params, bool svgOutput)
+void R3DComputeMatchesThread::setParameters(const Regard3DFeatures::R3DFParams &params, bool svgOutput, int cameraModel)
 {
 	params_ = params;
 	svgOutput_ = svgOutput;
+	cameraModel_ = cameraModel;
 }
 
 void R3DComputeMatchesThread::setComputeMatches(R3DProject::ComputeMatches *pComputeMatches, R3DProject::PictureSet *pPictureSet)
@@ -98,7 +99,7 @@ wxThread::ExitCode R3DComputeMatchesThread::Entry()
 		pMainFrame_->sendUpdateProgressBarEvent(0.2f, wxT("Computing matches"));
 
 	pR3DComputeMatches_->addImages(pPictureSet_->getImageInfoVector());
-	isOK_ = pR3DComputeMatches_->computeMatches(params_, svgOutput_, paths_);
+	isOK_ = pR3DComputeMatches_->computeMatches(params_, svgOutput_, paths_, cameraModel_);
 //	pR3DComputeMatches_->computeMatchesOpenCV(R3DComputeMatches::R3DFER3DF);
 //	pR3DComputeMatches_->computeMatchesOpenCV_NLOPT();
 

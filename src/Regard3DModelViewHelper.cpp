@@ -37,17 +37,7 @@
 #include <osgUtil/Optimizer>
 #include <osgText/Style>
 #include <osgText/Text3D>
-/*
-// PointCloudLibrary
-#include <pcl/PCLPointCloud2.h>
-#include <pcl/common/io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/point_types.h>
-#include <pcl/TextureMesh.h>
-#if PCL_VERSION_COMPARE(<, 1, 7, 2)
-#include <pcl/io/vtk_lib_io.h>
-#endif
-*/
+
 // Asset Importer Library
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
@@ -409,7 +399,6 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 #else
 		boost::filesystem::ifstream istream(boost::filesystem::path(filename.mb_str()), std::ios::binary);
 #endif
-		//std::ifstream istream(std::string(filename.mb_str()), std::ios::binary);
 		tinyply::PlyFile file(istream);
 
 		tinyply::PlyProperty::Type coordinateType = tinyply::PlyProperty::Type::FLOAT32;
@@ -524,9 +513,8 @@ static osg::Vec3 calcNormal(osg::Vec3 &v1, osg::Vec3 &v2, osg::Vec3 &v3)
 /**
  * This method loads surface models from PLY and OBJ files.
  *
- * There are three versions:
+ * There are two versions:
  * 1) Uses assimp methods and creates osg models
- * 2) Uses pcl methods and creates osg models
  * 3) Directly load using osg methods
  *
  */
@@ -541,7 +529,6 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadSurfaceModel(const wxString
 		isOK = loadSurfaceModelAssImp(root, filename, false);
 //	else
 //		isOK = loadSurfaceModelOSG(root, filename, false);
-//	isOK = loadSurfaceModelPCL(root, filename, false);
 
 	osg::Node *pRotSphereNode = createRotationSphere();
 	root->addChild(pRotSphereNode);
@@ -943,264 +930,5 @@ bool Regard3DModelViewHelper::loadSurfaceModelAssImp(osg::ref_ptr<osg::Group> ro
 			osgDB::writeNodeFile(*root, std::string("testout.osg"));
 	}
 
-	return true;
-}
-
-/**
- * Version using PointCloudLibrary (PCL).
- *
- * Works fine for PLY (but slow), doesn't work for OBJ.
- */
-bool Regard3DModelViewHelper::loadSurfaceModelPCL(osg::ref_ptr<osg::Group> root, const wxString &filename, bool debugOutput)
-{
-#if 0
-	bool loadWithTexture = false;
-	wxFileName fn(filename);
-	if(fn.GetExt().IsSameAs(wxT("obj"), false))
-		loadWithTexture = true;
-
-	if(loadWithTexture)
-	{
-		pcl::TextureMesh surfaceModel;
-#if PCL_VERSION_COMPARE(<, 1, 7, 2)
-		if(pcl::io::loadPolygonFileOBJ(std::string(filename.mb_str()), surfaceModel) == -1)
-#else
-		if(pcl::io::load(std::string(filename.mb_str()), surfaceModel) == -1)
-#endif
-			return false;
-
-		// Convert points from surface to pcl::PointCloud
-		pcl::PointCloud<pcl::PointXYZRGB> surfacePoints;
-		pcl::fromPCLPointCloud2(surfaceModel.cloud, surfacePoints);
-
-		size_t numTriangles = 0;
-		osg::ref_ptr<osg::Geode> geode(new osg::Geode());
-		osg::ref_ptr<osg::Geometry> geometry (new osg::Geometry());
-
-		osg::ref_ptr<osg::Vec3Array> vertices(new osg::Vec3Array()), normals(new osg::Vec3Array());
-		osg::ref_ptr<osg::Vec2Array> texcoords(new osg::Vec2Array());
-
-		vertices->reserve(surfacePoints.points.size());
-		normals->reserve(surfacePoints.points.size());
-		texcoords->reserve(surfacePoints.points.size());
-		for (size_t i = 0; i < surfacePoints.points.size(); i++)
-		{
-			vertices->push_back( osg::Vec3(surfacePoints.points[i].x, surfacePoints.points[i].y, surfacePoints.points[i].z) );
-			normals->push_back( osg::Vec3(0, 0, 0) );
-		}
-
-		// Calculate normals
-		for(size_t i = 0; i < surfaceModel.tex_polygons.size(); i++)
-		{
-			const std::vector<pcl::Vertices> &vertexArray = surfaceModel.tex_polygons[i];
-			const std::vector<Eigen::Vector2f> &texCoordArray = surfaceModel.tex_coordinates[i];
-			const pcl::TexMaterial &texMaterial = surfaceModel.tex_materials[i];
-			numTriangles += vertexArray.size();
-
-			for(size_t j = 0; j < vertexArray.size(); j++)
-			{
-				const pcl::Vertices &surfaceVertices = vertexArray[j];
-
-				// We handle only triangles
-				if(surfaceVertices.vertices.size() == 3)
-				{
-					osg::Vec3 normal = calcNormal( (*vertices)[surfaceVertices.vertices[0]],
-						(*vertices)[surfaceVertices.vertices[1]],
-						(*vertices)[surfaceVertices.vertices[2]] );
-
-					// Add calculated normal to all vertices of the current triangle
-					for(size_t j = 0; j < 3; j++)
-						(*normals)[surfaceVertices.vertices[j]] += normal;
-				}
-				else
-				{
-					assert(false);
-				}
-			}
-		}
-
-		// Normalize normals to length 1
-		for (size_t i = 0; i < surfacePoints.points.size(); i++)
-		{
-			(*normals)[i].normalize();
-		}
-
-		// Copy texture coordinates  TODO: These come out wrong, why?
-		for(size_t i = 0; i < surfaceModel.tex_polygons.size(); i++)
-		{
-			const std::vector<Eigen::Vector2f> &texCoordArray = surfaceModel.tex_coordinates[i];
-
-			for(size_t j = 0; j < texCoordArray.size(); j++)
-			{
-				const Eigen::Vector2f &curTexCoord = texCoordArray[j];
-				texcoords->push_back(osg::Vec2(curTexCoord.x(), curTexCoord.y()));
-			}
-		}
-
-		vertices->setDataVariance(osg::Object::STATIC);
-		normals->setDataVariance(osg::Object::STATIC);
-		normals->setBinding(osg::Array::BIND_PER_VERTEX);
-		texcoords->setDataVariance(osg::Object::STATIC);
-		geometry->setVertexArray(vertices.get());
-		geometry->setNormalArray(normals.get());
-		geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
-		geometry->setDataVariance(osg::Object::STATIC);
-		geometry->setTexCoordArray(0, texcoords, osg::Array::BIND_PER_VERTEX);
-
-		osg::ref_ptr<osg::Texture2D> texture(new osg::Texture2D());
-		texture->setDataVariance(osg::Object::DYNAMIC);
-		for(size_t i = 0; i < surfaceModel.tex_polygons.size(); i++)
-		{
-			const pcl::TexMaterial &texMaterial = surfaceModel.tex_materials[i];
-			osg::ref_ptr<osg::Image> image(osgDB::readImageFile(texMaterial.tex_file));
-			if(image.get() == NULL)
-				return false;
-			texture->setImage(image.get());
-			texture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
-			texture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
-			texture->setWrap(osg::Texture::WRAP_R, osg::Texture::REPEAT);
-		}
-		osg::StateSet *pStateSet = geometry->getOrCreateStateSet();
-		pStateSet->setTextureAttributeAndModes(0, texture.get(), osg::StateAttribute::ON);
-
-		osg::ref_ptr<osg::DrawElementsUInt> drawElements(new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES));
-		drawElements->setDataVariance(osg::Object::STATIC);
-		drawElements->reserveElements(static_cast<unsigned int>(3*numTriangles));
-
-		// Copy indices
-		for(size_t i = 0; i < surfaceModel.tex_polygons.size(); i++)
-		{
-			const std::vector<pcl::Vertices> &vertexArray = surfaceModel.tex_polygons[i];
-			const std::vector<Eigen::Vector2f> &texCoordArray = surfaceModel.tex_coordinates[i];
-			const pcl::TexMaterial &texMaterial = surfaceModel.tex_materials[i];
-			numTriangles += vertexArray.size();
-
-			for(size_t j = 0; j < vertexArray.size(); j++)
-			{
-				const pcl::Vertices &surfaceVertices = vertexArray[j];
-				if(surfaceVertices.vertices.size() == 3)
-				{
-				}
-				for(size_t j = 0; j < surfaceVertices.vertices.size(); j++)
-				{
-					drawElements->addElement(surfaceVertices.vertices[j]);
-				}
-			}
-		}
-		geometry->addPrimitiveSet(drawElements.get());
-		geode->addDrawable(geometry.get());
-		geode->setUpdateCallback(new StateSetUpdater(this));
-
-		root->addChild(geode.get());
-
-		// For debugging
-		if(debugOutput)
-			osgDB::writeNodeFile(*root, std::string("testout.osg"));
-	}
-	else
-	{
-		pcl::PolygonMesh surfaceModel;
-#if PCL_VERSION_COMPARE(<, 1, 7, 2)
-		if(pcl::io::loadPolygonFileOBJ(std::string(filename.mb_str()), surfaceModel) == -1)
-#else
-		if(pcl::io::load(std::string(filename.mb_str()), surfaceModel) == -1)
-#endif
-			return false;
-
-		// Convert points from surface to pcl::PointCloud
-		pcl::PointCloud<pcl::PointXYZRGB> surfacePoints;
-		pcl::fromPCLPointCloud2(surfaceModel.cloud, surfacePoints);
-
-
-		osg::ref_ptr<osg::Geode> geode(new osg::Geode());
-		osg::ref_ptr<osg::Geometry> geometry (new osg::Geometry());
-
-		osg::ref_ptr<osg::Vec3Array> vertices(new osg::Vec3Array()), normals(new osg::Vec3Array());
-		osg::ref_ptr<osg::Vec4Array> colors(new osg::Vec4Array());
-		vertices->reserve(surfacePoints.points.size());
-		normals->reserve(surfacePoints.points.size());
-		colors->reserve(surfacePoints.points.size());
-		for (size_t i = 0; i < surfacePoints.points.size(); i++)
-		{
-			vertices->push_back( osg::Vec3(surfacePoints.points[i].x, surfacePoints.points[i].y, surfacePoints.points[i].z) );
-			normals->push_back( osg::Vec3(0, 0, 0) );
-			uint32_t rgb_val = *(reinterpret_cast<uint32_t *>( &(surfacePoints.points[i].rgb) ) );	// "Cast" it to uint32
-
-			int r = (rgb_val >> 16) & 0xff;
-			int g = (rgb_val >> 8) & 0xff;
-			int b = rgb_val & 0xff;
-			colors->push_back(osg::Vec4f(static_cast<float>(r)/255.0f,
-				static_cast<float>(g)/255.0f,
-				static_cast<float>(b)/255.0f, 1.0f));
-		}
-
-		// Calculate normals
-		for(size_t i = 0; i < surfaceModel.polygons.size(); i++)
-		{
-			const pcl::Vertices &surfaceVertices = surfaceModel.polygons[i];
-			// We handle only triangles
-			if(surfaceVertices.vertices.size() == 3)
-			{
-				osg::Vec3 normal = calcNormal( (*vertices)[surfaceVertices.vertices[0]],
-					(*vertices)[surfaceVertices.vertices[1]],
-					(*vertices)[surfaceVertices.vertices[2]] );
-
-				// Add calculated normal to all vertices of the current triangle
-				for(size_t j = 0; j < 3; j++)
-					(*normals)[surfaceVertices.vertices[j]] += normal;
-			}
-			else
-			{
-				assert(false);
-			}
-		}
-
-		// Normalize normals to length 1
-		for (size_t i = 0; i < surfacePoints.points.size(); i++)
-		{
-			(*normals)[i].normalize();
-		}
-
-		vertices->setDataVariance(osg::Object::STATIC);
-		normals->setDataVariance(osg::Object::STATIC);
-		normals->setBinding(osg::Array::BIND_PER_VERTEX);
-		colors->setDataVariance(osg::Object::STATIC);
-		colors->setBinding(osg::Array::BIND_PER_VERTEX);
-		geometry->setVertexArray(vertices.get());
-		geometry->setNormalArray(normals.get());
-		geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
-		geometry->setColorArray(colors.get());
-		geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-		geometry->setDataVariance(osg::Object::STATIC);
-
-		osg::ref_ptr<osg::DrawElementsUInt> drawElements(new osg::DrawElementsUInt(osg::PrimitiveSet::TRIANGLES));
-		drawElements->setDataVariance(osg::Object::STATIC);
-		drawElements->reserveElements(static_cast<unsigned int>(3*surfaceModel.polygons.size()));
-
-		// Copy indices
-		for(size_t i = 0; i < surfaceModel.polygons.size(); i++)
-		{
-			const pcl::Vertices &surfaceVertices = surfaceModel.polygons[i];
-			if(surfaceVertices.vertices.size() == 3)
-			{
-			}
-			for(size_t j = 0; j < surfaceVertices.vertices.size(); j++)
-			{
-				drawElements->addElement(surfaceVertices.vertices[j]);
-			}
-		}
-
-		geometry->addPrimitiveSet(drawElements.get());
-
-		geode->addDrawable(geometry.get());
-		geode->setUpdateCallback(new StateSetUpdater(this));
-
-		root->addChild(geode.get());
-
-		// For debugging
-		if(debugOutput)
-			osgDB::writeNodeFile(*root, std::string("testout.osg"));
-	}
-#endif
 	return true;
 }

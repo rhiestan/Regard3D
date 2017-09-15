@@ -382,6 +382,10 @@ OpenMVGHelper::ImagePairList OpenMVGHelper::getBestValidatedPairs(const R3DProje
         vec_MatchesIterator.push_back(iter);
       }
     }
+
+	if(vec_NbMatchesPerPair.empty())
+		return imgPairList;
+
 	// sort the Pairs in descending order according their correspondences count
     using namespace stl::indexed_sort;
     std::vector< sort_index_packet_descend< size_t, size_t> > packet_vec(vec_NbMatchesPerPair.size());
@@ -1895,9 +1899,10 @@ void OpenMVGHelper::ColorizeTracks(const openMVG::sfm::SfM_Data &sfm_data, std::
 				{
 					// Color the track
 					const Vec2 & pt = it->second.x;
-					const openMVG::image::RGBColor color = image(pt.y(), pt.x());
+					const openMVG::image::RGBColor &color = image(pt.y(), pt.x());
 
 					vec_tracksColor[trackIds_to_contiguousIndexes[trackId]] = Vec3(color.r(), color.g(), color.b());
+
 					set_toRemove.insert(trackId);
 					++my_progress_bar;
 				}

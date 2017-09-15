@@ -16,7 +16,8 @@ SET(GUI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/ImagePanel.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DProgressDialog.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DPropertiesDialog.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DSurfaceDialog.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DTriangulationDialog.cpp PARENT_SCOPE)
+	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DTriangulationDialog.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DUserCameraDBDialog.cpp PARENT_SCOPE)
 SET(GUI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/ImagePanel.h
 	${CMAKE_CURRENT_SOURCE_DIR}/PreviewCanvas.h
 	${CMAKE_CURRENT_SOURCE_DIR}/R3DNewProjectDialog.h
@@ -31,4 +32,5 @@ SET(GUI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/ImagePanel.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DPropertiesDialog.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DSurfaceDialog.h
 	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DTriangulationDialog.h
-	${CMAKE_CURRENT_SOURCE_DIR}/R3DImageUpdatesInterface.h PARENT_SCOPE)
+	${CMAKE_CURRENT_SOURCE_DIR}/R3DImageUpdatesInterface.h
+	${CMAKE_CURRENT_SOURCE_DIR}/Regard3DUserCameraDBDialog.h PARENT_SCOPE)

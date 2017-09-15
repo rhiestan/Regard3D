@@ -22,6 +22,7 @@
 #include "Regard3DApp.h"
 #include "Regard3DMainFrame.h"
 #include "CameraDBLookup.h"
+#include "UserCameraDB.h"
 #include "R3DExternalPrograms.h"
 #include "R3DFontHandler.h"
 
@@ -105,6 +106,7 @@ bool Regard3DApp::OnInit()
 #endif
 
 	CameraDBLookup::getInstance().initialize();
+	UserCameraDB::getInstance().initialize();
 	R3DExternalPrograms::getInstance().initialize();
 	R3DFontHandler::getInstance().initialize();
 

@@ -61,6 +61,7 @@ class Regard3DMainFrameBase : public wxFrame
 		void _wxFB_OnCloseProject( wxCommandEvent& event ){ OnCloseProject( event ); }
 		void _wxFB_OnMainFrameExitMenuItem( wxCommandEvent& event ){ OnMainFrameExitMenuItem( event ); }
 		void _wxFB_OnPropertiesMenuItem( wxCommandEvent& event ){ OnPropertiesMenuItem( event ); }
+		void _wxFB_OnEditUserCameraDBMenuSelection( wxCommandEvent& event ){ OnEditUserCameraDBMenuSelection( event ); }
 		void _wxFB_OnViewConsoleOutputFrameMenuItem( wxCommandEvent& event ){ OnViewConsoleOutputFrameMenuItem( event ); }
 		void _wxFB_OnViewConsoleOutputFrameUpdate( wxUpdateUIEvent& event ){ OnViewConsoleOutputFrameUpdate( event ); }
 		void _wxFB_OnAboutMenuItem( wxCommandEvent& event ){ OnAboutMenuItem( event ); }
@@ -106,6 +107,7 @@ class Regard3DMainFrameBase : public wxFrame
 			ID_OPENPROJECTMENUITEM,
 			ID_CLOSEPROJECTMENUITEM,
 			ID_PROPERTIESMENUITEM,
+			ID_EDITUSERCAMERADBMENUITEM,
 			ID_VIEWCONSOLEOUTPUTFRAMEMENUITEM,
 			ID_MAINFRAMETOOLBAR,
 			ID_MAINSPLITTER,
@@ -281,6 +283,7 @@ class Regard3DMainFrameBase : public wxFrame
 		virtual void OnCloseProject( wxCommandEvent& event ) = 0;
 		virtual void OnMainFrameExitMenuItem( wxCommandEvent& event ) = 0;
 		virtual void OnPropertiesMenuItem( wxCommandEvent& event ) = 0;
+		virtual void OnEditUserCameraDBMenuSelection( wxCommandEvent& event ) = 0;
 		virtual void OnViewConsoleOutputFrameMenuItem( wxCommandEvent& event ) = 0;
 		virtual void OnViewConsoleOutputFrameUpdate( wxUpdateUIEvent& event ) = 0;
 		virtual void OnAboutMenuItem( wxCommandEvent& event ) = 0;
@@ -556,6 +559,7 @@ class Regard3DPictureSetDialogBase : public wxDialog
 		void _wxFB_OnClearFileListButton( wxCommandEvent& event ){ OnClearFileListButton( event ); }
 		void _wxFB_OnImageListColClick( wxListEvent& event ){ OnImageListColClick( event ); }
 		void _wxFB_OnImageListItemDeselected( wxListEvent& event ){ OnImageListItemDeselected( event ); }
+		void _wxFB_OnListItemRightClick( wxListEvent& event ){ OnListItemRightClick( event ); }
 		void _wxFB_OnImageListItemSelected( wxListEvent& event ){ OnImageListItemSelected( event ); }
 		void _wxFB_OnImageListKeyDown( wxListEvent& event ){ OnImageListKeyDown( event ); }
 		void _wxFB_OnCancel( wxCommandEvent& event ){ OnCancel( event ); }
@@ -597,6 +601,7 @@ class Regard3DPictureSetDialogBase : public wxDialog
 		virtual void OnClearFileListButton( wxCommandEvent& event ) = 0;
 		virtual void OnImageListColClick( wxListEvent& event ) = 0;
 		virtual void OnImageListItemDeselected( wxListEvent& event ) = 0;
+		virtual void OnListItemRightClick( wxListEvent& event ) = 0;
 		virtual void OnImageListItemSelected( wxListEvent& event ) = 0;
 		virtual void OnImageListKeyDown( wxListEvent& event ) = 0;
 		virtual void OnCancel( wxCommandEvent& event ) = 0;
@@ -606,7 +611,7 @@ class Regard3DPictureSetDialogBase : public wxDialog
 	public:
 		wxSplitterWindow* pCentralSplitter_;
 		
-		Regard3DPictureSetDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DPICTURESETDIALOG, const wxString& title = wxT("Picture Set"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1200,700 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
+		Regard3DPictureSetDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DPICTURESETDIALOG, const wxString& title = wxT("Picture Set"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
 		~Regard3DPictureSetDialogBase();
 		
 		void pCentralSplitter_OnIdle( wxIdleEvent& )
@@ -646,6 +651,7 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 			ID_KEYPOINTMATCHINGRATIOVALTEXTCTRL,
 			ID_KEYPOINTDETECTORRADIOBOX,
 			ID_ADDTBMRDETECTORCHECKBOX,
+			ID_CAMERAMODELCHOICE,
 		};
 		
 		wxPanel* pComputeMatchesDialogPanel_;
@@ -659,6 +665,7 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		wxTextCtrl* pKeypointMatchingRatioValTextCtrl_;
 		wxRadioBox* pKeypointDetectorRadioBox_;
 		wxCheckBox* pAddTBMRDetectorCheckBox_;
+		wxChoice* pCameraModelChoice_;
 		wxStdDialogButtonSizer* m_sdbSizer3;
 		wxButton* m_sdbSizer3OK;
 		wxButton* m_sdbSizer3Cancel;
@@ -716,7 +723,9 @@ class Regard3DTriangulationDialogBase : public wxDialog
 		
 		wxPanel* pTriangulationPanel_;
 		wxRadioBox* pTriangulationMethodRadioBox_;
+		
 		wxCheckBox* pTRefineCameraIntrinsicsCheckBox_;
+		
 		wxStaticBoxSizer* pTIncrementalMethodBoxSizer_;
 		wxPanel* pIncrementalMethodBoxLeftPanel_;
 		wxListCtrl* pTInitialImagePairListCtrl_;
@@ -743,7 +752,7 @@ class Regard3DTriangulationDialogBase : public wxDialog
 	public:
 		wxSplitterWindow* pIncrementalMethodBoxSplitter_;
 		
-		Regard3DTriangulationDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DTRIANGULATIONDIALOG, const wxString& title = wxT("Triangulation"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 956,453 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
+		Regard3DTriangulationDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DTRIANGULATIONDIALOG, const wxString& title = wxT("Triangulation"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
 		~Regard3DTriangulationDialogBase();
 		
 		void pIncrementalMethodBoxSplitter_OnIdle( wxIdleEvent& )
@@ -848,7 +857,7 @@ class Regard3DMatchingResultsDialogBase : public wxDialog
 		wxSplitterWindow* pUpperVerticalSplitter_;
 		wxSplitterWindow* pLowerVerticalSplitter_;
 		
-		Regard3DMatchingResultsDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DMATCHINGRESULTSDIALOG, const wxString& title = wxT("Matching results"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1196,570 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
+		Regard3DMatchingResultsDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DMATCHINGRESULTSDIALOG, const wxString& title = wxT("Matching results"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
 		~Regard3DMatchingResultsDialogBase();
 		
 		void pHorizontalSplitter_OnIdle( wxIdleEvent& )
@@ -970,7 +979,7 @@ class Regard3DDensificationDialogBase : public wxDialog
 	public:
 		wxString maxImage_; 
 		
-		Regard3DDensificationDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DDENSIFICATIONDIALOG, const wxString& title = wxT("Densification"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 560,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
+		Regard3DDensificationDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DDENSIFICATIONDIALOG, const wxString& title = wxT("Densification"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
 		~Regard3DDensificationDialogBase();
 	
 };
@@ -1096,7 +1105,7 @@ class Regard3DSurfaceDialogBase : public wxDialog
 	
 	public:
 		
-		Regard3DSurfaceDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DSURFACEDIALOG, const wxString& title = wxT("Surface generation"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 616,774 ), long style = wxDEFAULT_DIALOG_STYLE );
+		Regard3DSurfaceDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DSURFACEDIALOG, const wxString& title = wxT("Surface generation"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
 		~Regard3DSurfaceDialogBase();
 	
 };
@@ -1138,8 +1147,55 @@ class Regard3DPropertiesDialogBase : public wxDialog
 		wxRadioBox* pMouseButtonRadioBox_;
 		wxRadioBox* pMouseWheelRadioBox_;
 		
-		Regard3DPropertiesDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DPROPERTIESDIALOG, const wxString& title = wxT("Regard 3D Properties"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 507,317 ), long style = wxDEFAULT_DIALOG_STYLE );
+		Regard3DPropertiesDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DPROPERTIESDIALOG, const wxString& title = wxT("Regard 3D Properties"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
 		~Regard3DPropertiesDialogBase();
+	
+};
+
+///////////////////////////////////////////////////////////////////////////////
+/// Class Regard3DUserCameraDBDialogBase
+///////////////////////////////////////////////////////////////////////////////
+class Regard3DUserCameraDBDialogBase : public wxDialog 
+{
+	DECLARE_EVENT_TABLE()
+	private:
+		
+		// Private event handlers
+		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
+		void _wxFB_OnDeleteSelectedEntryButtonClicked( wxCommandEvent& event ){ OnDeleteSelectedEntryButtonClicked( event ); }
+		void _wxFB_OnDeleteAllEntriesButtonClicked( wxCommandEvent& event ){ OnDeleteAllEntriesButtonClicked( event ); }
+		
+	
+	protected:
+		enum
+		{
+			ID_REGARD3DUSERCAMERADBDIALOGBASE = 1000,
+			ID_USERCAMERADBPANEL,
+			ID_USERCAMERADBLISTCTRL,
+			ID_DELETESELECTEDITEMBUTTON,
+			ID_DELETEDBBUTTON,
+		};
+		
+		wxPanel* pUserCameraDBPanel_;
+		
+		wxButton* pDeleteSelectedItemButton_;
+		
+		wxButton* pDeleteDBButton_;
+		
+		wxStdDialogButtonSizer* m_sdbSizer9;
+		wxButton* m_sdbSizer9OK;
+		
+		// Virtual event handlers, overide them in your derived class
+		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
+		virtual void OnDeleteSelectedEntryButtonClicked( wxCommandEvent& event ) = 0;
+		virtual void OnDeleteAllEntriesButtonClicked( wxCommandEvent& event ) = 0;
+		
+	
+	public:
+		wxListCtrl* pUserCameraDBListCtrl_;
+		
+		Regard3DUserCameraDBDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DUSERCAMERADBDIALOGBASE, const wxString& title = wxT("User-defined camera DB"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = wxDEFAULT_DIALOG_STYLE );
+		~Regard3DUserCameraDBDialogBase();
 	
 };
 

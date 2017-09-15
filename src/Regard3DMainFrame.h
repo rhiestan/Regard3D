@@ -50,10 +50,6 @@ class wxProgressDialog;
 // Workaround for X.h defining Success
 #undef Success
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/PolygonMesh.h>
-
 class Regard3DMainFrame: public Regard3DMainFrameBase
 {
 public:
@@ -89,6 +85,7 @@ protected:
 	virtual void OnCloseProject( wxCommandEvent& event );
 	virtual void OnMainFrameExitMenuItem( wxCommandEvent& event );
 	virtual void OnPropertiesMenuItem( wxCommandEvent& event );
+	virtual void OnEditUserCameraDBMenuSelection( wxCommandEvent& event );
 	virtual void OnViewConsoleOutputFrameMenuItem( wxCommandEvent& event );
 	virtual void OnViewConsoleOutputFrameUpdate( wxUpdateUIEvent& event );
 	virtual void OnAboutMenuItem( wxCommandEvent& event );

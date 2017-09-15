@@ -339,6 +339,12 @@ int R3DProject::addPictureSet(R3DProject::PictureSet &ps)
 
 void R3DProject::updatePictureSet(R3DProject::PictureSet &ps, R3DProject::PictureSet *oldPS)
 {
+	wxString pictureSetPathRunning = wxString( oldPS->getBasePathname().c_str(), wxConvLibc)
+		+ wxString::Format(wxT("_%d"), oldPS->runningId_);
+	wxFileName psPath(projectPath_, wxT(""));
+	psPath.AppendDir(pictureSetPathRunning);
+	psPath.AppendDir(imagePath_);
+
 	ImageInfoVector &iiv = oldPS->imageList_;
 	for(size_t i = 0; i < iiv.size(); i++)
 	{
@@ -346,7 +352,7 @@ void R3DProject::updatePictureSet(R3DProject::PictureSet &ps, R3DProject::Pictur
 		// If the image was imported, remove it
 		if(ii.isImported_)
 		{
-			wxFileName imageFN(imagePath_, ii.importedFilename_);
+			wxFileName imageFN(psPath.GetFullPath(), ii.importedFilename_);
 			wxRemoveFile(imageFN.GetFullPath());
 			ii.isImported_ = false;
 		}
@@ -390,7 +396,7 @@ int R3DProject::clonePictureSet(R3DProject::PictureSet *pPictureSet)
 
 int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 	const wxString &featureDetector, const wxString &descriptorExtractor,
-	float keypointSensitivity, float keypointMatchingRatio)
+	float keypointSensitivity, float keypointMatchingRatio, int cameraModel)
 {
 	if(pPictureSet == NULL)
 		return -1;
@@ -409,6 +415,7 @@ int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 	cm.descriptorExtractor_ = descriptorExtractor;
 	cm.threshold_ = keypointSensitivity;
 	cm.distRatio_ = keypointMatchingRatio;
+	cm.cameraModel_ = cameraModel;
 	cm.state_ = OSInvalid;
 	pPictureSet->computeMatches_.push_back(cm);
 
@@ -1062,11 +1069,11 @@ bool R3DProject::writeImageListTXT(const R3DProjectPaths &paths)
 #include "openMVG/cameras/Camera_IO.hpp"
 #endif
 
-bool R3DProject::writeSfmData(const R3DProjectPaths &paths)
+bool R3DProject::writeSfmData(const R3DProjectPaths &paths, int cameraModel)
 {
 #if !defined(R3D_USE_OPENMVG_PRE08)
 
-	openMVG::cameras::EINTRINSIC e_User_camera_model(openMVG::cameras::PINHOLE_CAMERA_RADIAL3);		// TODO: Make configurable
+	openMVG::cameras::EINTRINSIC e_User_camera_model(static_cast<openMVG::cameras::EINTRINSIC>(cameraModel));
 	bool b_Group_camera_model = true;							// TODO: Make configurable
 
 	openMVG::sfm::SfM_Data sfm_data;
@@ -1102,6 +1109,8 @@ bool R3DProject::writeSfmData(const R3DProjectPaths &paths)
 			double ccdw = ii.sensorWidth_;
 			focal = std::max(width, height) * ii.focalLength_ / ccdw;
 		}
+		else
+			focal = std::max(width, height) * 1.1;		// Approximation
 
 		// Build intrinsic parameter related to the view
 		std::shared_ptr<openMVG::cameras::IntrinsicBase> intrinsic(NULL);
@@ -1219,11 +1228,11 @@ bool R3DProject::writeSfmData(const R3DProjectPaths &paths)
 	return true;
 }
 
-void R3DProject::ensureSfmDataExists(const R3DProjectPaths &paths)
+void R3DProject::ensureSfmDataExists(const R3DProjectPaths &paths, int cameraModel)
 {
 	wxFileName sfm_DataFN(wxString(paths.matchesSfmDataFilename_.c_str(), wxConvLibc));
 	if(!sfm_DataFN.FileExists())
-		writeSfmData(paths);
+		writeSfmData(paths, cameraModel);
 }
 
 static inline bool isEqualEps(float x, float y, float eps)
@@ -1557,6 +1566,7 @@ std::string R3DProject::PictureSet::getBasePathname()
 
 R3DProject::ComputeMatches::ComputeMatches()
 	: Object(), threshold_(0), distRatio_(0),
+	cameraModel_(3),
 	state_(R3DProject::OSInvalid)
 {
 }
@@ -1577,6 +1587,7 @@ R3DProject::ComputeMatches &R3DProject::ComputeMatches::copy(const R3DProject::C
 	descriptorExtractor_ = o.descriptorExtractor_;
 	threshold_ = o.threshold_;
 	distRatio_ = o.distRatio_;
+	cameraModel_ = o.cameraModel_;
 	state_ = o.state_;
 	numberOfKeypoints_ = o.numberOfKeypoints_;
 	runningTime_ = o.runningTime_;
@@ -1893,12 +1904,14 @@ void R3DProject::ComputeMatches::serialize(Archive & ar, const unsigned int vers
 	ar & boost::serialization::make_nvp("descriptorExtractor", descriptorExtractor_);
 	ar & boost::serialization::make_nvp("threshold", threshold_);
 	ar & boost::serialization::make_nvp("distRatio", distRatio_);
+	if(version > 0)
+		ar & boost::serialization::make_nvp("cameraModel", cameraModel_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("numberOfKeypoints", numberOfKeypoints_);
 	ar & boost::serialization::make_nvp("Triangulations", triangulations_);
 }
-//BOOST_CLASS_VERSION(R3DProject::ComputeMatches, 1)
+BOOST_CLASS_VERSION(R3DProject::ComputeMatches, 1)
 
 // Serialize PictureSet class
 template<class Archive>

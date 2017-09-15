@@ -21,6 +21,7 @@
 #include "ImageInfoThread.h"
 #include "ExifParser.h"
 #include "CameraDBLookup.h"
+#include "UserCameraDB.h"
 #include "Regard3DMainFrame.h"
 
 #include <wx/mstream.h>
@@ -269,11 +270,17 @@ bool ImageInfoThread::createImageInfo(const wxString &localFilename, ImageInfo &
 			imageInfo.focalLength_ = exifInfo.focalLength_;
 
 			double sensorWidth = 0;
-			if(CameraDBLookup::getInstance().lookupCamera(exifInfo.cameraMaker_,
+			if(UserCameraDB::getInstance().queryDB(exifInfo.cameraMaker_,
 				exifInfo.cameraModel_, sensorWidth))
 			{
 				imageInfo.sensorWidth_ = sensorWidth;
 			}
+			else if(CameraDBLookup::getInstance().lookupCamera(exifInfo.cameraMaker_,
+				exifInfo.cameraModel_, sensorWidth))
+			{
+				imageInfo.sensorWidth_ = sensorWidth;
+			}
+			
 		}
 	}
 

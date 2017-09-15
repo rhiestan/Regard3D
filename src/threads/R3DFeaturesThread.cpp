@@ -160,7 +160,7 @@ void R3DFeaturesThread::processWorkItem(wxString &workItem)
 		// which involves quantization.
 		{
 			cv::Mat cvimg;
-			cvimg = cv::imread(filename.c_str());
+			cvimg = cv::imread(filename.c_str(), cv::ImreadModes::IMREAD_COLOR | cv::ImreadModes::IMREAD_IGNORE_ORIENTATION);
 			int type = cvimg.type();
 			if(type == CV_32F)
 			{

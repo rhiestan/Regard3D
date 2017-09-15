@@ -53,12 +53,16 @@ protected:
 	virtual void OnClearFileListButton( wxCommandEvent& event );
 	virtual void OnImageListColClick( wxListEvent& event );
 	virtual void OnImageListItemDeselected( wxListEvent& event );
+	virtual void OnListItemRightClick( wxListEvent& event );
 	virtual void OnImageListItemSelected( wxListEvent& event );
 	virtual void OnImageListKeyDown( wxListEvent& event );
 	virtual void OnCancel( wxCommandEvent& event );
 	virtual void OnOK( wxCommandEvent& event );
 
 	virtual void OnTimer( wxTimerEvent &event );
+	virtual void OnContextMenuSetSensorWidth( wxCommandEvent &event );
+	virtual void OnContextMenuSetFocalLength( wxCommandEvent &event );
+
 
 	void removeSelectedItems( wxListCtrl *pListCtrl );
 	void addFileToImageList(const wxString &filename, bool addToImageList, const ImageInfo *pImageInfo = NULL);
@@ -76,6 +80,9 @@ private:
 	int sentImageInfoRequests_, receivedImageInfos_;
 
 	ImageInfoVector imageList_;
+
+	wxMenu *pContextMenu_;
+	int rightClickedItem_;
 
 	DECLARE_EVENT_TABLE()
 };

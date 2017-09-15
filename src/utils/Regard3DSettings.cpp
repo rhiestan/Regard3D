@@ -25,6 +25,8 @@
 #include "Regard3DPictureSetDialog.h"
 #include "Regard3DTriangulationDialog.h"
 #include "Regard3DMatchingResultsDialog.h"
+#include "Regard3DUserCameraDBDialog.h"
+
 
 #include <wx/config.h>
 
@@ -38,6 +40,7 @@ Regard3DSettings::Regard3DSettings()
 	configPictureSetDimensions_ = wxT("PictureSetDimensions");
 	configTriangulationDimensions_ = wxT("TriangulationDimensions");
 	configMatchingResultDimensions_ = wxT("MatchingResultDimensions");
+	configUserCameraDBDimensions_ = wxT("UserCameraDBDimensions");
 	configFontFilename_ = wxT("FontFilename");
 	configCameraDBFilename_ = wxT("CameraDBFilename");
 	configExternalEXEPath_ = wxT("ExternalEXEPath");
@@ -419,6 +422,84 @@ void Regard3DSettings::saveMatchingResultsLayoutToConfig(Regard3DMatchingResults
 		wxString dimensions(ostr.str().c_str());
 
 		config.Write(configMatchingResultDimensions_, dimensions);
+	}
+}
+
+void Regard3DSettings::loadUserCameraDBLayoutFromConfig(Regard3DUserCameraDBDialog *pDialog)
+{
+	wxConfig config;	// AppName and VendorName are set in Regard3DApp::OnInit()
+	config.SetPath(wxT("/"));
+
+	{
+		wxPoint pt;
+		wxSize sz;
+		bool isMaximized = false;
+		bool isFullScreen = false;
+		int column1Width = 0, column2Width = 0, column3Width = 0;
+
+		wxString dimensions;
+		if(config.Read(configUserCameraDBDimensions_, &dimensions))
+		{
+			std::wistringstream istr(std::wstring(dimensions.c_str()));
+			istr >> pt.x >> pt.y >> sz.x >> sz.y >> isMaximized >> isFullScreen >> column1Width
+				>> column2Width >> column3Width;
+
+			pDialog->SetPosition(pt);
+			pDialog->SetSize(sz);
+			if(isMaximized)
+				pDialog->Maximize();
+			if(isFullScreen)
+				pDialog->ShowFullScreen(true, 0);
+
+			if(column1Width > 0)
+				pDialog->pUserCameraDBListCtrl_->SetColumnWidth(0, column1Width);
+			else
+				pDialog->pUserCameraDBListCtrl_->SetColumnWidth(0, wxLIST_AUTOSIZE);
+			if(column2Width > 0)
+				pDialog->pUserCameraDBListCtrl_->SetColumnWidth(1, column2Width);
+			else
+				pDialog->pUserCameraDBListCtrl_->SetColumnWidth(1, wxLIST_AUTOSIZE);
+			if(column3Width > 0)
+				pDialog->pUserCameraDBListCtrl_->SetColumnWidth(2, column3Width);
+			else
+				pDialog->pUserCameraDBListCtrl_->SetColumnWidth(2, wxLIST_AUTOSIZE);
+		}
+	}
+}
+
+void Regard3DSettings::saveUserCameraDBLayoutToConfig(Regard3DUserCameraDBDialog *pDialog)
+{
+	wxConfig config;	// AppName and VendorName are set in Regard3DApp::OnInit()
+	config.SetPath(wxT("/"));
+
+	{
+		wxPoint pt = pDialog->GetPosition();
+		wxSize sz = pDialog->GetSize();
+		bool isIconized = pDialog->IsIconized();
+		bool isMaximized = pDialog->IsMaximized();
+		bool isFullScreen = pDialog->IsFullScreen();
+		int column1Width = pDialog->pUserCameraDBListCtrl_->GetColumnWidth(0);
+		int column2Width = pDialog->pUserCameraDBListCtrl_->GetColumnWidth(1);
+		int column3Width = pDialog->pUserCameraDBListCtrl_->GetColumnWidth(2);
+
+		if(isIconized || isMaximized || isFullScreen)
+		{
+			// Do not overwrite window size and position in one of those cases
+			wxString dimensions;
+			if(config.Read(configUserCameraDBDimensions_, &dimensions))
+			{
+				std::wistringstream istr(std::wstring(dimensions.c_str()));
+				istr >> pt.x >> pt.y >> sz.x >> sz.y;
+			}
+		}
+
+		std::wostringstream ostr;
+		ostr << pt.x << L" " << pt.y << L" " << sz.x << L" " << sz.y << L" " << isMaximized
+			<< L" " << isFullScreen << L" " << column1Width
+			 << L" " << column2Width  << L" " << column3Width;
+		wxString dimensions(ostr.str().c_str());
+
+		config.Write(configUserCameraDBDimensions_, dimensions);
 	}
 }
 

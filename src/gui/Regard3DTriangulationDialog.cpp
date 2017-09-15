@@ -71,7 +71,8 @@ bool Regard3DTriangulationDialog::isTriangulationPossible()
 	// Check whether preconditions of incremental or global chain are met
 	bool isIncrementalTriPossible = false, isGlobalTriPossible = false;
 
-	// Incremental: At least one pair with known focal length
+	isIncrementalTriPossible = true;	// We now allow incremental triangulation without known focal length
+/*	// Incremental: At least one pair with known focal length
 	OpenMVGHelper::ImagePairList imgPairList = OpenMVGHelper::getBestValidatedPairs(paths_, paths_.matchesFFilename_, 0);
 	if(!imgPairList.empty())
 	{
@@ -103,7 +104,7 @@ bool Regard3DTriangulationDialog::isTriangulationPossible()
 	else
 	{
 		isIncrementalTriPossible = false;
-	}
+	}*/
 	// Store for later
 	initialImagePairListIsEmpty_ = !isIncrementalTriPossible;
 
@@ -364,6 +365,27 @@ void Regard3DTriangulationDialog::updateInitialImagePairListCtrl()
 
 		size_t newID = 0;
 
+		bool noPairHasFullImageInfo = true;
+		for(size_t i = 0; i < imgPairList.size(); i++)
+		{
+			const OpenMVGHelper::ImagePair &imgPair = imgPairList[i];
+			bool focalLengthKnown1 = false, focalLengthKnown2 = false;
+			if(imageInfoVector.size() > imgPair.indexA_)
+			{
+				const ImageInfo &imageInfo = imageInfoVector[imgPair.indexA_];
+				focalLengthKnown1 = ((imageInfo.sensorWidth_ != 0)
+					&& (imageInfo.focalLength_ != 0));
+			}
+			if(imageInfoVector.size() > imgPair.indexB_)
+			{
+				const ImageInfo &imageInfo = imageInfoVector[imgPair.indexB_];
+				focalLengthKnown2 = ((imageInfo.sensorWidth_ != 0)
+					&& (imageInfo.focalLength_ != 0));
+			}
+			if(focalLengthKnown1 && focalLengthKnown2)
+				noPairHasFullImageInfo = false;
+		}
+
 		for(size_t i = 0; i < imgPairList.size(); i++)
 		{
 			const OpenMVGHelper::ImagePair &imgPair = imgPairList[i];
@@ -390,7 +412,8 @@ void Regard3DTriangulationDialog::updateInitialImagePairListCtrl()
 					&& (imageInfo.focalLength_ != 0));
 			}
 
-			if(focalLengthKnown1 && focalLengthKnown2)
+			if(noPairHasFullImageInfo
+				|| (focalLengthKnown1 && focalLengthKnown2))
 			{
 				pTInitialImagePairListCtrl_->InsertItem(newID, wxString::Format(wxT("%d"), imgPair.indexA_));
 				pTInitialImagePairListCtrl_->SetItem(newID, 1, imageAFN.GetFullName());

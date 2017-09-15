@@ -25,6 +25,7 @@ class Regard3DImagePreviewDialog;
 class Regard3DPictureSetDialog;
 class Regard3DTriangulationDialog;
 class Regard3DMatchingResultsDialog;
+class Regard3DUserCameraDBDialog;
 
 class Regard3DSettings
 {
@@ -45,6 +46,8 @@ public:
 	void saveTriangulationLayoutToConfig(Regard3DTriangulationDialog *pDialog);
 	void loadMatchingResultsLayoutFromConfig(Regard3DMatchingResultsDialog *pDialog);
 	void saveMatchingResultsLayoutToConfig(Regard3DMatchingResultsDialog *pDialog);
+	void loadUserCameraDBLayoutFromConfig(Regard3DUserCameraDBDialog *pDialog);
+	void saveUserCameraDBLayoutToConfig(Regard3DUserCameraDBDialog *pDialog);
 
 	wxString getFontFilename();			// Defined by installation
 	wxString getCameraDBFilename();		// Defined by installation
@@ -65,6 +68,7 @@ private:
 	wxString configPictureSetDimensions_;
 	wxString configTriangulationDimensions_;
 	wxString configMatchingResultDimensions_;
+	wxString configUserCameraDBDimensions_;
 	wxString configFontFilename_;
 	wxString configCameraDBFilename_;
 	wxString configExternalEXEPath_;

@@ -598,7 +598,8 @@ void R3DComputeMatches::setMainFrame(Regard3DMainFrame *pMainFrame)
 	pMainFrame_ = pMainFrame;
 }
 
-bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, bool svgOutput, const R3DProjectPaths &paths)
+bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
+	bool svgOutput, const R3DProjectPaths &paths, int cameraModel)
 {
   R3DProject *pProject = R3DProject::getInstance();
   assert(pProject != NULL);
@@ -679,7 +680,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params, boo
   }
 #else
   std::string sSfM_Data_Filename(paths.matchesSfmDataFilename_);
-  pProject->writeSfmData(paths);
+  pProject->writeSfmData(paths, cameraModel);
 
   //---------------------------------------
   // Read SfM Scene (image view & intrinsics data)

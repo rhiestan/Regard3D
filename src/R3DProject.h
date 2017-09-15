@@ -270,6 +270,7 @@ public:
 		std::vector<Triangulation> triangulations_;
 		wxString featureDetector_, descriptorExtractor_;
 		float threshold_, distRatio_;
+		int cameraModel_;
 		R3DObjectState state_;
 		std::vector<int> numberOfKeypoints_;
 		wxString runningTime_;
@@ -338,7 +339,7 @@ public:
 	int clonePictureSet(PictureSet *pPictureSet);
 	int addComputeMatches(R3DProject::PictureSet *pPictureSet,
 		const wxString &featureDetector, const wxString &descriptorExtractor,
-		float keypointSensitivity, float keypointMatchingRatio);
+		float keypointSensitivity, float keypointMatchingRatio, int cameraModel);
 	int addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
 		bool global, int rotAveraging, int transAveraging, bool refineIntrinsics);
 	int addDensification(R3DProject::Triangulation *pTriangulation);
@@ -356,8 +357,8 @@ public:
 
 	bool importAllImages(const R3DProjectPaths &paths);
 	bool writeImageListTXT(const R3DProjectPaths &paths);
-	bool writeSfmData(const R3DProjectPaths &paths);
-	void ensureSfmDataExists(const R3DProjectPaths &paths);
+	bool writeSfmData(const R3DProjectPaths &paths, int cameraModel);
+	void ensureSfmDataExists(const R3DProjectPaths &paths, int cameraModel);
 
 	void prepareComputeMatches(const R3DProjectPaths &paths, float threshold, float distRatio);
 	void prepareTriangulation(R3DProject::Triangulation *pTriangulation);

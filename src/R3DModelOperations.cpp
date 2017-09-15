@@ -20,6 +20,7 @@
 
 #include "CommonIncludes.h"
 #include "R3DModelOperations.h"
+#include "config.h"
 
 #if !wxCHECK_VERSION(2, 9, 0)
 // wxWidgets before 2.9.0 does not support recursive delete
@@ -27,26 +28,27 @@
 #include <boost/filesystem.hpp>
 #endif
 
-// PointCloudLibrary
-#include <pcl/PCLPointCloud2.h>
-#include <pcl/common/io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/io/obj_io.h>
-#include <pcl/point_types.h>
-#include <pcl/search/brute_force.h>
-#include <pcl/search/kdtree.h>
-
-#if PCL_VERSION_COMPARE(<, 1, 7, 2)
-#include <pcl/io/vtk_lib_io.h>
-#endif
-
+// assimp
 #include <assimp/postprocess.h>
 #include <assimp/version.h>
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
 #include <assimp/DefaultLogger.hpp>
 #include <assimp/Exporter.hpp>
+
+// Tinyply
+#include "tinyply.h"
+
+// boost
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/geometries/point_xy.hpp>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/index/rtree.hpp>
+#include "boost/filesystem/fstream.hpp"
+
+#include <boost/chrono.hpp>
+
 
 void R3DModelOperations::combineDenseModels(R3DProject::Densification *pDensification, int numModels)
 {
@@ -55,24 +57,113 @@ void R3DModelOperations::combineDenseModels(R3DProject::Densification *pDensific
 	R3DProject::getInstance()->getProjectPathsDns(paths, pDensification);
 
 	wxFileName modelFN(wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc));
-	pcl::PointCloud<pcl::PointXYZRGBNormal> combinedCloud;
+
+	std::vector<float> combinedVertices, combinedNormals;
+	std::vector<uint8_t> combinedColors;
+
 	for(int i = 0; i < numModels; i++)
 	{
 		modelFN.SetFullName(wxString::Format(wxT("option-%04d.ply"), i));
 		if(modelFN.FileExists())
 		{
-			pcl::PointCloud<pcl::PointXYZRGBNormal> tempCloud;
-			if(pcl::io::loadPLYFile(std::string(modelFN.GetFullPath().mb_str()), tempCloud) != -1)
+
+#if defined(R3D_WIN32)
+			boost::filesystem::ifstream istream(boost::filesystem::path(modelFN.GetFullPath().wc_str()), std::ios::binary);
+#else
+			boost::filesystem::ifstream istream(boost::filesystem::path(modelFN.GetFullPath().mb_str()), std::ios::binary);
+#endif
+
+			tinyply::PlyFile file(istream);
+
+			tinyply::PlyProperty::Type coordinateType = tinyply::PlyProperty::Type::FLOAT32;
+			tinyply::PlyProperty::Type colorType = tinyply::PlyProperty::Type::UINT8;
+			tinyply::PlyProperty::Type normalType = tinyply::PlyProperty::Type::FLOAT32;
+			bool hasDiffuseColors = false;
+			for (auto e : file.get_elements())
 			{
-				combinedCloud += tempCloud;		// Concatenate new point cloud
+				std::string name = e.name;
+				size_t sz = e.size;
+				for(auto p : e.properties)
+				{
+					std::string propN = p.name;
+					std::string propS = tinyply::PropertyTable[p.propertyType].str;
+
+					if(name == std::string("vertex")
+						&& propN == std::string("x"))
+						coordinateType = p.propertyType;
+					if(name == std::string("vertex")
+						&& propN == std::string("nx"))
+						normalType = p.propertyType;
+					if(name == std::string("vertex")
+						&& propN == std::string("red"))
+						colorType = p.propertyType;
+					if(name == std::string("vertex")
+						&& propN == std::string("diffuse_red"))
+					{
+						colorType = p.propertyType;
+						hasDiffuseColors = true;
+					}
+
+				}
 			}
+
+			std::vector<float> vertsF, normalsF;
+			std::vector<double> vertsD, normalsD;
+			std::vector<uint8_t> colorsUI8;
+			size_t vertexCount = 0, colorCount = 0, normalsCount = 0;
+
+			if(coordinateType == tinyply::PlyProperty::Type::FLOAT32)
+				vertexCount = file.request_properties_from_element("vertex", { "x", "y", "z" }, vertsF);
+			else
+				vertexCount = file.request_properties_from_element("vertex", { "x", "y", "z" }, vertsD);
+			if(normalType == tinyply::PlyProperty::Type::FLOAT32)
+				normalsCount = file.request_properties_from_element("vertex", { "nx", "ny", "nz" }, normalsF);
+			else
+				normalsCount = file.request_properties_from_element("vertex", { "nx", "ny", "nz" }, normalsD);
+			if(hasDiffuseColors)
+				colorCount = file.request_properties_from_element("vertex", { "diffuse_red", "diffuse_green", "diffuse_blue" }, colorsUI8);
+			else
+				colorCount = file.request_properties_from_element("vertex", { "red", "green", "blue" }, colorsUI8);
+
+			file.read(istream);
+
+			size_t vertsSize = vertsF.size() + vertsD.size();
+			size_t colsSize = colorsUI8.size();
+			if(vertsSize != colsSize)
+				return;
+			if(vertsSize < vertexCount*3)
+				return;
+
+			// Combine point clouds
+			if(coordinateType == tinyply::PlyProperty::Type::FLOAT32)
+				combinedVertices.insert(combinedVertices.end(), vertsF.begin(), vertsF.end());
+			else
+				combinedVertices.insert(combinedVertices.end(), vertsD.begin(), vertsD.end());
+			if(normalType == tinyply::PlyProperty::Type::FLOAT32)
+				combinedNormals.insert(combinedNormals.end(), normalsF.begin(), normalsF.end());
+			else
+				combinedNormals.insert(combinedNormals.end(), normalsD.begin(), normalsD.end());
+			combinedColors.insert(combinedColors.end(), colorsUI8.begin(), colorsUI8.end());
 		}
 	}
 
 	// Save combined point cloud
 	wxFileName combinedModelFN(modelFN);
 	combinedModelFN.SetFullName(combinedModelName);
-	pcl::io::savePLYFileASCII(std::string(combinedModelFN.GetFullPath().mb_str()), combinedCloud);
+#if defined(R3D_WIN32)
+	boost::filesystem::ofstream ostream(boost::filesystem::path(combinedModelFN.GetFullPath().wc_str()), std::ios::binary);
+#else
+	boost::filesystem::ofstream ostream(boost::filesystem::path(combinedModelFN.GetFullPath().mb_str()), std::ios::binary);
+#endif
+
+	tinyply::PlyFile combinedFile;
+	combinedFile.add_properties_to_element("vertex", { "x", "y", "z" }, combinedVertices);
+	combinedFile.add_properties_to_element("vertex", { "nx", "ny", "nz" }, combinedNormals);
+	combinedFile.add_properties_to_element("vertex", { "diffuse_red", "diffuse_green", "diffuse_blue" }, combinedColors);
+
+	combinedFile.write(ostream, true);
+	ostream.close();
+
 	pDensification->finalDenseModelName_ = combinedModelName;
 }
 
@@ -87,89 +178,157 @@ void R3DModelOperations::colorizeSurface(R3DProject::Surface *pSurface)
 	if(!surfaceFN.FileExists())
 		return;
 
-	pcl::PolygonMesh surfaceModel;
-#if PCL_VERSION_COMPARE(<, 1, 7, 2)
-	if(pcl::io::loadPolygonFilePLY(std::string(surfaceFN.GetFullPath().mb_str()), surfaceModel) == -1)
-#else
-	if(pcl::io::loadPLYFile(std::string(surfaceFN.GetFullPath().mb_str()), surfaceModel) == -1)
-#endif
-		return;
-	if(surfaceModel.polygons.empty())
-	{
-		// TODO: Issue warning
-		// Empty surface (will crash in pcl::fromPCLPointCloud2 if not caught here)
-		return;
-	}
+	Assimp::Importer importer;
+	const aiScene *pScene = importer.ReadFile( std::string(surfaceFN.GetFullPath().mb_str()),
+		aiProcess_JoinIdenticalVertices);
 
 	// Load dense point cloud
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	if(pcl::io::loadPLYFile<pcl::PointXYZRGB>(paths.relativeDenseModelName_, *(cloud.get())) == -1)
-		return;
+	std::ifstream istream(paths.relativeDenseModelName_, std::ios::binary);
+	tinyply::PlyFile file(istream);
 
-	// Put point cloud into search structure
-	//pcl::search::BruteForce<pcl::PointXYZRGB> search;
-	pcl::search::KdTree<pcl::PointXYZRGB> search;
-	search.setInputCloud(cloud);
-
-	// Convert points from surface to pcl::PointCloud
-	pcl::PointCloud<pcl::PointXYZRGB> surfacePoints;
-	pcl::fromPCLPointCloud2(surfaceModel.cloud, surfacePoints);
-
-	const int n_neighbours = pSurface->colVertNumNeighbours_;
-	std::vector<int> k_indices;
-	std::vector<float> k_distances, k_weights;
-	for(size_t i = 0; i < surfacePoints.points.size(); i++)
+	tinyply::PlyProperty::Type coordinateType = tinyply::PlyProperty::Type::FLOAT32;
+	tinyply::PlyProperty::Type colorType = tinyply::PlyProperty::Type::UINT8;
+	bool hasDiffuseColors = false;
+	for (auto e : file.get_elements())
 	{
-		k_indices.clear();
-		k_distances.clear();
-		k_weights.clear();
-		pcl::PointXYZRGB &point = surfacePoints.points[i];
-
-		int retVal = search.nearestKSearch(point, n_neighbours, k_indices, k_distances);
-		
-		// Copy color
-		if(!k_indices.empty())
+		std::string name = e.name;
+		size_t sz = e.size;
+		for(auto p : e.properties)
 		{
-			k_weights.resize(k_distances.size());
-			if(k_distances[0] == 0.0f)
+			std::string propN = p.name;
+			std::string propS = tinyply::PropertyTable[p.propertyType].str;
+
+			if(name == std::string("vertex")
+				&& propN == std::string("x"))
+				coordinateType = p.propertyType;
+			if(name == std::string("vertex")
+				&& propN == std::string("red"))
+				colorType = p.propertyType;
+			if(name == std::string("vertex")
+				&& propN == std::string("diffuse_red"))
 			{
-				// Avoid division by zero
-				k_weights[0] = 1.0f;
-				for(size_t j = 1; j < k_distances.size(); j++)
-					k_weights[j] = 0;
-			}
-			else
-			{
-				float totalweight = 0;
-				for(size_t j = 0; j < k_distances.size(); j++)
-					totalweight += (1.0f / k_distances[j]);
-				for(size_t j = 0; j < k_distances.size(); j++)
-					k_weights[j] = (1.0f / k_distances[j]) / totalweight;
+				colorType = p.propertyType;
+				hasDiffuseColors = true;
 			}
 
-			float redf = 0, greenf = 0, bluef = 0;
-			for(size_t j = 0; j < k_indices.size(); j++)
-			{
-				const pcl::PointXYZRGB &nearestPoint = (cloud->points)[k_indices[j]];
-				redf += k_weights[j] * static_cast<float>(nearestPoint.r);
-				greenf += k_weights[j] * static_cast<float>(nearestPoint.g);
-				bluef += k_weights[j] * static_cast<float>(nearestPoint.b);
-			}
-			point.r = static_cast<uint8_t>(std::min(255, static_cast<int>(redf)));
-			point.g = static_cast<uint8_t>(std::min(255, static_cast<int>(greenf)));
-			point.b = static_cast<uint8_t>(std::min(255, static_cast<int>(bluef)));
-			point.a = 0;
 		}
 	}
 
-	// Convert points back into surface model
-	pcl::toPCLPointCloud2(surfacePoints, surfaceModel.cloud);
+	std::vector<float> vertsF;
+	std::vector<double> vertsD;
+	std::vector<uint8_t> colorsUI8;
+	size_t vertexCount = 0, colorCount = 0;
+
+	if(coordinateType == tinyply::PlyProperty::Type::FLOAT32)
+		vertexCount = file.request_properties_from_element("vertex", { "x", "y", "z" }, vertsF);
+	else
+		vertexCount = file.request_properties_from_element("vertex", { "x", "y", "z" }, vertsD);
+	if(hasDiffuseColors)
+		colorCount = file.request_properties_from_element("vertex", { "diffuse_red", "diffuse_green", "diffuse_blue" }, colorsUI8);
+	else
+		colorCount = file.request_properties_from_element("vertex", { "red", "green", "blue" }, colorsUI8);
+
+	file.read(istream);
+
+	size_t vertsSize = vertsF.size() + vertsD.size();
+	size_t colsSize = colorsUI8.size();
+	if(vertsSize != colsSize)
+		return;
+	if(vertsSize < vertexCount*3)
+		return;
+
+	// Create spatial index
+	typedef boost::geometry::model::point<float, 3, boost::geometry::cs::cartesian> point_type;
+	typedef std::pair<point_type, size_t> value;
+	typedef boost::geometry::index::rtree< value, boost::geometry::index::rstar<8> > rtree;
+	typedef rtree::const_query_iterator rtree_iter;
+
+	std::vector<value> valueVector;
+	valueVector.reserve(vertsSize);
+	for(size_t i = 0; i < vertexCount; i++)
+	{
+		if(!vertsF.empty())
+			valueVector.push_back( std::make_pair( point_type(vertsF[i*3], vertsF[i*3+1], vertsF[i*3+2]), i) );
+		if(!vertsD.empty())
+			valueVector.push_back( std::make_pair( point_type(vertsD[i*3], vertsD[i*3+1], vertsD[i*3+2]), i) );
+	}
+
+	rtree rb(valueVector.begin(), valueVector.end());
+	const int n_neighbours = pSurface->colVertNumNeighbours_;
+
+
+
+	for(int i = 0; i < static_cast<int>(pScene->mNumMeshes); i++)
+	{
+		aiMesh *pMesh = pScene->mMeshes[i];
+		if(pMesh != NULL)
+		{
+			if(pMesh->GetNumColorChannels() == 0)
+				pMesh->mColors[0] = new aiColor4D[pMesh->mNumVertices];
+
+			for(unsigned int v = 0; v < pMesh->mNumVertices; v++)
+			{
+				aiVector3D &vertex = pMesh->mVertices[v];
+
+				std::vector<float> k_distances, k_weights;
+				std::vector<value> result_n;
+				k_distances.clear();
+				k_weights.clear();
+
+				rb.query(boost::geometry::index::nearest(point_type(vertex.x, vertex.y, vertex.z), n_neighbours), std::back_inserter(result_n));
+		
+				// Copy color
+				if(!result_n.empty())
+				{
+					// Calculate distances
+					k_distances.resize(result_n.size());
+					for(size_t j = 0; j < result_n.size(); j++)
+					{
+						k_distances[j] = boost::geometry::distance(point_type(vertex.x, vertex.y, vertex.z), result_n[j].first);
+					}
+
+					k_weights.resize(k_distances.size());
+					if(k_distances[0] == 0.0f)
+					{
+						// Avoid division by zero
+						k_weights[0] = 1.0f;
+						for(size_t j = 1; j < k_distances.size(); j++)
+							k_weights[j] = 0;
+					}
+					else
+					{
+						float totalweight = 0;
+						for(size_t j = 0; j < k_distances.size(); j++)
+							totalweight += (1.0f / k_distances[j]);
+						for(size_t j = 0; j < k_distances.size(); j++)
+							k_weights[j] = (1.0f / k_distances[j]) / totalweight;
+					}
+
+					float redf = 0, greenf = 0, bluef = 0;
+					for(size_t j = 0; j < result_n.size(); j++)
+					{
+						unsigned int nearestPointIndex = result_n[j].second;
+						redf += k_weights[j] * static_cast<float>(colorsUI8[3*nearestPointIndex]);
+						greenf += k_weights[j] * static_cast<float>(colorsUI8[3*nearestPointIndex+1]);
+						bluef += k_weights[j] * static_cast<float>(colorsUI8[3*nearestPointIndex+2]);
+					}
+
+					aiColor4D &pointColor = pMesh->mColors[0][v];
+					pointColor.r = redf/255.0f;
+					pointColor.g = greenf/255.0f;
+					pointColor.b = bluef/255.0f;
+					pointColor.a = 0;
+				}
+			}
+		}
+	}
 
 	// Save colorized model
+	Assimp::Exporter exp;
 	wxString colorizedModelName(wxT("model_surface_col.ply"));
 	pSurface->finalSurfaceFilename_ = colorizedModelName;
 	wxFileName surfaceOutFN(wxString(paths.relativeSurfacePath_.c_str(), wxConvLibc), colorizedModelName);
-	pcl::io::savePLYFile(std::string(surfaceOutFN.GetFullPath().mb_str()), surfaceModel);
+	const aiReturn res = exp.Export(pScene, "ply", surfaceOutFN.GetFullPath().c_str());
 }
 
 bool R3DModelOperations::exportToPointCloud(R3DProject::Densification *pDensification, const wxString &filename)
@@ -180,47 +339,8 @@ bool R3DModelOperations::exportToPointCloud(R3DProject::Densification *pDensific
 
 	// Determine export type
 	wxFileName exportFN(filename);
-	if(exportFN.GetExt().IsSameAs(wxT("pcd"), false))
-	{
-		// Convert to Point Cloud Data
-		pcl::PCLPointCloud2 cloud;
-		if(pcl::io::loadPLYFile(paths.relativeDenseModelName_, cloud) == -1)
-			return false;
-
-		// Make temporary directory (directly under the project dir)
-		wxFileName tmpDir(wxT("tmp"), wxEmptyString);
-		if(tmpDir.DirExists())
-#if wxCHECK_VERSION(2, 9, 0)
-			tmpDir.Rmdir(wxPATH_RMDIR_RECURSIVE);
-#else
-		{
-			boost::system::error_code ec;
-			boost::filesystem::remove_all(boost::filesystem::path(tmpDir.GetPath().c_str()), ec);
-		}
-#endif
-		if(!tmpDir.Mkdir())
-			return false;
-
-		std::string tmpfn("tmp/temp_surface.pcd");
-		if(pcl::io::savePCDFile(tmpfn, cloud) != 0)
-			retVal = false;
-
-		wxCopyFile(wxString(tmpfn.c_str(), wxConvLibc), filename, true);
-
-#if wxCHECK_VERSION(2, 9, 0)
-		tmpDir.Rmdir(wxPATH_RMDIR_RECURSIVE);
-#else
-		boost::system::error_code ec;
-		boost::filesystem::remove_all(boost::filesystem::path(tmpDir.GetPath().c_str()), ec);
-#endif
-	}
-	else
-	{
-		// Simple copy
-		return wxCopyFile(wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc), filename, true);
-	}
-
-	return retVal;
+	// Simple copy
+	return wxCopyFile(wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc), filename, true);
 }
 
 bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxString &filename)
@@ -256,25 +376,20 @@ bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxSt
 	{
 		if(exportFN.GetExt().IsSameAs(wxT("obj")))
 		{
+			// Currently disabled due to bug 1315 of AssImp
+			// See also https://github.com/assimp/assimp/issues/1315
+			return false;
+
 			// Convert to Alias Wavefront Object
 			if(pSurface->colorizationType_ == R3DProject::CTColoredVertices)
 			{
-				pcl::PolygonMesh mesh;
-#if PCL_VERSION_COMPARE(<, 1, 7, 2)
-				if(pcl::io::loadPolygonFilePLY(surfaceModelFNStr, mesh) == -1)
-#else
-				if(pcl::io::loadPLYFile(surfaceModelFNStr, mesh) == -1)
-#endif
+				const aiScene* pScene = imp.ReadFile(surfaceModelFNStr.c_str(), 0);
+				if(pScene == NULL)
 					retVal = false;
-
-//				const aiScene* pScene = imp.ReadFile(surfaceModelFNStr.c_str(), aiProcess_JoinIdenticalVertices);
-//				if(pScene == NULL)
-//					retVal = false;
-//				else
+				else
 				{
 					std::string tmpfn("tmp/temp_surface.obj");
-					retVal &= (pcl::io::saveOBJFile(tmpfn, mesh, 7) == 0);
-					//const aiReturn res = exp.Export(pScene, "obj", tmpfn.c_str());
+					const aiReturn res = exp.Export(pScene, "obj", tmpfn.c_str());
 					retVal &= wxCopyFile(wxString(tmpfn.c_str(), wxConvLibc), filename, true);
 				}
 			}
@@ -296,40 +411,24 @@ bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxSt
 		{
 			if(pSurface->colorizationType_ == R3DProject::CTColoredVertices)
 			{
-/*				pcl::PolygonMesh mesh;
-#if PCL_VERSION_COMPARE(<, 1, 7, 2)
-				if(pcl::io::loadPolygonFileOBJ(surfaceModelFNStr, mesh) == -1)
-#else
-				if(pcl::io::loadOBJFile(surfaceModelFNStr, mesh) == -1)
-#endif
-					retVal = false;*/
-
 				const aiScene* pScene = imp.ReadFile(surfaceModelFNStr.c_str(), aiProcess_JoinIdenticalVertices);
 				if(pScene == NULL)
 					retVal = false;
 				else
 				{
 					std::string fn(filename.mb_str());
-					//retVal = (pcl::io::savePLYFile(fn, mesh) == 0);
 					const aiReturn res = exp.Export(pScene, "ply", fn.c_str());
 				}
 			}
 			else
 			{
-				// PointCloudLibrary does not support textures in PLY files
+				// PointCloudLibrary/AssImp do not support textures in PLY files
 				retVal = false;
 			}
 		}
 		else
 		{
 			// Load and save OBJ
-/*			pcl::TextureMesh mesh;
-#if PCL_VERSION_COMPARE(<, 1, 7, 2)
-			if(pcl::io::loadPolygonFileOBJ(surfaceModelFNStr, mesh) == -1)
-#else
-			if(pcl::io::loadOBJFile(surfaceModelFNStr, mesh) == -1)
-#endif
-				retVal = false;*/
 			const aiScene* pScene = imp.ReadFile(surfaceModelFNStr.c_str(), aiProcess_JoinIdenticalVertices);
 			if(pScene == NULL)
 				retVal = false;
@@ -399,36 +498,6 @@ bool R3DModelOperations::exportSurface(R3DProject::Surface *pSurface, const wxSt
 				}
 			}
 
-/*			std::string exportNameC(exportFN.GetName().ToAscii());		// Converted to ASCII
-			wxString exportNameASCII(wxString::FromAscii(exportNameC.c_str()));
-
-			// Copy texture files
-			for(size_t i = 0; i < mesh.tex_materials.size(); i++)
-			{
-				pcl::TexMaterial &mat = mesh.tex_materials[i];
-				std::string textureFilename = mat.tex_file;
-
-				wxFileName textureInFN(wxString(textureFilename.c_str(), wxConvLibc));
-				wxFileName textureOutFN(exportFN);
-				textureOutFN.SetName( exportNameASCII + wxString::Format( wxT("_%d"), i ) );
-				textureOutFN.SetExt( textureInFN.GetExt() );
-				if(!wxCopyFile(textureInFN.GetFullPath(), textureOutFN.GetFullPath(), true))
-					retVal = false;
-
-				// Remove path from filename
-				mat.tex_file = std::string(textureOutFN.GetFullName().mb_str());
-			}
-
-			wxFileName tempFN(wxT("tmp"), exportNameASCII, wxT("obj"));
-			std::string tmpfn(std::string( tempFN.GetFullPath(wxPATH_UNIX).ToAscii() ));
-			retVal &= (pcl::io::saveOBJFile(tmpfn, mesh, 7) == 0);
-			retVal &= wxCopyFile(tempFN.GetFullPath(), filename, true);
-
-			wxFileName materialInFN(tempFN), materialOutFN(filename);
-			materialInFN.SetExt(wxT("mtl"));
-			materialOutFN.SetName( exportNameASCII );
-			materialOutFN.SetExt(wxT("mtl"));
-			retVal &= wxCopyFile(materialInFN.GetFullPath(), materialOutFN.GetFullPath(), true);*/
 		}
 	}
 	else

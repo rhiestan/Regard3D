@@ -24,10 +24,15 @@
 #include "R3DProject.h"
 #include "ImageInfoThread.h"
 #include "Regard3DSettings.h"
+#include "UserCameraDB.h"
+
+#include <wx/textdlg.h>
 
 enum
 {
-	ID_R3D_PSD_TIMER = 3700
+	ID_R3D_PSD_TIMER = 3700,
+	ID_R3D_PSD_CTX_SET_SENSOR_WIDTH,
+	ID_R3D_PSD_CTX_SET_FOCAL_LENGTH
 };
 
 Regard3DPictureSetDialog::Regard3DPictureSetDialog(wxWindow *pParent)
@@ -35,13 +40,19 @@ Regard3DPictureSetDialog::Regard3DPictureSetDialog(wxWindow *pParent)
 	aTimer_(this, ID_R3D_PSD_TIMER),
 	pPreviewGeneratorThread_(NULL), pPictureSet_(NULL),
 	showOnly_(false), pRegard3DPictureSetDlgDropTarget_(NULL),
-	sentImageInfoRequests_(0), receivedImageInfos_(0)
+	sentImageInfoRequests_(0), receivedImageInfos_(0),
+	pContextMenu_(NULL), rightClickedItem_(0)
 {
 	aTimer_.Start(50);
 }
 
 Regard3DPictureSetDialog::~Regard3DPictureSetDialog()
 {
+	if(pContextMenu_ != NULL)
+	{
+		delete pContextMenu_;
+		pContextMenu_ = NULL;
+	}
 }
 
 void Regard3DPictureSetDialog::setPreviewGeneratorThread(PreviewGeneratorThread *pPreviewGeneratorThread)
@@ -99,6 +110,13 @@ void Regard3DPictureSetDialog::OnInitDialog( wxInitDialogEvent& event )
 		{
 			const ImageInfo &ii = imageList_[i];
 			addFileToImageList(ii.filename_, false, &ii);
+
+			if(ii.sensorWidth_ == 0)
+			{
+				// Query database, maybe now it is known
+				pImageInfoThread_->addImageInfoRequest(ii.filename_);
+				sentImageInfoRequests_++;
+			}
 		}
 
 		pPictureSetNameTextCtrl_->SetValue( pPictureSet_->name_ );
@@ -148,6 +166,33 @@ void Regard3DPictureSetDialog::OnImageListColClick( wxListEvent& event )
 void Regard3DPictureSetDialog::OnImageListItemDeselected( wxListEvent& event )
 {
 	pPreviewCanvas_->clearPreviewImage();
+}
+
+void Regard3DPictureSetDialog::OnListItemRightClick( wxListEvent& event )
+{
+	if(showOnly_)
+		return;
+
+	// Only allow "Set sensor width" context menu for pictures with EXIF info
+	const ImageInfo &ii = imageList_[event.GetIndex()];
+	bool hasExifInfo = !(ii.cameraModel_.IsEmpty());
+
+	if(pContextMenu_ != NULL)
+	{
+		delete pContextMenu_;
+		pContextMenu_ = NULL;
+	}
+
+	// Save the selected item for later
+	rightClickedItem_ = event.GetIndex();
+
+	pContextMenu_ = new wxMenu();
+	if(hasExifInfo)
+		pContextMenu_->Append(ID_R3D_PSD_CTX_SET_SENSOR_WIDTH, wxT("Set sensor width..."));
+	pContextMenu_->Append(ID_R3D_PSD_CTX_SET_FOCAL_LENGTH, wxT("Set focal length..."));
+
+	if(pContextMenu_ != NULL)
+		PopupMenu(pContextMenu_);
 }
 
 void Regard3DPictureSetDialog::OnImageListItemSelected( wxListEvent& event )
@@ -212,6 +257,77 @@ void Regard3DPictureSetDialog::OnTimer( wxTimerEvent &WXUNUSED(event) )
 {
 	checkForPreviewImage();
 	checkForNewImageInfos();
+}
+
+void Regard3DPictureSetDialog::OnContextMenuSetSensorWidth(wxCommandEvent &event)
+{
+	wxString cameraMaker, cameraModel;
+	cameraMaker = imageList_[rightClickedItem_].cameraMaker_;
+	cameraModel = imageList_[rightClickedItem_].cameraModel_;
+
+	// Check for duplicate entries
+	double sensorWidth = 0;
+	bool found = UserCameraDB::getInstance().queryDB(cameraMaker, cameraModel, sensorWidth);
+	if(found)
+	{
+		wxMessageBox(wxT("The camera maker/camera model combination already exists in the database."),
+			wxT("User camera database"), wxICON_INFORMATION | wxOK, this);
+		return;
+	}
+
+	wxTextEntryDialog textEntryDialog(this, wxT("Please enter the sensor width for ") + cameraMaker + wxT(" ") + cameraModel,
+		wxT("Sensor width"));
+	int retVal = textEntryDialog.ShowModal();
+	if(retVal == wxID_OK)
+	{
+		wxString enteredText = textEntryDialog.GetValue();
+		double newSensorWidth = 0;
+		bool isOK = enteredText.ToDouble(&newSensorWidth);
+		if(!isOK)
+		{
+			wxMessageBox(wxT("The entered value is not a valid number"),
+				wxT("Sensor width"), wxOK | wxICON_WARNING | wxCENTRE, this);
+		}
+		else
+		{
+			UserCameraDB::getInstance().addToDB(cameraMaker, cameraModel, newSensorWidth);
+
+			// Request for all images new infos
+			for(const auto &ii : imageList_)
+			{
+				pImageInfoThread_->addImageInfoRequest(ii.filename_);
+				sentImageInfoRequests_++;
+			}
+
+			// Clear sensor widths
+			for(int i = 0; i < pImageListCtrl_->GetItemCount(); i++)
+				pImageListCtrl_->SetItem(i, 5, wxEmptyString);
+		}
+	}
+}
+
+void Regard3DPictureSetDialog::OnContextMenuSetFocalLength(wxCommandEvent &event)
+{
+	wxTextEntryDialog textEntryDialog(this, wxT("Please enter the focal length in mm for this picture"),
+		wxT("Set focal length"));
+	int retVal = textEntryDialog.ShowModal();
+	if(retVal == wxID_OK)
+	{
+		wxString enteredText = textEntryDialog.GetValue();
+		double newFocalLength = 0;
+		bool isOK = enteredText.ToDouble(&newFocalLength);
+		if(!isOK)
+		{
+			wxMessageBox(wxT("The entered value is not a valid number"),
+				wxT("Focal length"), wxOK | wxICON_WARNING | wxCENTRE, this);
+		}
+		else
+		{
+			imageList_[rightClickedItem_].focalLength_ = newFocalLength;
+			wxString focalLengthStr(wxString::Format(wxT("%.3g mm"), newFocalLength));
+			pImageListCtrl_->SetItem(rightClickedItem_, 4, focalLengthStr);
+		}
+	}
 }
 
 void Regard3DPictureSetDialog::removeSelectedItems( wxListCtrl *pListCtrl )
@@ -417,7 +533,8 @@ void Regard3DPictureSetDialog::checkForNewImageInfos()
 				ii.imageHeight_ = imageInfo.imageHeight_;
 				ii.cameraMaker_ = imageInfo.cameraMaker_;
 				ii.cameraModel_ = imageInfo.cameraModel_;
-				ii.focalLength_ = imageInfo.focalLength_;
+				if(imageInfo.focalLength_ > 0)
+					ii.focalLength_ = imageInfo.focalLength_;
 				ii.sensorWidth_ = imageInfo.sensorWidth_;
 			}
 			iter++;
@@ -442,4 +559,6 @@ void Regard3DPictureSetDialog::checkForPreviewImage()
 
 BEGIN_EVENT_TABLE( Regard3DPictureSetDialog, Regard3DPictureSetDialogBase )
 	EVT_TIMER(ID_R3D_PSD_TIMER, Regard3DPictureSetDialog::OnTimer)
+	EVT_MENU(ID_R3D_PSD_CTX_SET_SENSOR_WIDTH, Regard3DPictureSetDialog::OnContextMenuSetSensorWidth)
+	EVT_MENU(ID_R3D_PSD_CTX_SET_FOCAL_LENGTH, Regard3DPictureSetDialog::OnContextMenuSetFocalLength)
 END_EVENT_TABLE()

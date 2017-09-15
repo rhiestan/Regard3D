@@ -19,6 +19,7 @@ BEGIN_EVENT_TABLE( Regard3DMainFrameBase, wxFrame )
 	EVT_MENU( ID_CLOSEPROJECTMENUITEM, Regard3DMainFrameBase::_wxFB_OnCloseProject )
 	EVT_MENU( wxID_EXIT, Regard3DMainFrameBase::_wxFB_OnMainFrameExitMenuItem )
 	EVT_MENU( ID_PROPERTIESMENUITEM, Regard3DMainFrameBase::_wxFB_OnPropertiesMenuItem )
+	EVT_MENU( ID_EDITUSERCAMERADBMENUITEM, Regard3DMainFrameBase::_wxFB_OnEditUserCameraDBMenuSelection )
 	EVT_MENU( ID_VIEWCONSOLEOUTPUTFRAMEMENUITEM, Regard3DMainFrameBase::_wxFB_OnViewConsoleOutputFrameMenuItem )
 	EVT_UPDATE_UI( ID_VIEWCONSOLEOUTPUTFRAMEMENUITEM, Regard3DMainFrameBase::_wxFB_OnViewConsoleOutputFrameUpdate )
 	EVT_MENU( wxID_ABOUT, Regard3DMainFrameBase::_wxFB_OnAboutMenuItem )
@@ -83,6 +84,10 @@ Regard3DMainFrameBase::Regard3DMainFrameBase( wxWindow* parent, wxWindowID id, c
 	wxMenuItem* pPropertiesMenuItem_;
 	pPropertiesMenuItem_ = new wxMenuItem( pOptionsMenu_, ID_PROPERTIESMENUITEM, wxString( wxT("Properties...") ) , wxEmptyString, wxITEM_NORMAL );
 	pOptionsMenu_->Append( pPropertiesMenuItem_ );
+	
+	wxMenuItem* pEditUserCameraDBMenuItem_;
+	pEditUserCameraDBMenuItem_ = new wxMenuItem( pOptionsMenu_, ID_EDITUSERCAMERADBMENUITEM, wxString( wxT("Edit User Camera DB...") ) , wxEmptyString, wxITEM_NORMAL );
+	pOptionsMenu_->Append( pEditUserCameraDBMenuItem_ );
 	
 	pMainFrameMenuBar_->Append( pOptionsMenu_, wxT("Options") ); 
 	
@@ -825,6 +830,7 @@ BEGIN_EVENT_TABLE( Regard3DPictureSetDialogBase, wxDialog )
 	EVT_BUTTON( ID_CLEARFILELISTBUTTON, Regard3DPictureSetDialogBase::_wxFB_OnClearFileListButton )
 	EVT_LIST_COL_CLICK( ID_IMAGELISTCTRL, Regard3DPictureSetDialogBase::_wxFB_OnImageListColClick )
 	EVT_LIST_ITEM_DESELECTED( ID_IMAGELISTCTRL, Regard3DPictureSetDialogBase::_wxFB_OnImageListItemDeselected )
+	EVT_LIST_ITEM_RIGHT_CLICK( ID_IMAGELISTCTRL, Regard3DPictureSetDialogBase::_wxFB_OnListItemRightClick )
 	EVT_LIST_ITEM_SELECTED( ID_IMAGELISTCTRL, Regard3DPictureSetDialogBase::_wxFB_OnImageListItemSelected )
 	EVT_LIST_KEY_DOWN( ID_IMAGELISTCTRL, Regard3DPictureSetDialogBase::_wxFB_OnImageListKeyDown )
 	EVT_BUTTON( wxID_CANCEL, Regard3DPictureSetDialogBase::_wxFB_OnCancel )
@@ -864,6 +870,8 @@ Regard3DPictureSetDialogBase::Regard3DPictureSetDialogBase( wxWindow* parent, wx
 	sbSizer12->Add( bSizer7, 0, wxEXPAND, 5 );
 	
 	pImageListCtrl_ = new wxListCtrl( m_panel10, ID_IMAGELISTCTRL, wxDefaultPosition, wxDefaultSize, wxLC_NO_SORT_HEADER|wxLC_REPORT );
+	pImageListCtrl_->SetMinSize( wxSize( 600,500 ) );
+	
 	sbSizer12->Add( pImageListCtrl_, 1, wxALL|wxEXPAND, 3 );
 	
 	wxStaticBoxSizer* sbSizer14;
@@ -894,6 +902,8 @@ Regard3DPictureSetDialogBase::Regard3DPictureSetDialogBase( wxWindow* parent, wx
 	sbSizer13 = new wxStaticBoxSizer( new wxStaticBox( pImagePreviewPanel_, wxID_ANY, wxT("Preview") ), wxVERTICAL );
 	
 	pPreviewCanvas_ = new PreviewCanvas(pImagePreviewPanel_);
+	pPreviewCanvas_->SetMinSize( wxSize( 600,600 ) );
+	
 	sbSizer13->Add( pPreviewCanvas_, 1, wxALL|wxEXPAND, 3 );
 	
 	pImagePreviewPanel_->SetSizer( sbSizer13 );
@@ -917,6 +927,7 @@ Regard3DPictureSetDialogBase::Regard3DPictureSetDialogBase( wxWindow* parent, wx
 	
 	this->SetSizer( bSizer25 );
 	this->Layout();
+	bSizer25->Fit( this );
 	
 	this->Centre( wxBOTH );
 }
@@ -1003,6 +1014,17 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	pAddTBMRDetectorCheckBox_ = new wxCheckBox( pComputeMatchesDialogPanel_, ID_ADDTBMRDETECTORCHECKBOX, wxT("Add TBMR"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer57->Add( pAddTBMRDetectorCheckBox_, 0, wxALL, 3 );
 	
+	wxStaticBoxSizer* sbSizer22;
+	sbSizer22 = new wxStaticBoxSizer( new wxStaticBox( pComputeMatchesDialogPanel_, wxID_ANY, wxT("Camera model") ), wxVERTICAL );
+	
+	wxString pCameraModelChoice_Choices[] = { wxT("Pinhole"), wxT("Pinhole radial 1"), wxT("Pinhole radial 3"), wxT("Pinhole brown 2"), wxT("Pinhole Fisheye") };
+	int pCameraModelChoice_NChoices = sizeof( pCameraModelChoice_Choices ) / sizeof( wxString );
+	pCameraModelChoice_ = new wxChoice( pComputeMatchesDialogPanel_, ID_CAMERAMODELCHOICE, wxDefaultPosition, wxDefaultSize, pCameraModelChoice_NChoices, pCameraModelChoice_Choices, 0 );
+	pCameraModelChoice_->SetSelection( 2 );
+	sbSizer22->Add( pCameraModelChoice_, 0, wxALL, 3 );
+	
+	bSizer57->Add( sbSizer22, 0, wxALL|wxEXPAND, 3 );
+	
 	sbSizer3->Add( bSizer57, 0, wxEXPAND, 5 );
 	
 	bSizer36->Add( sbSizer3, 1, wxALL|wxEXPAND, 3 );
@@ -1063,9 +1085,20 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	pTriangulationMethodRadioBox_->SetSelection( 0 );
 	bSizer55->Add( pTriangulationMethodRadioBox_, 0, wxALL, 3 );
 	
+	wxBoxSizer* bSizer60;
+	bSizer60 = new wxBoxSizer( wxVERTICAL );
+	
+	
+	bSizer60->Add( 0, 0, 1, wxEXPAND, 5 );
+	
 	pTRefineCameraIntrinsicsCheckBox_ = new wxCheckBox( pTriangulationPanel_, ID_TREFINECAMERAINTRINSICSCHECKBOX, wxT("Refine camera intrinsics"), wxDefaultPosition, wxDefaultSize, 0 );
 	pTRefineCameraIntrinsicsCheckBox_->SetValue(true); 
-	bSizer55->Add( pTRefineCameraIntrinsicsCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	bSizer60->Add( pTRefineCameraIntrinsicsCheckBox_, 0, wxALL, 3 );
+	
+	
+	bSizer60->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	bSizer55->Add( bSizer60, 0, wxEXPAND, 5 );
 	
 	sbSizer4->Add( bSizer55, 0, wxEXPAND, 5 );
 	
@@ -1079,7 +1112,7 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	bSizer45 = new wxBoxSizer( wxVERTICAL );
 	
 	pTInitialImagePairListCtrl_ = new wxListCtrl( pIncrementalMethodBoxLeftPanel_, ID_TINITIALIMAGEPAIRLISTCTRL, wxDefaultPosition, wxDefaultSize, wxLC_REPORT|wxLC_SINGLE_SEL );
-	pTInitialImagePairListCtrl_->SetMinSize( wxSize( 300,200 ) );
+	pTInitialImagePairListCtrl_->SetMinSize( wxSize( 400,200 ) );
 	
 	bSizer45->Add( pTInitialImagePairListCtrl_, 1, wxALL|wxEXPAND, 3 );
 	
@@ -1091,6 +1124,8 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	bSizer9 = new wxBoxSizer( wxVERTICAL );
 	
 	pPreviewCanvas_ = new PreviewCanvas(pIncrementalMethodBoxRightPanel_);
+	pPreviewCanvas_->SetMinSize( wxSize( 400,-1 ) );
+	
 	bSizer9->Add( pPreviewCanvas_, 1, wxALL|wxEXPAND, 3 );
 	
 	wxBoxSizer* bSizer24;
@@ -1145,6 +1180,7 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	
 	this->SetSizer( bSizer38 );
 	this->Layout();
+	bSizer38->Fit( this );
 	
 	this->Centre( wxBOTH );
 }
@@ -1171,7 +1207,7 @@ END_EVENT_TABLE()
 
 Regard3DMatchingResultsDialogBase::Regard3DMatchingResultsDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
 {
-	this->SetSizeHints( wxSize( 200,200 ), wxDefaultSize );
+	this->SetSizeHints( wxSize( 1196,570 ), wxDefaultSize );
 	
 	wxBoxSizer* bSizer48;
 	bSizer48 = new wxBoxSizer( wxVERTICAL );
@@ -1198,6 +1234,8 @@ Regard3DMatchingResultsDialogBase::Regard3DMatchingResultsDialogBase( wxWindow* 
 	bSizer52 = new wxBoxSizer( wxVERTICAL );
 	
 	pImageListCtrl_ = new wxListCtrl( pImageListPanel_, ID_IMAGELISTCTRL, wxDefaultPosition, wxDefaultSize, wxLC_NO_SORT_HEADER|wxLC_REPORT );
+	pImageListCtrl_->SetMinSize( wxSize( 600,200 ) );
+	
 	bSizer52->Add( pImageListCtrl_, 1, wxALL|wxEXPAND, 3 );
 	
 	pImageListPanel_->SetSizer( bSizer52 );
@@ -1208,6 +1246,8 @@ Regard3DMatchingResultsDialogBase::Regard3DMatchingResultsDialogBase( wxWindow* 
 	bSizer53 = new wxBoxSizer( wxVERTICAL );
 	
 	pIPPreviewCanvas_ = new PreviewCanvas(pKeypointPreviewPanel_);
+	pIPPreviewCanvas_->SetMinSize( wxSize( 600,200 ) );
+	
 	bSizer53->Add( pIPPreviewCanvas_, 1, wxALL|wxEXPAND, 3 );
 	
 	wxBoxSizer* bSizer20;
@@ -1270,7 +1310,7 @@ Regard3DMatchingResultsDialogBase::Regard3DMatchingResultsDialogBase( wxWindow* 
 	bSizer57->Add( bSizer62, 0, wxEXPAND, 3 );
 	
 	pTInitialImagePairListCtrl_ = new wxListCtrl( pMatchingListPanel_, ID_TINITIALIMAGEPAIRLISTCTRL, wxDefaultPosition, wxDefaultSize, wxLC_REPORT|wxLC_SINGLE_SEL );
-	pTInitialImagePairListCtrl_->SetMinSize( wxSize( 300,200 ) );
+	pTInitialImagePairListCtrl_->SetMinSize( wxSize( 600,200 ) );
 	
 	bSizer57->Add( pTInitialImagePairListCtrl_, 1, wxALL|wxEXPAND, 3 );
 	
@@ -1282,6 +1322,8 @@ Regard3DMatchingResultsDialogBase::Regard3DMatchingResultsDialogBase( wxWindow* 
 	bSizer58 = new wxBoxSizer( wxVERTICAL );
 	
 	pTPreviewCanvas_ = new PreviewCanvas(pMatchingPreviewPanel_);
+	pTPreviewCanvas_->SetMinSize( wxSize( 600,200 ) );
+	
 	bSizer58->Add( pTPreviewCanvas_, 1, wxALL|wxEXPAND, 3 );
 	
 	wxBoxSizer* bSizer24;
@@ -1325,6 +1367,7 @@ Regard3DMatchingResultsDialogBase::Regard3DMatchingResultsDialogBase( wxWindow* 
 	
 	this->SetSizer( bSizer48 );
 	this->Layout();
+	bSizer48->Fit( this );
 	
 	this->Centre( wxBOTH );
 }
@@ -1390,7 +1433,7 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	
 	m_staticText28 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Maximum number of images per cluster:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText28->Wrap( -1 );
-	bSizer45->Add( m_staticText28, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	bSizer45->Add( m_staticText28, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	pMaxImageTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_MAXIMAGETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
 	pMaxImageTextCtrl_->SetValidator( wxTextValidator( wxFILTER_NUMERIC, &maxImage_ ) );
@@ -1412,7 +1455,7 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	pPMVSLevelTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_PMVSLEVELTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer9->Add( pPMVSLevelTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pPMVSLevelSlider_ = new wxSlider( pDensificationPanel_, ID_PMVSLEVELSLIDER, 1, 0, 6, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_BOTTOM|wxSL_HORIZONTAL );
+	pPMVSLevelSlider_ = new wxSlider( pDensificationPanel_, ID_PMVSLEVELSLIDER, 1, 0, 6, wxDefaultPosition, wxSize( 400,-1 ), wxSL_AUTOTICKS|wxSL_BOTTOM|wxSL_HORIZONTAL );
 	fgSizer9->Add( pPMVSLevelSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
 	m_staticText31 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Cell size:"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1513,6 +1556,7 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	
 	this->SetSizer( bSizer43 );
 	this->Layout();
+	bSizer43->Fit( this );
 	
 	this->Centre( wxBOTH );
 }
@@ -1570,7 +1614,9 @@ Regard3DSurfaceDialogBase::Regard3DSurfaceDialogBase( wxWindow* parent, wxWindow
 	fgSizer11->Add( pPoissonDepthTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	pPoissonDepthSlider_ = new wxSlider( pSurfacePanel_, ID_POISSONDEPTHSLIDER, 9, 6, 20, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
-	fgSizer11->Add( pPoissonDepthSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+	pPoissonDepthSlider_->SetMinSize( wxSize( 300,-1 ) );
+	
+	fgSizer11->Add( pPoissonDepthSlider_, 1, wxALL|wxEXPAND, 3 );
 	
 	m_staticText52 = new wxStaticText( pSurfacePanel_, wxID_ANY, wxT("Samples per node:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText52->Wrap( -1 );
@@ -1580,7 +1626,7 @@ Regard3DSurfaceDialogBase::Regard3DSurfaceDialogBase( wxWindow* parent, wxWindow
 	fgSizer11->Add( pPoissonSamplesPerNodeTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	pPoissonSamplesPerNodeSlider_ = new wxSlider( pSurfacePanel_, ID_POISSONSAMPLESPERNODESLIDER, 10, 10, 200, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
-	fgSizer11->Add( pPoissonSamplesPerNodeSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+	fgSizer11->Add( pPoissonSamplesPerNodeSlider_, 1, wxALL|wxEXPAND, 3 );
 	
 	m_staticText40 = new wxStaticText( pSurfacePanel_, wxID_ANY, wxT("Point weight:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText40->Wrap( -1 );
@@ -1600,7 +1646,7 @@ Regard3DSurfaceDialogBase::Regard3DSurfaceDialogBase( wxWindow* parent, wxWindow
 	fgSizer11->Add( pPoissonTrimThresholdTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	pPoissonTrimThresholdSlider_ = new wxSlider( pSurfacePanel_, ID_POISSONTRIMTHRESHOLDSLIDER, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
-	fgSizer11->Add( pPoissonTrimThresholdSlider_, 1, wxALIGN_CENTER|wxALL|wxEXPAND, 3 );
+	fgSizer11->Add( pPoissonTrimThresholdSlider_, 1, wxALL|wxEXPAND, 3 );
 	
 	pPoissonParamsBoxSizer_->Add( fgSizer11, 0, wxEXPAND, 5 );
 	
@@ -1673,7 +1719,7 @@ Regard3DSurfaceDialogBase::Regard3DSurfaceDialogBase( wxWindow* parent, wxWindow
 	
 	m_staticText51 = new wxStaticText( pSurfacePanel_, wxID_ANY, wxT("Number of neighbours:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText51->Wrap( -1 );
-	bSizer491->Add( m_staticText51, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+	bSizer491->Add( m_staticText51, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	pColVertNumberOfNeighboursTextCtrl_ = new wxTextCtrl( pSurfacePanel_, ID_COLVERTNUMBEROFNEIGHBOURSTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	bSizer491->Add( pColVertNumberOfNeighboursTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
@@ -1751,6 +1797,7 @@ Regard3DSurfaceDialogBase::Regard3DSurfaceDialogBase( wxWindow* parent, wxWindow
 	
 	this->SetSizer( bSizer48 );
 	this->Layout();
+	bSizer48->Fit( this );
 	
 	this->Centre( wxBOTH );
 }
@@ -1774,6 +1821,7 @@ Regard3DPropertiesDialogBase::Regard3DPropertiesDialogBase( wxWindow* parent, wx
 	wxBoxSizer* bSizer55;
 	bSizer55 = new wxBoxSizer( wxVERTICAL );
 	
+	bSizer55->SetMinSize( wxSize( 500,-1 ) ); 
 	wxStaticBoxSizer* sbSizer23;
 	sbSizer23 = new wxStaticBoxSizer( new wxStaticBox( pPopertiesPanel_, wxID_ANY, wxT("Default project path") ), wxVERTICAL );
 	
@@ -1795,7 +1843,7 @@ Regard3DPropertiesDialogBase::Regard3DPropertiesDialogBase( wxWindow* parent, wx
 	bSizer55->Add( pMouseWheelRadioBox_, 0, wxALL|wxEXPAND, 3 );
 	
 	
-	bSizer55->Add( 0, 0, 1, wxEXPAND, 5 );
+	bSizer55->Add( 0, 20, 1, wxEXPAND, 5 );
 	
 	m_sdbSizer8 = new wxStdDialogButtonSizer();
 	m_sdbSizer8OK = new wxButton( pPopertiesPanel_, wxID_OK );
@@ -1812,10 +1860,75 @@ Regard3DPropertiesDialogBase::Regard3DPropertiesDialogBase( wxWindow* parent, wx
 	
 	this->SetSizer( bSizer54 );
 	this->Layout();
+	bSizer54->Fit( this );
 	
 	this->Centre( wxBOTH );
 }
 
 Regard3DPropertiesDialogBase::~Regard3DPropertiesDialogBase()
+{
+}
+
+BEGIN_EVENT_TABLE( Regard3DUserCameraDBDialogBase, wxDialog )
+	EVT_INIT_DIALOG( Regard3DUserCameraDBDialogBase::_wxFB_OnInitDialog )
+	EVT_BUTTON( ID_DELETESELECTEDITEMBUTTON, Regard3DUserCameraDBDialogBase::_wxFB_OnDeleteSelectedEntryButtonClicked )
+	EVT_BUTTON( ID_DELETEDBBUTTON, Regard3DUserCameraDBDialogBase::_wxFB_OnDeleteAllEntriesButtonClicked )
+END_EVENT_TABLE()
+
+Regard3DUserCameraDBDialogBase::Regard3DUserCameraDBDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
+{
+	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
+	
+	wxBoxSizer* bSizer57;
+	bSizer57 = new wxBoxSizer( wxVERTICAL );
+	
+	pUserCameraDBPanel_ = new wxPanel( this, ID_USERCAMERADBPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bSizer58;
+	bSizer58 = new wxBoxSizer( wxVERTICAL );
+	
+	pUserCameraDBListCtrl_ = new wxListCtrl( pUserCameraDBPanel_, ID_USERCAMERADBLISTCTRL, wxDefaultPosition, wxDefaultSize, wxLC_NO_SORT_HEADER|wxLC_REPORT );
+	pUserCameraDBListCtrl_->SetMinSize( wxSize( 600,400 ) );
+	
+	bSizer58->Add( pUserCameraDBListCtrl_, 0, wxALL, 5 );
+	
+	wxBoxSizer* bSizer59;
+	bSizer59 = new wxBoxSizer( wxHORIZONTAL );
+	
+	
+	bSizer59->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	pDeleteSelectedItemButton_ = new wxButton( pUserCameraDBPanel_, ID_DELETESELECTEDITEMBUTTON, wxT("Delete"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer59->Add( pDeleteSelectedItemButton_, 0, wxALL, 3 );
+	
+	
+	bSizer59->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	pDeleteDBButton_ = new wxButton( pUserCameraDBPanel_, ID_DELETEDBBUTTON, wxT("Delete all entries"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer59->Add( pDeleteDBButton_, 0, wxALL, 3 );
+	
+	
+	bSizer59->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	bSizer58->Add( bSizer59, 1, wxEXPAND, 5 );
+	
+	m_sdbSizer9 = new wxStdDialogButtonSizer();
+	m_sdbSizer9OK = new wxButton( pUserCameraDBPanel_, wxID_OK );
+	m_sdbSizer9->AddButton( m_sdbSizer9OK );
+	m_sdbSizer9->Realize();
+	bSizer58->Add( m_sdbSizer9, 1, wxEXPAND, 5 );
+	
+	pUserCameraDBPanel_->SetSizer( bSizer58 );
+	pUserCameraDBPanel_->Layout();
+	bSizer58->Fit( pUserCameraDBPanel_ );
+	bSizer57->Add( pUserCameraDBPanel_, 1, wxEXPAND, 5 );
+	
+	this->SetSizer( bSizer57 );
+	this->Layout();
+	bSizer57->Fit( this );
+	
+	this->Centre( wxBOTH );
+}
+
+Regard3DUserCameraDBDialogBase::~Regard3DUserCameraDBDialogBase()
 {
 }

@@ -44,7 +44,8 @@ void Regard3DSurfaceDialog::setParams(R3DProject::Densification *pDensification)
 			enablePoisson_ = true;
 			enableFSSR_ = false;
 		}
-		else if(pDensification->densificationType_ == R3DProject::DTMVE)
+		else if(pDensification->densificationType_ == R3DProject::DTMVE
+			|| pDensification->densificationType_ == R3DProject::DTSMVS)
 		{
 			enablePoisson_ = true;
 			enableFSSR_ = true;

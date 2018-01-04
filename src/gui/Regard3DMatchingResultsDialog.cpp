@@ -449,7 +449,7 @@ void Regard3DMatchingResultsDialog::updateInitialImagePairListCtrl()
 
 	pTInitialImagePairListCtrl_->ClearAll();
 	imageIDList_.clear();
-	OpenMVGHelper::ImagePairList imgPairList = OpenMVGHelper::getBestValidatedPairs(paths_, matchesFilename, 0);
+	OpenMVGHelper::ImagePairList imgPairList = OpenMVGHelper::getBestValidatedPairs(paths_, matchesFilename, 100);
 	if(!imgPairList.empty())
 	{
 		const ImageInfoVector &imageInfoVector = pPictureSet_->imageList_;

@@ -32,6 +32,9 @@
 #include <cmath>
 #include <iomanip>
 
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+
 using namespace std;
 
 #include <wx/ffile.h>
@@ -386,12 +389,15 @@ OpenMVGHelper::ImagePairList OpenMVGHelper::getBestValidatedPairs(const R3DProje
 	if(vec_NbMatchesPerPair.empty())
 		return imgPairList;
 
+	if(pairCount <= 0)
+      pairCount = vec_NbMatchesPerPair.size();
+
 	// sort the Pairs in descending order according their correspondences count
     using namespace stl::indexed_sort;
     std::vector< sort_index_packet_descend< size_t, size_t> > packet_vec(vec_NbMatchesPerPair.size());
-    sort_index_helper(packet_vec, &vec_NbMatchesPerPair[0], std::min((size_t)10, vec_NbMatchesPerPair.size()));
+    sort_index_helper(packet_vec, &vec_NbMatchesPerPair[0], std::min((size_t)pairCount, vec_NbMatchesPerPair.size()));
 
-    for (size_t i = 0; i < std::min((size_t)10, vec_NbMatchesPerPair.size()); ++i) {
+    for (size_t i = 0; i < std::min((size_t)pairCount, vec_NbMatchesPerPair.size()); ++i) {
       const size_t index = packet_vec[i].index;
       openMVG::matching::PairWiseMatches::const_iterator iter = vec_MatchesIterator[index];
 		//std::cout << "(" << iter->first.first << "," << iter->first.second << ")\t\t"
@@ -1270,6 +1276,213 @@ bool OpenMVGHelper::exportToMeshLab(R3DProject::Densification *pDensification, c
 	return true;
 }
 
+// Code copied from main_openMVG2NVM.cpp, adjusted
+
+/**
+* @brief Create a N-View file and export images
+* @param sfm_data Structure from Motion file
+* @param sOutDirectory Output directory
+* @param filename Name of the file to create
+*/
+bool CreateNVMFile( const SfM_Data & sfm_data ,
+                    const boost::filesystem::path &sOutDirectory ,
+                    const boost::filesystem::path &filename )
+{
+  boost::system::error_code ec;
+  const boost::filesystem::path sOutViewsDirectory = sOutDirectory / "views";
+  if ( !boost::filesystem::exists( sOutViewsDirectory, ec ) )
+  {
+    //std::cout << "\033[1;31mCreating directory:  " << sOutViewsDirectory << "\033[0m\n";
+
+    boost::filesystem::create_directories( sOutViewsDirectory, ec );
+  }
+  if(ec)
+	  return false;
+
+  // Header
+  boost::filesystem::ofstream file( filename );
+
+  if ( ! file )
+  {
+    //std::cerr << "Cannot write file" << filename << std::endl;
+    return false;
+  }
+  file << "NVM_V3" << std::endl;
+
+  // we reindex the poses to ensure a contiguous pose list.
+  Hash_Map<IndexT, IndexT> map_viewIdToContiguous;
+  int nb_cam = 0;
+  for (Views::const_iterator iter = sfm_data.GetViews().begin();
+       iter != sfm_data.GetViews().end(); ++iter )
+  {
+    const View * view = iter->second.get();
+    if ( !sfm_data.IsPoseAndIntrinsicDefined( view ) )
+    {
+      continue;
+    }
+
+    nb_cam ++;
+    map_viewIdToContiguous.insert( std::make_pair( view->id_view, map_viewIdToContiguous.size() ) );
+  }
+
+  // Number of cameras
+  // For each camera : File_name Focal Qw Qx Qy Qz Cx Cy Cz D0 0
+
+  file << nb_cam << std::endl;
+
+  // Export undistorted images
+  {
+    C_Progress_display my_progress_bar( sfm_data.GetViews().size(), std::cout, "\n- EXPORT UNDISTORTED IMAGES -\n" );
+    Image<openMVG::image::RGBColor> image, image_ud;
+  #ifdef OPENMVG_USE_OPENMP
+      #pragma omp parallel for schedule(dynamic) private(image, image_ud)
+  #endif
+    for (int i = 0; i < static_cast<int>(sfm_data.views.size()); ++i)
+    {
+      Views::const_iterator iterViews = sfm_data.views.begin();
+      std::advance(iterViews, i);
+      const View * view = iterViews->second.get();
+
+      if ( !sfm_data.IsPoseAndIntrinsicDefined( view ) )
+      {
+        continue;
+      }
+
+      std::ostringstream padding;
+      padding << std::setw( 4 ) << std::setfill( '0' ) << view->id_view;
+      const boost::filesystem::path sAbsoluteOutputDir = "view_" + padding.str();
+      const boost::filesystem::path sFullOutputDir =
+        sOutViewsDirectory / sAbsoluteOutputDir;
+
+      const boost::filesystem::path dstImage = sFullOutputDir / "undistorted.png";
+      const boost::filesystem::path srcImage = boost::filesystem::path(sfm_data.s_root_path) / view->s_Img_path;
+
+      #ifdef OPENMVG_USE_OPENMP
+        #pragma omp critical
+      #endif
+      // Create output dir if not present
+      if ( !boost::filesystem::exists( sFullOutputDir ) )
+      {
+        boost::filesystem::create_directories( sFullOutputDir );
+      }
+
+      Intrinsics::const_iterator iterIntrinsic = sfm_data.GetIntrinsics().find( view->id_intrinsic );
+      const IntrinsicBase * cam = iterIntrinsic->second.get();
+
+      // Remove distortion
+      if ( cam->have_disto() )
+      {
+        // Undistort and save the image
+        ReadImage( srcImage.string().c_str(), &image );
+        UndistortImage( image, cam, image_ud, BLACK );
+        WriteImage( dstImage.string().c_str(), image_ud );
+      }
+      else // (no distortion)
+      {
+        // If extensions match, copy the PNG image
+        if ( boost::filesystem::extension( srcImage ) == "PNG" ||
+             boost::filesystem::extension( srcImage ) == "png" )
+        {
+          boost::filesystem::copy_file( srcImage, dstImage );
+        }
+        else
+        {
+          ReadImage( srcImage.string().c_str(), &image );
+          WriteImage( dstImage.string().c_str(), image );
+        }
+      }
+      ++my_progress_bar;
+    }
+  }
+
+  // Export camera parameters
+  {
+    C_Progress_display my_progress_bar( sfm_data.GetViews().size(), std::cout, "\n- EXPORT CAMERA PARAMETERS -\n" );
+    for (Views::const_iterator iter = sfm_data.GetViews().begin();
+         iter != sfm_data.GetViews().end(); ++iter, ++my_progress_bar)
+    {
+      const View * view = iter->second.get();
+
+      if ( !sfm_data.IsPoseAndIntrinsicDefined( view ) )
+      {
+        continue;
+      }
+
+      std::ostringstream padding;
+      padding << std::setw( 4 ) << std::setfill( '0' ) << view->id_view;
+      const std::string sAbsoluteOutputDir = stlplus::folder_append_separator("views") + "view_" + padding.str();
+      const std::string dstImage = stlplus::create_filespec( sAbsoluteOutputDir, "undistorted", "png");
+
+      Intrinsics::const_iterator iterIntrinsic = sfm_data.GetIntrinsics().find( view->id_intrinsic );
+      const IntrinsicBase * cam = iterIntrinsic->second.get();
+      const Pinhole_Intrinsic * pinhole_cam = static_cast<const Pinhole_Intrinsic *>( cam );
+      const double flen = pinhole_cam->focal();
+      const Pose3 pose = sfm_data.GetPoseOrDie( view );
+      const Mat3 rotation = pose.rotation();
+      const Vec3 center = pose.center();
+
+      const double Cx = center[0];
+      const double Cy = center[1];
+      const double Cz = center[2];
+      Eigen::Quaterniond q( rotation );
+      const double Qx = q.x();
+      const double Qy = q.y();
+      const double Qz = q.z();
+      const double Qw = q.w();
+      const double d0 = 0.0;
+
+      file << dstImage << " "
+         << flen << " "
+
+         << Qw << " "
+         << Qx << " "
+         << Qy << " "
+         << Qz << " "
+
+         << Cx << " "
+         << Cy << " "
+         << Cz << " "
+         << d0 << " "
+         << 0 << std::endl;
+    }
+  }
+
+  // Now exports points
+  // Number of points
+  // For each points : X Y Z R G B Nm [ measurements ]
+  // mesurements : Img_idx Feat_idx X Y
+  const Landmarks & landmarks = sfm_data.GetLandmarks();
+  const size_t featureCount = landmarks.size();
+  file << featureCount << std::endl;
+  C_Progress_display my_progress_bar( featureCount, std::cout, "\n- EXPORT LANDMARKS DATA -\n" );
+  for ( Landmarks::const_iterator iterLandmarks = landmarks.begin();
+        iterLandmarks != landmarks.end(); ++iterLandmarks, ++my_progress_bar )
+  {
+    const Vec3 exportPoint = iterLandmarks->second.X;
+    file << exportPoint.x() << " " << exportPoint.y() << " " << exportPoint.z() << " ";
+    file << 250 << " " << 100 << " " << 150 << " ";  // Write arbitrary RGB color
+
+    // Tally set of feature observations
+    const Observations & obs = iterLandmarks->second.obs;
+    const size_t featureCount = std::distance( obs.begin(), obs.end() );
+    file << featureCount;
+
+    for ( Observations::const_iterator itObs = obs.begin(); itObs != obs.end(); ++itObs )
+    {
+      const IndexT viewId = map_viewIdToContiguous.at(itObs->first);
+      const IndexT featId = itObs->second.id_feat;
+      const Observation & ob = itObs->second;
+
+      file << " " << viewId << " " << featId << " " << ob.x( 0 ) << " " << ob.x( 1 ) << " ";
+    }
+    file << "\n";
+  }
+  // EOF indicator
+  file << "0";
+
+  return true;
+}
+
 // Code based on main_openMVG2CMPMVS.cpp
 bool OpenMVGHelper::exportToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname)
 {
@@ -1794,7 +2007,18 @@ bool OpenMVGHelper::exportToExternalMVS(R3DProject::Triangulation *pTriangulatio
 
 	OpenMVGExportToMVS::exportToOpenMVS(pTriangulation, openMVSOutDir.GetPath());
 
-	return true;
+	// Export to NVM
+#if defined(_WIN32)
+	boost::filesystem::path nvmOutDir = boost::filesystem::path(outDir.GetPath().wc_str()) / "nvm";
+#else
+	boost::filesystem::path nvmOutDir = boost::filesystem::path(outDir.GetPath().ToUTF8()) / "nvm";
+#endif
+	boost::filesystem::path nvmOutFile = nvmOutDir / "project.nvm";
+	bool isOk = CreateNVMFile( sfm_data, nvmOutDir, nvmOutFile );
+
+
+
+	return isOk;
 }
 
 #if !defined(R3D_USE_OPENMVG_PRE08)
@@ -1932,19 +2156,17 @@ void OpenMVGHelper::calculateResiduals(const openMVG::sfm::SfM_Data &sfm_data, s
 	// Calculate residuals from SfM_Data
 	// Code copied from SequentialSfMReconstructionEngine::ComputeResidualsHistogram
 	residuals.reserve(sfm_data.structure.size());
-	for(Landmarks::const_iterator iterTracks = sfm_data.GetLandmarks().begin();
-		iterTracks != sfm_data.GetLandmarks().end(); ++iterTracks)
+	for (const auto & landmark_entry : sfm_data.GetLandmarks())
 	{
-		const Observations & obs = iterTracks->second.obs;
-		for(Observations::const_iterator itObs = obs.begin();
-			itObs != obs.end(); ++itObs)
+		const Observations & obs = landmark_entry.second.obs;
+		for (const auto & observation : obs)
 		{
-			const View * view = sfm_data.GetViews().find(itObs->first)->second.get();
-			const openMVG::geometry::Pose3 & pose = sfm_data.GetPoses().find(view->id_pose)->second;
-			const std::shared_ptr<IntrinsicBase> intrinsic = sfm_data.GetIntrinsics().find(view->id_intrinsic)->second;
-			const Vec2 residual = intrinsic->residual(pose, iterTracks->second.X, itObs->second.x);
-			residuals.push_back(fabs(residual(0)));
-			residuals.push_back(fabs(residual(1)));
+			const View * view = sfm_data.GetViews().find(observation.first)->second.get();
+			const Pose3 pose = sfm_data.GetPoseOrDie(view);
+			const auto intrinsic = sfm_data.GetIntrinsics().find(view->id_intrinsic)->second;
+			const Vec2 residual = intrinsic->residual(pose(landmark_entry.second.X), observation.second.x);
+			residuals.emplace_back( std::abs(residual(0)) );
+			residuals.emplace_back( std::abs(residual(1)) );
 		}
 	}
 }

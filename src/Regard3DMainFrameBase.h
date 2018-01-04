@@ -42,6 +42,7 @@
 #include <wx/choice.h>
 #include <wx/listctrl.h>
 #include "PreviewCanvas.h"
+#include <wx/choicebk.h>
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -651,6 +652,7 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 			ID_KEYPOINTMATCHINGRATIOVALTEXTCTRL,
 			ID_KEYPOINTDETECTORRADIOBOX,
 			ID_ADDTBMRDETECTORCHECKBOX,
+			ID_MATCHINGALGORITHMCHOICE,
 			ID_CAMERAMODELCHOICE,
 		};
 		
@@ -665,6 +667,7 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		wxTextCtrl* pKeypointMatchingRatioValTextCtrl_;
 		wxRadioBox* pKeypointDetectorRadioBox_;
 		wxCheckBox* pAddTBMRDetectorCheckBox_;
+		wxChoice* pMatchingAlgorithmChoice_;
 		wxChoice* pCameraModelChoice_;
 		wxStdDialogButtonSizer* m_sdbSizer3;
 		wxButton* m_sdbSizer3OK;
@@ -890,7 +893,6 @@ class Regard3DDensificationDialogBase : public wxDialog
 		
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
-		void _wxFB_OnDensificationMethodRadioBox( wxCommandEvent& event ){ OnDensificationMethodRadioBox( event ); }
 		void _wxFB_OnUseCMVSCheckBox( wxCommandEvent& event ){ OnUseCMVSCheckBox( event ); }
 		void _wxFB_OnPMVSLevelSliderScroll( wxScrollEvent& event ){ OnPMVSLevelSliderScroll( event ); }
 		void _wxFB_OnPMVSCellSizeSliderScroll( wxScrollEvent& event ){ OnPMVSCellSizeSliderScroll( event ); }
@@ -899,6 +901,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 		void _wxFB_OnPMVSMinImageNumSliderScroll( wxScrollEvent& event ){ OnPMVSMinImageNumSliderScroll( event ); }
 		void _wxFB_OnMVEScaleSliderScroll( wxScrollEvent& event ){ OnMVEScaleSliderScroll( event ); }
 		void _wxFB_OnMVEFilterWidthSliderScroll( wxScrollEvent& event ){ OnMVEFilterWidthSliderScroll( event ); }
+		void _wxFB_OnSMVSInputScaleSliderScroll( wxScrollEvent& event ){ OnSMVSInputScaleSliderScroll( event ); }
+		void _wxFB_OnSMVSOutputScaleSliderScroll( wxScrollEvent& event ){ OnSMVSOutputScaleSliderScroll( event ); }
+		void _wxFB_OnSMVSSurfaceSmoothingFactorSliderScroll( wxScrollEvent& event ){ OnSMVSSurfaceSmoothingFactorSliderScroll( event ); }
 		
 	
 	protected:
@@ -906,7 +911,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 		{
 			ID_REGARD3DDENSIFICATIONDIALOG = 1000,
 			ID_DENSIFICATIONPANEL,
-			ID_DENSIFICATIONMETHODRADIOBOX,
+			ID_DENSIFICATIONMETHODSIZER,
+			ID_DENSIFICATIONMETHODCHOICEBOOK,
+			ID_PMVSPARAMSPANEL,
 			ID_PMVSPARAMSBOXSIZER,
 			ID_NUMBEROFTHREADSCHOICE,
 			ID_USECMVSCHECKBOX,
@@ -921,15 +928,26 @@ class Regard3DDensificationDialogBase : public wxDialog
 			ID_PMVSWSIZESLIDER,
 			ID_PMVSMINIMAGENUMTEXTCTRL,
 			ID_PMVSMINIMAGENUMSLIDER,
+			ID_DMRECONPARAMSPANEL,
 			ID_MVEPARAMSBOXSIZER,
 			ID_MVESCALETEXTCTRL,
 			ID_MVESCALESLIDER,
 			ID_MVEFILTERWIDTHTEXTCTRL,
 			ID_MVEFILTERWIDTHSLIDER,
+			ID_SMVSRECONPARAMSPANEL,
+			ID_SMVSINPUTSCALETEXTCTRL,
+			ID_SMVSINPUTSCALESLIDER,
+			ID_SMVSOUTPUTSCALETEXTCTRL,
+			ID_SMVSOUTPUTSCALESLIDER,
+			ID_SMVSSHADINGOPTCHECKBOX,
+			ID_SMVSSEMIGLOBALMATCIHINGCHECKBOX,
+			ID_SMVSSURFACESMOOTHINGFACTORTEXTCTRL,
+			ID_SMVSSURFACESMOOTHINGFACTORSLIDER,
 		};
 		
 		wxPanel* pDensificationPanel_;
-		wxRadioBox* pDensificationMethodRadioBox_;
+		wxChoicebook* pDensificationMethodChoicebook_;
+		wxPanel* pPMVSParamsPanel_;
 		wxStaticBoxSizer* pPMVSParamsBoxSizer_;
 		wxStaticText* m_staticText29;
 		wxChoice* pNumberOfThreadsChoice_;
@@ -951,6 +969,7 @@ class Regard3DDensificationDialogBase : public wxDialog
 		wxStaticText* m_staticText34;
 		wxTextCtrl* pPMVSMinImageNumTextCtrl_;
 		wxSlider* pPMVSMinImageNumSlider_;
+		wxPanel* pDMReconParamsPanel_;
 		wxStaticBoxSizer* pMVEParamsBoxSizer_;
 		wxStaticText* m_staticText53;
 		wxTextCtrl* pMVEScaleTextCtrl_;
@@ -958,6 +977,22 @@ class Regard3DDensificationDialogBase : public wxDialog
 		wxStaticText* m_staticText54;
 		wxTextCtrl* pMVEFilterWidthTextCtrl_;
 		wxSlider* pMVEFilterWidthSlider_;
+		wxPanel* pSMVSReconParamsPanel_;
+		wxStaticText* m_staticText57;
+		wxTextCtrl* pSMVSInputScaleTextCtrl_;
+		wxSlider* pSMVSInputScaleSlider_;
+		wxStaticText* m_staticText58;
+		wxTextCtrl* pSMVSOutputScaleTextCtrl_;
+		wxSlider* pSMVSOutputScaleSlider_;
+		wxStaticText* m_staticText59;
+		wxCheckBox* pSMVSShadingOptCheckBox_;
+		
+		wxStaticText* m_staticText60;
+		wxCheckBox* pSMVSSemiGlobalMatcihingCheckBox_;
+		
+		wxStaticText* m_staticText61;
+		wxTextCtrl* pSMVSSurfaceSmoothingFactorTextCtrl_;
+		wxSlider* pSMVSSurfaceSmoothingFactorSlider_;
 		
 		wxStdDialogButtonSizer* pStdDialogButtonSizer_;
 		wxButton* pStdDialogButtonSizer_OK;
@@ -965,7 +1000,6 @@ class Regard3DDensificationDialogBase : public wxDialog
 		
 		// Virtual event handlers, overide them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
-		virtual void OnDensificationMethodRadioBox( wxCommandEvent& event ) = 0;
 		virtual void OnUseCMVSCheckBox( wxCommandEvent& event ) = 0;
 		virtual void OnPMVSLevelSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnPMVSCellSizeSliderScroll( wxScrollEvent& event ) = 0;
@@ -974,6 +1008,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 		virtual void OnPMVSMinImageNumSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnMVEScaleSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnMVEFilterWidthSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnSMVSInputScaleSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnSMVSOutputScaleSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnSMVSSurfaceSmoothingFactorSliderScroll( wxScrollEvent& event ) = 0;
 		
 	
 	public:

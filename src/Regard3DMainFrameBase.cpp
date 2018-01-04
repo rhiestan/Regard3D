@@ -1014,6 +1014,17 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	pAddTBMRDetectorCheckBox_ = new wxCheckBox( pComputeMatchesDialogPanel_, ID_ADDTBMRDETECTORCHECKBOX, wxT("Add TBMR"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer57->Add( pAddTBMRDetectorCheckBox_, 0, wxALL, 3 );
 	
+	wxStaticBoxSizer* sbSizer221;
+	sbSizer221 = new wxStaticBoxSizer( new wxStaticBox( pComputeMatchesDialogPanel_, wxID_ANY, wxT("Matching algorithm") ), wxVERTICAL );
+	
+	wxString pMatchingAlgorithmChoice_Choices[] = { wxT("FLANN"), wxT("KGraph - Fast"), wxT("KGraph - Medium"), wxT("KGraph - Precise"), wxT("Brute Force"), wxT("MRPT") };
+	int pMatchingAlgorithmChoice_NChoices = sizeof( pMatchingAlgorithmChoice_Choices ) / sizeof( wxString );
+	pMatchingAlgorithmChoice_ = new wxChoice( pComputeMatchesDialogPanel_, ID_MATCHINGALGORITHMCHOICE, wxDefaultPosition, wxDefaultSize, pMatchingAlgorithmChoice_NChoices, pMatchingAlgorithmChoice_Choices, 0 );
+	pMatchingAlgorithmChoice_->SetSelection( 0 );
+	sbSizer221->Add( pMatchingAlgorithmChoice_, 0, wxALL, 3 );
+	
+	bSizer57->Add( sbSizer221, 0, wxALL|wxEXPAND, 3 );
+	
 	wxStaticBoxSizer* sbSizer22;
 	sbSizer22 = new wxStaticBoxSizer( new wxStaticBox( pComputeMatchesDialogPanel_, wxID_ANY, wxT("Camera model") ), wxVERTICAL );
 	
@@ -1378,7 +1389,6 @@ Regard3DMatchingResultsDialogBase::~Regard3DMatchingResultsDialogBase()
 
 BEGIN_EVENT_TABLE( Regard3DDensificationDialogBase, wxDialog )
 	EVT_INIT_DIALOG( Regard3DDensificationDialogBase::_wxFB_OnInitDialog )
-	EVT_RADIOBOX( ID_DENSIFICATIONMETHODRADIOBOX, Regard3DDensificationDialogBase::_wxFB_OnDensificationMethodRadioBox )
 	EVT_CHECKBOX( ID_USECMVSCHECKBOX, Regard3DDensificationDialogBase::_wxFB_OnUseCMVSCheckBox )
 	EVT_COMMAND_SCROLL( ID_PMVSLEVELSLIDER, Regard3DDensificationDialogBase::_wxFB_OnPMVSLevelSliderScroll )
 	EVT_COMMAND_SCROLL( ID_PMVSCELLSIZESLIDER, Regard3DDensificationDialogBase::_wxFB_OnPMVSCellSizeSliderScroll )
@@ -1387,6 +1397,9 @@ BEGIN_EVENT_TABLE( Regard3DDensificationDialogBase, wxDialog )
 	EVT_COMMAND_SCROLL( ID_PMVSMINIMAGENUMSLIDER, Regard3DDensificationDialogBase::_wxFB_OnPMVSMinImageNumSliderScroll )
 	EVT_COMMAND_SCROLL( ID_MVESCALESLIDER, Regard3DDensificationDialogBase::_wxFB_OnMVEScaleSliderScroll )
 	EVT_COMMAND_SCROLL( ID_MVEFILTERWIDTHSLIDER, Regard3DDensificationDialogBase::_wxFB_OnMVEFilterWidthSliderScroll )
+	EVT_COMMAND_SCROLL( ID_SMVSINPUTSCALESLIDER, Regard3DDensificationDialogBase::_wxFB_OnSMVSInputScaleSliderScroll )
+	EVT_COMMAND_SCROLL( ID_SMVSOUTPUTSCALESLIDER, Regard3DDensificationDialogBase::_wxFB_OnSMVSOutputScaleSliderScroll )
+	EVT_COMMAND_SCROLL( ID_SMVSSURFACESMOOTHINGFACTORSLIDER, Regard3DDensificationDialogBase::_wxFB_OnSMVSSurfaceSmoothingFactorSliderScroll )
 END_EVENT_TABLE()
 
 Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
@@ -1400,29 +1413,28 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	wxBoxSizer* bSizer44;
 	bSizer44 = new wxBoxSizer( wxVERTICAL );
 	
-	wxString pDensificationMethodRadioBox_Choices[] = { wxT("CMVS/PMVS"), wxT("MVE (Multi-View Environment)") };
-	int pDensificationMethodRadioBox_NChoices = sizeof( pDensificationMethodRadioBox_Choices ) / sizeof( wxString );
-	pDensificationMethodRadioBox_ = new wxRadioBox( pDensificationPanel_, ID_DENSIFICATIONMETHODRADIOBOX, wxT("Densification method"), wxDefaultPosition, wxDefaultSize, pDensificationMethodRadioBox_NChoices, pDensificationMethodRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
-	pDensificationMethodRadioBox_->SetSelection( 1 );
-	bSizer44->Add( pDensificationMethodRadioBox_, 0, wxALL, 3 );
+	wxStaticBoxSizer* pDensificationMethodSizer_;
+	pDensificationMethodSizer_ = new wxStaticBoxSizer( new wxStaticBox( pDensificationPanel_, ID_DENSIFICATIONMETHODSIZER, wxT("Densification method") ), wxVERTICAL );
 	
-	pPMVSParamsBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pDensificationPanel_, ID_PMVSPARAMSBOXSIZER, wxT("Parameters for CMVS/PMVS") ), wxVERTICAL );
+	pDensificationMethodChoicebook_ = new wxChoicebook( pDensificationPanel_, ID_DENSIFICATIONMETHODCHOICEBOOK, wxDefaultPosition, wxDefaultSize, wxCHB_DEFAULT );
+	pPMVSParamsPanel_ = new wxPanel( pDensificationMethodChoicebook_, ID_PMVSPARAMSPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	pPMVSParamsBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pPMVSParamsPanel_, ID_PMVSPARAMSBOXSIZER, wxT("Parameters for CMVS/PMVS") ), wxVERTICAL );
 	
 	wxBoxSizer* bSizer46;
 	bSizer46 = new wxBoxSizer( wxHORIZONTAL );
 	
-	m_staticText29 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Number of threads:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText29 = new wxStaticText( pPMVSParamsPanel_, wxID_ANY, wxT("Number of threads:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText29->Wrap( -1 );
 	bSizer46->Add( m_staticText29, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxRIGHT, 3 );
 	
 	wxArrayString pNumberOfThreadsChoice_Choices;
-	pNumberOfThreadsChoice_ = new wxChoice( pDensificationPanel_, ID_NUMBEROFTHREADSCHOICE, wxDefaultPosition, wxDefaultSize, pNumberOfThreadsChoice_Choices, 0 );
+	pNumberOfThreadsChoice_ = new wxChoice( pPMVSParamsPanel_, ID_NUMBEROFTHREADSCHOICE, wxDefaultPosition, wxDefaultSize, pNumberOfThreadsChoice_Choices, 0 );
 	pNumberOfThreadsChoice_->SetSelection( 0 );
 	bSizer46->Add( pNumberOfThreadsChoice_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	pPMVSParamsBoxSizer_->Add( bSizer46, 0, wxEXPAND, 5 );
 	
-	pUseCMVSCheckBox_ = new wxCheckBox( pDensificationPanel_, ID_USECMVSCHECKBOX, wxT("Use visibility information (CMVS)"), wxDefaultPosition, wxDefaultSize, 0 );
+	pUseCMVSCheckBox_ = new wxCheckBox( pPMVSParamsPanel_, ID_USECMVSCHECKBOX, wxT("Use visibility information (CMVS)"), wxDefaultPosition, wxDefaultSize, 0 );
 	pUseCMVSCheckBox_->SetValue(true); 
 	pUseCMVSCheckBox_->SetToolTip( wxT("Use visibility information to speed up the computation. Recommended for large scenes.\nSwitching this off can improve densification, but is only recommended for small scenes.") );
 	
@@ -1431,11 +1443,11 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	wxBoxSizer* bSizer45;
 	bSizer45 = new wxBoxSizer( wxHORIZONTAL );
 	
-	m_staticText28 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Maximum number of images per cluster:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText28 = new wxStaticText( pPMVSParamsPanel_, wxID_ANY, wxT("Maximum number of images per cluster:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText28->Wrap( -1 );
 	bSizer45->Add( m_staticText28, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pMaxImageTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_MAXIMAGETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pMaxImageTextCtrl_ = new wxTextCtrl( pPMVSParamsPanel_, ID_MAXIMAGETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
 	pMaxImageTextCtrl_->SetValidator( wxTextValidator( wxFILTER_NUMERIC, &maxImage_ ) );
 	
 	bSizer45->Add( pMaxImageTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
@@ -1448,61 +1460,64 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	fgSizer9->SetFlexibleDirection( wxHORIZONTAL );
 	fgSizer9->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 	
-	m_staticText30 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Level:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText30 = new wxStaticText( pPMVSParamsPanel_, wxID_ANY, wxT("Level:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText30->Wrap( -1 );
 	fgSizer9->Add( m_staticText30, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
 	
-	pPMVSLevelTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_PMVSLEVELTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	pPMVSLevelTextCtrl_ = new wxTextCtrl( pPMVSParamsPanel_, ID_PMVSLEVELTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer9->Add( pPMVSLevelTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pPMVSLevelSlider_ = new wxSlider( pDensificationPanel_, ID_PMVSLEVELSLIDER, 1, 0, 6, wxDefaultPosition, wxSize( 400,-1 ), wxSL_AUTOTICKS|wxSL_BOTTOM|wxSL_HORIZONTAL );
+	pPMVSLevelSlider_ = new wxSlider( pPMVSParamsPanel_, ID_PMVSLEVELSLIDER, 1, 0, 6, wxDefaultPosition, wxSize( 400,-1 ), wxSL_AUTOTICKS|wxSL_BOTTOM|wxSL_HORIZONTAL );
 	fgSizer9->Add( pPMVSLevelSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
-	m_staticText31 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Cell size:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText31 = new wxStaticText( pPMVSParamsPanel_, wxID_ANY, wxT("Cell size:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText31->Wrap( -1 );
 	fgSizer9->Add( m_staticText31, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
 	
-	pPMVSCellSizeTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_PMVSCELLSIZETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	pPMVSCellSizeTextCtrl_ = new wxTextCtrl( pPMVSParamsPanel_, ID_PMVSCELLSIZETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer9->Add( pPMVSCellSizeTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pPMVSCellSizeSlider_ = new wxSlider( pDensificationPanel_, ID_PMVSCELLSIZESLIDER, 2, 1, 7, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_BOTTOM|wxSL_HORIZONTAL );
+	pPMVSCellSizeSlider_ = new wxSlider( pPMVSParamsPanel_, ID_PMVSCELLSIZESLIDER, 2, 1, 7, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_BOTTOM|wxSL_HORIZONTAL );
 	fgSizer9->Add( pPMVSCellSizeSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
-	m_staticText32 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Threshold:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText32 = new wxStaticText( pPMVSParamsPanel_, wxID_ANY, wxT("Threshold:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText32->Wrap( -1 );
 	fgSizer9->Add( m_staticText32, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
 	
-	pPMVSThresholdTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_PMVSTHRESHOLDTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	pPMVSThresholdTextCtrl_ = new wxTextCtrl( pPMVSParamsPanel_, ID_PMVSTHRESHOLDTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer9->Add( pPMVSThresholdTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pPMVSThresholdSlider_ = new wxSlider( pDensificationPanel_, ID_PMVSTHRESHOLDSLIDER, 70, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	pPMVSThresholdSlider_ = new wxSlider( pPMVSParamsPanel_, ID_PMVSTHRESHOLDSLIDER, 70, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
 	fgSizer9->Add( pPMVSThresholdSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
-	m_staticText33 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("wsize:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText33 = new wxStaticText( pPMVSParamsPanel_, wxID_ANY, wxT("wsize:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText33->Wrap( -1 );
 	fgSizer9->Add( m_staticText33, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
 	
-	pPMVSWSizeTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_PMVSWSIZETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	pPMVSWSizeTextCtrl_ = new wxTextCtrl( pPMVSParamsPanel_, ID_PMVSWSIZETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer9->Add( pPMVSWSizeTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pPMVSWSizeSlider_ = new wxSlider( pDensificationPanel_, ID_PMVSWSIZESLIDER, 7, 5, 20, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pPMVSWSizeSlider_ = new wxSlider( pPMVSParamsPanel_, ID_PMVSWSIZESLIDER, 7, 5, 20, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
 	fgSizer9->Add( pPMVSWSizeSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
-	m_staticText34 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Min. image num:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText34 = new wxStaticText( pPMVSParamsPanel_, wxID_ANY, wxT("Min. image num:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText34->Wrap( -1 );
 	fgSizer9->Add( m_staticText34, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
 	
-	pPMVSMinImageNumTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_PMVSMINIMAGENUMTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	pPMVSMinImageNumTextCtrl_ = new wxTextCtrl( pPMVSParamsPanel_, ID_PMVSMINIMAGENUMTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer9->Add( pPMVSMinImageNumTextCtrl_, 1, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pPMVSMinImageNumSlider_ = new wxSlider( pDensificationPanel_, ID_PMVSMINIMAGENUMSLIDER, 3, 2, 6, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pPMVSMinImageNumSlider_ = new wxSlider( pPMVSParamsPanel_, ID_PMVSMINIMAGENUMSLIDER, 3, 2, 6, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
 	fgSizer9->Add( pPMVSMinImageNumSlider_, 1, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
 	pPMVSParamsBoxSizer_->Add( fgSizer9, 0, wxEXPAND, 3 );
 	
-	bSizer44->Add( pPMVSParamsBoxSizer_, 0, wxALL|wxEXPAND, 3 );
-	
-	pMVEParamsBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pDensificationPanel_, ID_MVEPARAMSBOXSIZER, wxT("Parameters for MVE") ), wxVERTICAL );
+	pPMVSParamsPanel_->SetSizer( pPMVSParamsBoxSizer_ );
+	pPMVSParamsPanel_->Layout();
+	pPMVSParamsBoxSizer_->Fit( pPMVSParamsPanel_ );
+	pDensificationMethodChoicebook_->AddPage( pPMVSParamsPanel_, wxT("CMVS/PMVS"), false );
+	pDMReconParamsPanel_ = new wxPanel( pDensificationMethodChoicebook_, ID_DMRECONPARAMSPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	pMVEParamsBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pDMReconParamsPanel_, ID_MVEPARAMSBOXSIZER, wxT("Multi-View Environment") ), wxVERTICAL );
 	
 	wxFlexGridSizer* fgSizer14;
 	fgSizer14 = new wxFlexGridSizer( 2, 3, 0, 0 );
@@ -1510,36 +1525,119 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	fgSizer14->SetFlexibleDirection( wxHORIZONTAL );
 	fgSizer14->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 	
-	m_staticText53 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Scale:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText53 = new wxStaticText( pDMReconParamsPanel_, wxID_ANY, wxT("Scale:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText53->Wrap( -1 );
 	fgSizer14->Add( m_staticText53, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
 	
-	pMVEScaleTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_MVESCALETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	pMVEScaleTextCtrl_ = new wxTextCtrl( pDMReconParamsPanel_, ID_MVESCALETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer14->Add( pMVEScaleTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pMVEScaleSlider_ = new wxSlider( pDensificationPanel_, ID_MVESCALESLIDER, 2, 0, 6, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pMVEScaleSlider_ = new wxSlider( pDMReconParamsPanel_, ID_MVESCALESLIDER, 2, 0, 6, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
 	pMVEScaleSlider_->SetToolTip( wxT("Reconstruction on given scale. Smaller scale will increase detail, but also will take more time to compute.\nScale 0 is not recommended.") );
 	
 	fgSizer14->Add( pMVEScaleSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
-	m_staticText54 = new wxStaticText( pDensificationPanel_, wxID_ANY, wxT("Filter width:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText54 = new wxStaticText( pDMReconParamsPanel_, wxID_ANY, wxT("Filter width:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticText54->Wrap( -1 );
 	fgSizer14->Add( m_staticText54, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
 	
-	pMVEFilterWidthTextCtrl_ = new wxTextCtrl( pDensificationPanel_, ID_MVEFILTERWIDTHTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	pMVEFilterWidthTextCtrl_ = new wxTextCtrl( pDMReconParamsPanel_, ID_MVEFILTERWIDTHTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
 	fgSizer14->Add( pMVEFilterWidthTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
-	pMVEFilterWidthSlider_ = new wxSlider( pDensificationPanel_, ID_MVEFILTERWIDTHSLIDER, 2, 1, 5, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pMVEFilterWidthSlider_ = new wxSlider( pDMReconParamsPanel_, ID_MVEFILTERWIDTHSLIDER, 2, 1, 5, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
 	pMVEFilterWidthSlider_->SetToolTip( wxT("Patch size for NCC based comparison.\nHigher values produce better results but take longer to compute.") );
 	
 	fgSizer14->Add( pMVEFilterWidthSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
 	
 	pMVEParamsBoxSizer_->Add( fgSizer14, 1, wxEXPAND, 3 );
 	
-	bSizer44->Add( pMVEParamsBoxSizer_, 0, wxALL|wxEXPAND, 3 );
+	pDMReconParamsPanel_->SetSizer( pMVEParamsBoxSizer_ );
+	pDMReconParamsPanel_->Layout();
+	pMVEParamsBoxSizer_->Fit( pDMReconParamsPanel_ );
+	pDensificationMethodChoicebook_->AddPage( pDMReconParamsPanel_, wxT("Multi-View Environment (MVE)"), false );
+	pSMVSReconParamsPanel_ = new wxPanel( pDensificationMethodChoicebook_, ID_SMVSRECONPARAMSPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxStaticBoxSizer* sbSizer26;
+	sbSizer26 = new wxStaticBoxSizer( new wxStaticBox( pSMVSReconParamsPanel_, wxID_ANY, wxT("Parameters for Shading-Aware Multi-view Stereo") ), wxVERTICAL );
+	
+	wxFlexGridSizer* fgSizer16;
+	fgSizer16 = new wxFlexGridSizer( 5, 3, 0, 0 );
+	fgSizer16->AddGrowableCol( 2 );
+	fgSizer16->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizer16->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+	
+	m_staticText57 = new wxStaticText( pSMVSReconParamsPanel_, wxID_ANY, wxT("Scale input images:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText57->Wrap( -1 );
+	fgSizer16->Add( m_staticText57, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pSMVSInputScaleTextCtrl_ = new wxTextCtrl( pSMVSReconParamsPanel_, ID_SMVSINPUTSCALETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizer16->Add( pSMVSInputScaleTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pSMVSInputScaleSlider_ = new wxSlider( pSMVSReconParamsPanel_, ID_SMVSINPUTSCALESLIDER, 1, 0, 6, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pSMVSInputScaleSlider_->SetToolTip( wxT("This parameter affects the size of the input images and will downscale them by the respective power of 2 (e.g. 2 would downscale to 1/4th of the original size)") );
+	
+	fgSizer16->Add( pSMVSInputScaleSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+	
+	m_staticText58 = new wxStaticText( pSMVSReconParamsPanel_, wxID_ANY, wxT("Scale of output depth:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText58->Wrap( -1 );
+	fgSizer16->Add( m_staticText58, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pSMVSOutputScaleTextCtrl_ = new wxTextCtrl( pSMVSReconParamsPanel_, ID_SMVSOUTPUTSCALETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizer16->Add( pSMVSOutputScaleTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pSMVSOutputScaleSlider_ = new wxSlider( pSMVSReconParamsPanel_, ID_SMVSOUTPUTSCALESLIDER, 2, 0, 6, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pSMVSOutputScaleSlider_->SetToolTip( wxT("This parameter affects the scale of the optimization - the finest resolution of the bicubic patches will have the size of the respective power of 2 (e.g. 2 will optimize patches covering down to 4x4 pixels)") );
+	
+	fgSizer16->Add( pSMVSOutputScaleSlider_, 0, wxALL|wxEXPAND, 3 );
+	
+	m_staticText59 = new wxStaticText( pSMVSReconParamsPanel_, wxID_ANY, wxT("Shading-based optimization:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText59->Wrap( -1 );
+	fgSizer16->Add( m_staticText59, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pSMVSShadingOptCheckBox_ = new wxCheckBox( pSMVSReconParamsPanel_, ID_SMVSSHADINGOPTCHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pSMVSShadingOptCheckBox_->SetToolTip( wxT("Switch on the shading-based optimization. Keep in mind that the lighting model is limited to a low-dimensional global illumination based in spherical harmonics. This model cannot handle complex scenes. ") );
+	
+	fgSizer16->Add( pSMVSShadingOptCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
 	
 	
-	bSizer44->Add( 0, 0, 1, wxEXPAND, 5 );
+	fgSizer16->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	m_staticText60 = new wxStaticText( pSMVSReconParamsPanel_, wxID_ANY, wxT("Semi-global matching:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText60->Wrap( -1 );
+	fgSizer16->Add( m_staticText60, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pSMVSSemiGlobalMatcihingCheckBox_ = new wxCheckBox( pSMVSReconParamsPanel_, ID_SMVSSEMIGLOBALMATCIHINGCHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pSMVSSemiGlobalMatcihingCheckBox_->SetValue(true); 
+	pSMVSSemiGlobalMatcihingCheckBox_->SetToolTip( wxT("The basic algorithms rely on a sparse initialization and surface expansion / shrinking to generate a good coverage of the scene. This is not guaranteed to work reliably for every scene. This application also contains an extension that initializes the surface with a coarse SGM to increase coverage.") );
+	
+	fgSizer16->Add( pSMVSSemiGlobalMatcihingCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	
+	fgSizer16->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	m_staticText61 = new wxStaticText( pSMVSReconParamsPanel_, wxID_ANY, wxT("Surface smoothing factor:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticText61->Wrap( -1 );
+	fgSizer16->Add( m_staticText61, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pSMVSSurfaceSmoothingFactorTextCtrl_ = new wxTextCtrl( pSMVSReconParamsPanel_, ID_SMVSSURFACESMOOTHINGFACTORTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizer16->Add( pSMVSSurfaceSmoothingFactorTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+	
+	pSMVSSurfaceSmoothingFactorSlider_ = new wxSlider( pSMVSReconParamsPanel_, ID_SMVSSURFACESMOOTHINGFACTORSLIDER, 10, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	pSMVSSurfaceSmoothingFactorSlider_->SetToolTip( wxT("Regularization parameter, a higher alpha leads to smoother surfaces") );
+	
+	fgSizer16->Add( pSMVSSurfaceSmoothingFactorSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+	
+	sbSizer26->Add( fgSizer16, 1, wxEXPAND, 3 );
+	
+	pSMVSReconParamsPanel_->SetSizer( sbSizer26 );
+	pSMVSReconParamsPanel_->Layout();
+	sbSizer26->Fit( pSMVSReconParamsPanel_ );
+	pDensificationMethodChoicebook_->AddPage( pSMVSReconParamsPanel_, wxT("Shading-Aware Multi-view Stereo (SMVS)"), false );
+	pDensificationMethodSizer_->Add( pDensificationMethodChoicebook_, 1, wxEXPAND | wxALL, 3 );
+	
+	bSizer44->Add( pDensificationMethodSizer_, 1, wxEXPAND, 3 );
+	
+	
+	bSizer44->Add( 0, 20, 0, wxEXPAND, 5 );
 	
 	pStdDialogButtonSizer_ = new wxStdDialogButtonSizer();
 	pStdDialogButtonSizer_OK = new wxButton( pDensificationPanel_, wxID_OK );

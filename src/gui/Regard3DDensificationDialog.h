@@ -32,7 +32,6 @@ public:
 
 protected:
 	virtual void OnInitDialog( wxInitDialogEvent& event );
-	virtual void OnDensificationMethodRadioBox( wxCommandEvent& event );
 	virtual void OnUseCMVSCheckBox( wxCommandEvent& event );
 	virtual void OnPMVSLevelSliderScroll( wxScrollEvent& event );
 	virtual void OnPMVSCellSizeSliderScroll( wxScrollEvent& event );
@@ -41,8 +40,10 @@ protected:
 	virtual void OnPMVSMinImageNumSliderScroll( wxScrollEvent& event );
 	virtual void OnMVEScaleSliderScroll( wxScrollEvent& event );
 	virtual void OnMVEFilterWidthSliderScroll( wxScrollEvent& event );
+	virtual void OnSMVSInputScaleSliderScroll( wxScrollEvent& event );
+	virtual void OnSMVSOutputScaleSliderScroll( wxScrollEvent& event );
+	virtual void OnSMVSSurfaceSmoothingFactorSliderScroll( wxScrollEvent& event );
 
-	void enableDensificationWidgets();
 	void updatePMVSLevelText();
 	void updatePMVSCellSizeText();
 	void updatePMVSThresholdText();
@@ -50,6 +51,9 @@ protected:
 	void updatePMVSMinImageNumText();
 	void updateMVEScaleText();
 	void updateMVEFilterWidthText();
+	void updateSMVSInputScaleText();
+	void updateSMVSOutputScaleText();
+	void updateSMVSSurfaceSmoothingFactorText();
 
 private:
 	DECLARE_EVENT_TABLE()

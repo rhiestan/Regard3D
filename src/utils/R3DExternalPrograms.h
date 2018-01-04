@@ -37,6 +37,8 @@ public:
 	const wxString &getFSSReconPath() { return fssreconPath_; }
 	const wxString &getMeshCleanPath() { return meshcleanPath_; }
 	const wxString &getCMPMVSPath() { return cmpmvsPath_; }
+	const wxString &getSMVSReconPath() { return smvsreconPath_; }
+	const wxString &getSMVSReconSSE41Path() { return smvsreconSSE41Path; }
 
 	const wxArrayString &getAllPaths() { return allPaths_; }
 
@@ -54,6 +56,7 @@ private:
 	wxString makescenePath_, texreconPath_;
 	wxString dmreconPath_, scene2psetPath_, fssreconPath_, meshcleanPath_;
 	wxString cmpmvsPath_;
+	wxString smvsreconPath_, smvsreconSSE41Path;
 	wxArrayString allPaths_;
 
 	static R3DExternalPrograms instance_;

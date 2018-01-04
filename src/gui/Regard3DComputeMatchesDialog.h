@@ -32,7 +32,7 @@ public:
 	void getResults(float &keypointSensitivity,
 		float &keypointMatchingRatio,
 		int &keypointDetectorType,
-		bool &addTBMR, int &cameraModel);
+		bool &addTBMR, int &cameraModel, int &matchingAlgorithm);
 
 protected:
 	virtual void OnClose( wxCloseEvent& event );
@@ -51,6 +51,7 @@ private:
 	int keyPointDetectorType_;
 	bool addTBMR_;
 	int cameraModel_;
+	int matchingAlgorithm_;
 
 	DECLARE_EVENT_TABLE()
 };

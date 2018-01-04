@@ -1,0 +1,50 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#cmakedefine CPUID_MSVC 1
+#cmakedefine CPUID_CLANG 1
+#cmakedefine CPUID_GNUCC 1
+#cmakedefine CPUID_DARWIN 1
+#cmakedefine CPUID_LINUX 1
+#cmakedefine CPUID_WINDOWS 1
+
+
+#if defined(__arm__) || defined(__thumb__) || defined(_ARM) || defined(_M_ARM) || defined(_M_ARMT)
+	#define CPUID_ARM
+#elif defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+	#define CPUID_X86
+#else
+	#error Unsupported CPU architecture
+#endif
+
+#if defined(CPUID_MSVC)
+#	if defined(CPUID_ARM)
+#		define PLATFORM_MSVC_ARM
+#	elif defined(CPUID_X86)
+#		define PLATFORM_MSVC_X86
+#	endif
+#endif
+
+#if defined(CPUID_LINUX)
+#	define PLATFORM_LINUX
+#endif
+
+#if defined(CPUID_GNUCC) || (defined(CPUID_CLANG) && !defined(CPUID_ARM))
+#	if defined(CPUID_ARM)
+#		define PLATFORM_GCC_COMPATIBLE_ARM
+#	elif defined(CPUID_X86)
+#		define PLATFORM_GCC_COMPATIBLE_X86
+#	endif
+#endif
+
+#if defined(CPUID_CLANG) && defined(CPUID_ARM)
+#	define PLATFORM_CLANG_ARM
+#endif
+
+/* Currently, we don't define
+PLATFORM_WINDOWS_PHONE
+and
+PLATFORM_IOS
+*/
+
+#endif

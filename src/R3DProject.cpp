@@ -126,7 +126,15 @@ bool R3DProject::loadProject(const wxString &projectFilename)
 	projectPath_ = projFN.GetPath(wxPATH_GET_VOLUME);
 
 	// Change current directory of this process to project path
-	wxFileName::SetCwd(projectPath_);
+	bool isCwdSuccessful = wxFileName::SetCwd(projectPath_);
+	if(!isCwdSuccessful)
+	{
+#if defined(_MSC_VER)
+		if(IsDebuggerPresent())
+			DebugBreak();
+#endif
+		return false;
+	}
 
 	isSaved_ = true;
 	isValidProject_ = true;
@@ -396,7 +404,7 @@ int R3DProject::clonePictureSet(R3DProject::PictureSet *pPictureSet)
 
 int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 	const wxString &featureDetector, const wxString &descriptorExtractor,
-	float keypointSensitivity, float keypointMatchingRatio, int cameraModel)
+	float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm)
 {
 	if(pPictureSet == NULL)
 		return -1;
@@ -416,6 +424,7 @@ int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 	cm.threshold_ = keypointSensitivity;
 	cm.distRatio_ = keypointMatchingRatio;
 	cm.cameraModel_ = cameraModel;
+	cm.matchingAlgorithm_ = matchingAlgorithm;
 	cm.state_ = OSInvalid;
 	pPictureSet->computeMatches_.push_back(cm);
 
@@ -924,6 +933,12 @@ bool R3DProject::getProjectPathsDns(R3DProjectPaths &paths, R3DProject::Densific
 		denseModelFN.SetFullName(pDensification->finalDenseModelName_);
 		paths.relativeDenseModelName_ = std::string(denseModelFN.GetFullPath().mb_str(wxConvLibc));
 	}
+	else if(pDensification->densificationType_ == R3DProject::DTSMVS)
+	{
+		wxFileName denseModelFN(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc), wxT(""));
+		denseModelFN.SetFullName(pDensification->finalDenseModelName_);
+		paths.relativeDenseModelName_ = std::string(denseModelFN.GetFullPath().mb_str(wxConvLibc));
+	}
 
 	return true;
 }
@@ -1373,7 +1388,8 @@ void R3DProject::prepareDensification(R3DProject::Densification *pDensification)
 			wxFileName::Mkdir(pmvsOutPath, 0777, wxPATH_MKDIR_FULL);
 #endif
 	}
-	else if(pDensification->densificationType_ == R3DProject::DTMVE)
+	else if(pDensification->densificationType_ == R3DProject::DTMVE
+		|| pDensification->densificationType_ == R3DProject::DTSMVS)
 	{
 		wxString mveOutPath(paths.relativeDensificationPath_.c_str(), wxConvLibc);
 		if(!wxFileName::DirExists(mveOutPath))
@@ -1566,7 +1582,7 @@ std::string R3DProject::PictureSet::getBasePathname()
 
 R3DProject::ComputeMatches::ComputeMatches()
 	: Object(), threshold_(0), distRatio_(0),
-	cameraModel_(3),
+	cameraModel_(3), matchingAlgorithm_(0),
 	state_(R3DProject::OSInvalid)
 {
 }
@@ -1588,6 +1604,7 @@ R3DProject::ComputeMatches &R3DProject::ComputeMatches::copy(const R3DProject::C
 	threshold_ = o.threshold_;
 	distRatio_ = o.distRatio_;
 	cameraModel_ = o.cameraModel_;
+	matchingAlgorithm_ = o.matchingAlgorithm_;
 	state_ = o.state_;
 	numberOfKeypoints_ = o.numberOfKeypoints_;
 	runningTime_ = o.runningTime_;
@@ -1657,7 +1674,9 @@ R3DProject::Densification::Densification()
 	: Object(), densificationType_(R3DProject::DTCMVSPMVS),
 	pmvsNumThreads_(1), useCMVS_(true), pmvsMaxClusterSize_(100),
 	pmvsLevel_(1), pmvsCSize_(2), pmvsThreshold_(0.7f), pmvsWSize_(7),
-	pmvsMinImageNum_(3), mveScale_(0), mveFilterWidth_(5), state_(R3DProject::OSInvalid)
+	pmvsMinImageNum_(3), mveScale_(0), mveFilterWidth_(5), state_(R3DProject::OSInvalid),
+	smvsInputScale_(1), smvsOutputScale_(2), smvsEnableShadingBasedOptimization_(false),
+	smvsEnableSemiGlobalMatching_(true), smvsAlpha_(1.0f)
 {
 }
 
@@ -1684,6 +1703,11 @@ R3DProject::Densification &R3DProject::Densification::copy(const R3DProject::Den
 	pmvsMinImageNum_ = o.pmvsMinImageNum_;
 	mveScale_ = o.mveScale_;
 	mveFilterWidth_ = o.mveFilterWidth_;
+	smvsInputScale_ = o.smvsInputScale_;
+	smvsOutputScale_ = o.smvsOutputScale_;
+	smvsEnableShadingBasedOptimization_ = o.smvsEnableShadingBasedOptimization_;
+	smvsEnableSemiGlobalMatching_ = o.smvsEnableSemiGlobalMatching_;
+	smvsAlpha_ = o.smvsAlpha_;
 	finalDenseModelName_ = o.finalDenseModelName_;
 	runningTime_ = o.runningTime_;
 	state_ = o.state_;
@@ -1849,13 +1873,21 @@ void R3DProject::Densification::serialize(Archive & ar, const unsigned int versi
 	ar & boost::serialization::make_nvp("pmvsMinImageNum", pmvsMinImageNum_);
 	ar & boost::serialization::make_nvp("mveScale", mveScale_);
 	ar & boost::serialization::make_nvp("mveFilterWidth", mveFilterWidth_);
+	if(version > 0)
+	{
+		ar & boost::serialization::make_nvp("smvsInputScale", smvsInputScale_);
+		ar & boost::serialization::make_nvp("smvsOutputScale", smvsOutputScale_);
+		ar & boost::serialization::make_nvp("smvsEnableShadingBasedOptimization", smvsEnableShadingBasedOptimization_);
+		ar & boost::serialization::make_nvp("smvsEnableSemiGlobalMatching", smvsEnableSemiGlobalMatching_);
+		ar & boost::serialization::make_nvp("smvsAlpha", smvsAlpha_);
+	}
 	ar & boost::serialization::make_nvp("finalDenseModelName", finalDenseModelName_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("orientation", orientation_);
 	ar & boost::serialization::make_nvp("Surfaces", surfaces_);
 }
-//BOOST_CLASS_VERSION(R3DProject::Densification, 1)
+BOOST_CLASS_VERSION(R3DProject::Densification, 1)
 
 // Serialize Triangulation class
 template<class Archive>
@@ -1906,12 +1938,14 @@ void R3DProject::ComputeMatches::serialize(Archive & ar, const unsigned int vers
 	ar & boost::serialization::make_nvp("distRatio", distRatio_);
 	if(version > 0)
 		ar & boost::serialization::make_nvp("cameraModel", cameraModel_);
+	if(version > 1)
+		ar & boost::serialization::make_nvp("matchingAlgorithm", matchingAlgorithm_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("numberOfKeypoints", numberOfKeypoints_);
 	ar & boost::serialization::make_nvp("Triangulations", triangulations_);
 }
-BOOST_CLASS_VERSION(R3DProject::ComputeMatches, 1)
+BOOST_CLASS_VERSION(R3DProject::ComputeMatches, 2)
 
 // Serialize PictureSet class
 template<class Archive>

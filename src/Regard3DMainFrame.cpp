@@ -53,6 +53,7 @@
 #include "Regard3DSettings.h"
 #include "Regard3DPropertiesDialog.h"
 #include "Regard3DUserCameraDBDialog.h"
+#include "cpuinfo.hpp"
 
 // wxWidgets
 #include <wx/mstream.h>
@@ -2050,14 +2051,29 @@ void Regard3DMainFrame::updateProjectDetails()
 					cameraModelString = wxT("Pinhole brown 2");
 				else if(pComputeMatches->cameraModel_ == 5)
 					cameraModelString = wxT("Pinhole Fisheye");
+				wxString matchingAlgorithmString;
+				if(pComputeMatches->matchingAlgorithm_ == 0)
+					matchingAlgorithmString = wxT("FLANN");
+				else if(pComputeMatches->matchingAlgorithm_ == 1)
+					matchingAlgorithmString = wxT("KGraph Fast");
+				else if(pComputeMatches->matchingAlgorithm_ == 2)
+					matchingAlgorithmString = wxT("KGraph Medium");
+				else if(pComputeMatches->matchingAlgorithm_ == 3)
+					matchingAlgorithmString = wxT("KGraph Precise");
+				else if(pComputeMatches->matchingAlgorithm_ == 4)
+					matchingAlgorithmString = wxT("Brute Force");
+				else if(pComputeMatches->matchingAlgorithm_ == 5)
+					matchingAlgorithmString = wxT("MRPT");
 
 				if(!pComputeMatches->featureDetector_.IsEmpty())
 					params = wxString::Format(wxT("Detector(s): %s/Threshold: %3g/Dist ratio: %3g/Camera model: "),
 						pComputeMatches->featureDetector_, pComputeMatches->threshold_, pComputeMatches->distRatio_);
 				else
-					params = wxString::Format(wxT("Threshold: %3g/Dist ratio: %3g/Camera model:"),
+					params = wxString::Format(wxT("Threshold: %3g/Dist ratio: %3g/Camera model: "),
 						pComputeMatches->threshold_, pComputeMatches->distRatio_);
 				params.Append(cameraModelString);
+				params.Append(wxT("/Matching algorithm: "));
+				params.Append(matchingAlgorithmString);
 
 				if(!pComputeMatches->numberOfKeypoints_.empty())
 				{
@@ -2172,6 +2188,8 @@ void Regard3DMainFrame::updateProjectDetails()
 					type = wxString(wxT("MVE (Multi view environment)"));
 				else if(pDensification->densificationType_ == R3DProject::DTCMPMVS)
 					type = wxString(wxT("CMPMVS"));
+				else if(pDensification->densificationType_ == R3DProject::DTSMVS)
+					type = wxString(wxT("SMVS"));
 				else
 					type = wxString(wxT("Unknown"));
 
@@ -2187,6 +2205,14 @@ void Regard3DMainFrame::updateProjectDetails()
 				{
 					params.Printf(wxT("Scale: %d, Filter width: %d"),
 						pDensification->mveScale_, pDensification->mveFilterWidth_);
+				}
+				else if(pDensification->densificationType_ == R3DProject::DTSMVS)
+				{
+					params.Printf(wxT("Input scale: %d, Output scale: %d Use shading: %s Use SGM: %s Alpha: %f"),
+						pDensification->smvsInputScale_, pDensification->smvsOutputScale_,
+						(pDensification->smvsEnableShadingBasedOptimization_  ? wxT("yes") : wxT("no")),
+						(pDensification->smvsEnableSemiGlobalMatching_  ? wxT("yes") : wxT("no")),
+						pDensification->smvsAlpha_);
 				}
 				runningTime = pDensification->runningTime_;
 			}
@@ -2345,9 +2371,9 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 		float keypointSensitivity = 0, keypointMatchingRatio = 0;
 		int keypointDetectorType = 0;
 		bool addTBMR = false;
-		int cameraModel = 3;
+		int cameraModel = 3, matchingAlgorithm = 0;
 
-		dlg.getResults(keypointSensitivity, keypointMatchingRatio, keypointDetectorType, addTBMR, cameraModel);
+		dlg.getResults(keypointSensitivity, keypointMatchingRatio, keypointDetectorType, addTBMR, cameraModel, matchingAlgorithm);
 
 		Regard3DFeatures::R3DFParams params;
 		params.threshold_ = keypointSensitivity;
@@ -2369,7 +2395,7 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 			featureDetector.Append( wxString(kd.c_str()) );
 		}
 		int newID = project_.addComputeMatches(pPictureSet, featureDetector, descriptorExtractor,
-			keypointSensitivity, keypointMatchingRatio, cameraModel);
+			keypointSensitivity, keypointMatchingRatio, cameraModel, matchingAlgorithm);
 		if(newID >= 0)
 		{
 			project_.populateTreeControl(pProjectTreeCtrl_);
@@ -2391,7 +2417,7 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 			delete pR3DComputeMatchesThread_;
 		pR3DComputeMatchesThread_ = new R3DComputeMatchesThread();
 		pR3DComputeMatchesThread_->setMainFrame(this);
-		pR3DComputeMatchesThread_->setParameters(params, svgOutput, cameraModel);
+		pR3DComputeMatchesThread_->setParameters(params, svgOutput, cameraModel, matchingAlgorithm);
 		pR3DComputeMatchesThread_->setComputeMatches(pComputeMatches, pPictureSet);
 		pR3DComputeMatchesThread_->startComputeMatchesThread();
 
@@ -2553,6 +2579,18 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 		}
 
 		dlg.getResults(pDensification);
+
+		cpuid::cpuinfo cpuinfo;
+		if(pDensification->densificationType_ == R3DProject::R3DDensificationType::DTSMVS
+			&& !cpuinfo.has_popcnt())
+		{
+			wxMessageBox(wxT("Your CPU does not support the POPCNT instruction which is required by SMVS!"),
+				wxT("Regard3D error"), wxOK | wxICON_ERROR);
+			project_.removeDensification(pDensification);
+			project_.save();
+			project_.populateTreeControl(pProjectTreeCtrl_);
+			return;
+		}
 
 		pDensification->state_ = R3DProject::OSRunning;
 		clear3DModel();

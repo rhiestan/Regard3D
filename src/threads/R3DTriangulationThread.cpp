@@ -389,7 +389,7 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 		}
 #else
 		std::string sSfM_Data_Filename(paths_.matchesSfmDataFilename_);
-		EINTRINSIC i_User_camera_model = PINHOLE_CAMERA_RADIAL3;			// TODO: Make configurable
+		openMVG::cameras::EINTRINSIC i_User_camera_model = openMVG::cameras::PINHOLE_CAMERA_RADIAL3;			// TODO: Make configurable
 		bool bRefineIntrinsics = true;
 
 		// Load input SfM_Data scene

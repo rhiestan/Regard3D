@@ -35,7 +35,7 @@ public:
 	virtual ~R3DComputeMatchesThread();
 
 	void setMainFrame(Regard3DMainFrame *pMainFrame);
-	void setParameters(const Regard3DFeatures::R3DFParams &params, bool svgOutput, int cameraModel);
+	void setParameters(const Regard3DFeatures::R3DFParams &params, bool svgOutput, int cameraModel, int matchingAlgorithm);
 	const Regard3DFeatures::R3DFParams &getParameters() const { return params_; }
 	void setComputeMatches(R3DProject::ComputeMatches *pComputeMatches, R3DProject::PictureSet *pPictureSet);
 	R3DProject::ComputeMatches *getComputeMatches() const { return pComputeMatches_; }
@@ -70,6 +70,7 @@ private:
 	wxArrayString resultStrings_;
 	bool svgOutput_;
 	int cameraModel_;
+	int matchingAlgorithm_;
 };
 
 #endif

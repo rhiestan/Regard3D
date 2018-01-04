@@ -18,6 +18,11 @@ The Regard3D source code is released under the [MIT license](http://opensource.o
 Version history
 ---------------
 
+### Version 0.9.4, 04.01.2018:
+- Upgraded to OpenMVG 1.3
+- Added SMVS as new densification tool
+- Added new algorithms for pairwise feature matching: KGraph, MRPT
+
 ### Version 0.9.3, 15.09.2017:
 - Added user-defined camera sensor width database, added ability to set focus length
 - Added possibility to set camera model (Pinhole with various distortions, among them Fisheye)

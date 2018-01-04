@@ -23,6 +23,8 @@
 #include "Regard3DMainFrame.h"
 #include "R3DExternalPrograms.h"
 #include "minilog/minilog.h"
+#include "cpuinfo.hpp"
+
 
 R3DDensificationProcess::R3DDensificationProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),
@@ -151,6 +153,31 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 			+ wxString::Format(wxT(" -ddepth-L%d -iundist-L%d -n -s -c "), pDensification->mveScale_, pDensification->mveScale_)
 			+ mveSceneDir + wxT(" ") + outputModelFN.GetFullPath());
 		progressTexts_.Add(wxT("Generating point cloud model (MVE)"));
+
+		pDensification->finalDenseModelName_ = outputModelFilename;
+	}
+	else if(pDensification->densificationType_ == R3DProject::DTSMVS)
+	{
+		wxString smvsreconExe = R3DExternalPrograms::getInstance().getSMVSReconPath();
+		cpuid::cpuinfo cpuinfo;
+		if(cpuinfo.has_sse4_1())		// TODO: Allow user to fall back to generic version
+			smvsreconExe = R3DExternalPrograms::getInstance().getSMVSReconSSE41Path();
+
+		wxString mveSceneDir = wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc);
+		wxString outputModelFilename;
+		outputModelFilename.Printf(wxT("smvs-%s%d.ply"),
+			(pDensification->smvsEnableShadingBasedOptimization_ ? wxT("S") : wxT("B")),
+			pDensification->smvsInputScale_);
+
+		cmds_.Add(smvsreconExe + wxString::Format(wxT(" --scale=%d --output-scale=%d %s %s --alpha=%f --force "),
+			pDensification->smvsInputScale_, pDensification->smvsOutputScale_,
+			(pDensification->smvsEnableShadingBasedOptimization_ ? wxT("-S") : wxT("")),
+			(pDensification->smvsEnableSemiGlobalMatching_ ? wxT("") : wxT("--no-sgm")),
+			pDensification->smvsAlpha_)
+			+ mveSceneDir);
+		progressTexts_.Add(wxT("Densify point cloud (SMVS)"));
+
+		wxFileName outputModelFN(wxString(paths.relativeDensificationPath_.c_str(), wxConvLibc), outputModelFilename);
 
 		pDensification->finalDenseModelName_ = outputModelFilename;
 	}

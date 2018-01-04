@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2015 Roman Hiestand
+ * Copyright (C) 2017 Roman Hiestand
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -32,10 +32,12 @@ Regard3DDensificationDialog::~Regard3DDensificationDialog()
 
 void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensification)
 {
-	if(pDensificationMethodRadioBox_->GetSelection() == 0)
+	if(pDensificationMethodChoicebook_->GetSelection() == 0)
 		pDensification->densificationType_ = R3DProject::DTCMVSPMVS;
-	else if(pDensificationMethodRadioBox_->GetSelection() == 1)
+	else if(pDensificationMethodChoicebook_->GetSelection() == 1)
 		pDensification->densificationType_ = R3DProject::DTMVE;
+	else if(pDensificationMethodChoicebook_->GetSelection() == 2)
+		pDensification->densificationType_ = R3DProject::DTSMVS;
 
 	pDensification->pmvsNumThreads_ = pNumberOfThreadsChoice_->GetSelection() + 1;
 	pDensification->useCMVS_ = pUseCMVSCheckBox_->GetValue();
@@ -52,14 +54,19 @@ void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensifi
 
 	pDensification->mveScale_ = pMVEScaleSlider_->GetValue();
 	pDensification->mveFilterWidth_ = (pMVEFilterWidthSlider_->GetValue()) * 2 + 1;
+
+	pDensification->smvsInputScale_ = pSMVSInputScaleSlider_->GetValue();
+	pDensification->smvsOutputScale_ = pSMVSOutputScaleSlider_->GetValue();
+	pDensification->smvsEnableShadingBasedOptimization_ = pSMVSShadingOptCheckBox_->GetValue();
+	pDensification->smvsEnableSemiGlobalMatching_ = pSMVSSemiGlobalMatcihingCheckBox_->GetValue();
+	pDensification->smvsAlpha_ = static_cast<float>(pSMVSSurfaceSmoothingFactorSlider_->GetValue()) * 0.1f;
 }
 
 void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 {
 	wxDialog::OnInitDialog(event);	// Call base class to initalize validators
 
-	pDensificationMethodRadioBox_->Select(0);
-	//pDensificationMethodRadioBox_->Enable(1, false);
+	pDensificationMethodChoicebook_->SetSelection(0);
 
 	pMaxImageTextCtrl_->SetValue(wxT("100"));
 	//TransferDataToWindow();
@@ -69,7 +76,6 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 		pNumberOfThreadsChoice_->Append(wxString::Format(wxT("%d"), i));
 	pNumberOfThreadsChoice_->SetSelection(maxNumberOfThreads - 2);
 
-	enableDensificationWidgets();
 	updatePMVSLevelText();
 	updatePMVSCellSizeText();
 	updatePMVSThresholdText();
@@ -77,14 +83,12 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 	updatePMVSMinImageNumText();
 	updateMVEScaleText();
 	updateMVEFilterWidthText();
+	updateSMVSInputScaleText();
+	updateSMVSOutputScaleText();
+	updateSMVSSurfaceSmoothingFactorText();
 
 	Fit();
 	CenterOnParent();
-}
-
-void Regard3DDensificationDialog::OnDensificationMethodRadioBox( wxCommandEvent& event )
-{
-	enableDensificationWidgets();
 }
 
 void Regard3DDensificationDialog::OnUseCMVSCheckBox( wxCommandEvent& event )
@@ -127,28 +131,19 @@ void Regard3DDensificationDialog::OnMVEFilterWidthSliderScroll( wxScrollEvent& e
 	updateMVEFilterWidthText();
 }
 
-void Regard3DDensificationDialog::enableDensificationWidgets()
+void Regard3DDensificationDialog::OnSMVSInputScaleSliderScroll(wxScrollEvent& event)
 {
-	bool isMVE = (pDensificationMethodRadioBox_->GetSelection() == 1);
+	updateSMVSInputScaleText();
+}
 
-	pNumberOfThreadsChoice_->Enable(!isMVE);
-	pUseCMVSCheckBox_->Enable(!isMVE);
-	pMaxImageTextCtrl_->Enable(!isMVE);
-	pPMVSLevelTextCtrl_->Enable(!isMVE);
-	pPMVSLevelSlider_->Enable(!isMVE);
-	pPMVSCellSizeTextCtrl_->Enable(!isMVE);
-	pPMVSCellSizeSlider_->Enable(!isMVE);
-	pPMVSThresholdTextCtrl_->Enable(!isMVE);
-	pPMVSThresholdSlider_->Enable(!isMVE);
-	pPMVSWSizeTextCtrl_->Enable(!isMVE);
-	pPMVSWSizeSlider_->Enable(!isMVE);
-	pPMVSMinImageNumTextCtrl_->Enable(!isMVE);
-	pPMVSMinImageNumSlider_->Enable(!isMVE);
+void Regard3DDensificationDialog::OnSMVSOutputScaleSliderScroll(wxScrollEvent& event)
+{
+	updateSMVSOutputScaleText();
+}
 
-	pMVEScaleTextCtrl_->Enable(isMVE);
-	pMVEScaleSlider_->Enable(isMVE);
-	pMVEFilterWidthTextCtrl_->Enable(isMVE);
-	pMVEFilterWidthSlider_->Enable(isMVE);
+void Regard3DDensificationDialog::OnSMVSSurfaceSmoothingFactorSliderScroll(wxScrollEvent& event)
+{
+	updateSMVSSurfaceSmoothingFactorText();
 }
 
 void Regard3DDensificationDialog::updatePMVSLevelText()
@@ -192,6 +187,25 @@ void Regard3DDensificationDialog::updateMVEFilterWidthText()
 {
 	int sliderValue = pMVEFilterWidthSlider_->GetValue();
 	pMVEFilterWidthTextCtrl_->SetValue( wxString::Format( wxT("%d"), sliderValue*2 + 1 ) );
+}
+
+void Regard3DDensificationDialog::updateSMVSInputScaleText()
+{
+	int sliderValue = pSMVSInputScaleSlider_->GetValue();
+	pSMVSInputScaleTextCtrl_->SetValue( wxString::Format( wxT("%d"), sliderValue ) );
+}
+
+void Regard3DDensificationDialog::updateSMVSOutputScaleText()
+{
+	int sliderValue = pSMVSOutputScaleSlider_->GetValue();
+	pSMVSOutputScaleTextCtrl_->SetValue( wxString::Format( wxT("%d"), sliderValue ) );
+}
+
+void Regard3DDensificationDialog::updateSMVSSurfaceSmoothingFactorText()
+{
+	int sliderValue = pSMVSSurfaceSmoothingFactorSlider_->GetValue();
+	pSMVSSurfaceSmoothingFactorTextCtrl_->SetValue( wxString::Format( wxT("%g"),
+		static_cast<float>(sliderValue)*0.1f ) );
 }
 
 BEGIN_EVENT_TABLE( Regard3DDensificationDialog, Regard3DDensificationDialogBase )

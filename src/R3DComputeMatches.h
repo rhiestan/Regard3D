@@ -48,7 +48,7 @@ public:
 	void addImages(const ImageInfoVector &iiv);
 
 	bool computeMatches(Regard3DFeatures::R3DFParams &params, bool svgOutput,
-		const R3DProjectPaths &paths, int cameraModel);
+		const R3DProjectPaths &paths, int cameraModel, int matchingAlgorithm);
 	int computeMatchesOpenCV_NLOPT_step(double factor);
 	static double myfunc(unsigned n, const double *x, double *grad, void *my_func_data);
 	bool computeMatchesOpenCV_NLOPT();

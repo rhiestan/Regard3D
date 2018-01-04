@@ -176,7 +176,8 @@ public:
 	{
 		DTCMVSPMVS = 0,
 		DTMVE,
-		DTCMPMVS
+		DTCMPMVS,
+		DTSMVS
 	};
 
 	/**
@@ -205,6 +206,10 @@ public:
 		float pmvsThreshold_;
 		int pmvsWSize_, pmvsMinImageNum_;
 		int mveScale_, mveFilterWidth_;
+		int smvsInputScale_, smvsOutputScale_;
+		bool smvsEnableShadingBasedOptimization_;
+		bool smvsEnableSemiGlobalMatching_;
+		float smvsAlpha_;
 		wxString finalDenseModelName_;
 		wxString runningTime_;
 
@@ -270,7 +275,7 @@ public:
 		std::vector<Triangulation> triangulations_;
 		wxString featureDetector_, descriptorExtractor_;
 		float threshold_, distRatio_;
-		int cameraModel_;
+		int cameraModel_, matchingAlgorithm_;
 		R3DObjectState state_;
 		std::vector<int> numberOfKeypoints_;
 		wxString runningTime_;
@@ -339,7 +344,7 @@ public:
 	int clonePictureSet(PictureSet *pPictureSet);
 	int addComputeMatches(R3DProject::PictureSet *pPictureSet,
 		const wxString &featureDetector, const wxString &descriptorExtractor,
-		float keypointSensitivity, float keypointMatchingRatio, int cameraModel);
+		float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm);
 	int addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
 		bool global, int rotAveraging, int transAveraging, bool refineIntrinsics);
 	int addDensification(R3DProject::Triangulation *pTriangulation);

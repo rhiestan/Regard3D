@@ -1928,6 +1928,14 @@ Regard3DPropertiesDialogBase::Regard3DPropertiesDialogBase( wxWindow* parent, wx
 	
 	bSizer55->Add( sbSizer23, 0, wxALL|wxEXPAND, 3 );
 	
+	wxStaticBoxSizer* sbSizer25;
+	sbSizer25 = new wxStaticBoxSizer( new wxStaticBox( pPopertiesPanel_, wxID_ANY, wxT("User camera DB location") ), wxVERTICAL );
+	
+	pUserCameraDBLocationDirPicker_ = new wxDirPickerCtrl( pPopertiesPanel_, ID_USERCAMERADBLOCATIONDIRPICKER, wxEmptyString, wxT("Select a user camera DB location"), wxDefaultPosition, wxDefaultSize, wxDIRP_DEFAULT_STYLE|wxDIRP_DIR_MUST_EXIST|wxDIRP_USE_TEXTCTRL );
+	sbSizer25->Add( pUserCameraDBLocationDirPicker_, 0, wxALL|wxEXPAND, 3 );
+	
+	bSizer55->Add( sbSizer25, 1, wxALL|wxEXPAND, 3 );
+	
 	wxString pMouseButtonRadioBox_Choices[] = { wxT("Middle mouse button: Zoom, Right mouse button: Move"), wxT("Middle mouse button: Move, Right mouse button: Zoom") };
 	int pMouseButtonRadioBox_NChoices = sizeof( pMouseButtonRadioBox_Choices ) / sizeof( wxString );
 	pMouseButtonRadioBox_ = new wxRadioBox( pPopertiesPanel_, ID_MOUSEBUTTONRADIOBOX, wxT("Mouse button assignment"), wxDefaultPosition, wxDefaultSize, pMouseButtonRadioBox_NChoices, pMouseButtonRadioBox_Choices, 1, wxRA_SPECIFY_COLS );

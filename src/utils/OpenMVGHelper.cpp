@@ -2017,9 +2017,198 @@ bool OpenMVGHelper::exportToExternalMVS(R3DProject::Triangulation *pTriangulatio
 	bool isOk = CreateNVMFile( sfm_data, nvmOutDir, nvmOutFile );
 
 
+	// Export to SURE
+	wxFileName sureOutDir(outDir);
+	sureOutDir.AppendDir(wxT("SURE"));
+	if(!sureOutDir.DirExists())
+	{
+		if(!sureOutDir.Mkdir())
+			return false;
+	}
+
+	exportToSure( sfm_data, sureOutDir.GetFullPath() );
 
 	return isOk;
 }
+
+bool OpenMVGHelper::exportToSure(const openMVG::sfm::SfM_Data &sfm_data, const wxString &pathname)
+{
+	wxFileName sureOutDir(pathname);
+
+	// Create img and ori directories
+	wxFileName imgOutDir(sureOutDir);
+	imgOutDir.AppendDir(wxT("img"));
+	if(!imgOutDir.DirExists())
+		if(!imgOutDir.Mkdir())
+			return false;
+	wxFileName oriOutDir(sureOutDir);
+	oriOutDir.AppendDir(wxT("ori"));
+	if(!oriOutDir.DirExists())
+		if(!oriOutDir.Mkdir())
+			return false;
+
+	// Export undistorted images
+	wxFileName destImageFN(imgOutDir);
+	int count = 1;
+	{
+		openMVG::image::Image<openMVG::image::RGBColor> image, image_ud;
+		for(Views::const_iterator iter = sfm_data.GetViews().begin();
+			iter != sfm_data.GetViews().end(); ++iter)
+		{
+			const View * view = iter->second.get();
+			Poses::const_iterator iterPose = sfm_data.GetPoses().find(view->id_pose);
+			Intrinsics::const_iterator iterIntrinsic = sfm_data.GetIntrinsics().find(view->id_intrinsic);
+
+			if(iterPose == sfm_data.GetPoses().end() ||
+				iterIntrinsic == sfm_data.GetIntrinsics().end())
+				continue;
+
+			// We have a valid view with a corresponding camera & pose
+			const std::string srcImage = stlplus::create_filespec(sfm_data.s_root_path, view->s_Img_path);
+			std::ostringstream os;
+			os << std::setw(5) << std::setfill('0') << count;
+			destImageFN.SetName(wxString(os.str().c_str(), wxConvLibc));
+			destImageFN.SetExt(wxT("jpg"));
+			std::string baseimagefilename = os.str();
+
+			const IntrinsicBase * cam = iterIntrinsic->second.get();
+			const Pinhole_Intrinsic_Brown_T2 *pBrownCamera = dynamic_cast<const Pinhole_Intrinsic_Brown_T2 *>(cam);
+			const Pinhole_Intrinsic_Radial_K3 *pPinholeRadialK3Camera = dynamic_cast<const Pinhole_Intrinsic_Radial_K3 *>(cam);
+			bool isSuitableCamera = (pBrownCamera != nullptr || pPinholeRadialK3Camera != nullptr);
+			if(!isSuitableCamera && cam->have_disto())
+			{
+				// undistort the image and save it
+				openMVG::image::ReadImage(srcImage.c_str(), &image);
+				UndistortImage(image, cam, image_ud, openMVG::image::BLACK);
+				wxFFile outImageFile(destImageFN.GetFullPath(), wxT("wb"));
+				if(outImageFile.IsOpened())
+				{
+					const unsigned char * ptr = (unsigned char*)(image_ud.GetMat().data());
+					int depth = sizeof(openMVG::image::RGBColor) / sizeof(unsigned char);
+					std::vector<unsigned char> array(ptr, ptr + image_ud.Width()*image_ud.Height()*depth);
+					int w = image_ud.Width(), h = image_ud.Height();
+					openMVG::image::WriteJpgStream(outImageFile.fp(), array, w, h, depth);
+				}
+			}
+			else // (no distortion)
+			{
+				// copy the image if extension match
+				if(stlplus::extension_part(srcImage) == "JPG" ||
+					stlplus::extension_part(srcImage) == "jpg")
+				{
+					//stlplus::file_copy(srcImage, dstImage);
+					if(!wxCopyFile(wxString(srcImage.c_str(), wxConvLibc), destImageFN.GetFullPath(), false))
+						return false;
+				}
+				else
+				{
+					openMVG::image::ReadImage(srcImage.c_str(), &image);
+//					WriteImage(dstImage.c_str(), image);
+					wxFFile outImageFile(destImageFN.GetFullPath(), wxT("wb"));
+					if(outImageFile.IsOpened())
+					{
+						const unsigned char * ptr = (unsigned char*)(image.GetMat().data());
+						int depth = sizeof(openMVG::image::RGBColor) / sizeof(unsigned char);
+						std::vector<unsigned char> array(ptr, ptr + image.Width()*image.Height()*depth);
+						int w = image.Width(), h = image.Height();
+						openMVG::image::WriteJpgStream(outImageFile.fp(), array, w, h, depth);
+					}
+				}
+			}
+
+			// Create SURE ori file
+			wxFileName oriFileName(oriOutDir);
+			oriFileName.SetName(wxString(os.str().c_str(), wxConvLibc));
+			oriFileName.SetExt(wxT("ori"));
+
+			wxFFile oriFile(oriFileName.GetFullPath(), wxT("wb"));
+			if(oriFile.IsOpened())
+			{
+				const Pinhole_Intrinsic * pinhole_cam = static_cast<const Pinhole_Intrinsic *>( cam );
+				const Pinhole_Intrinsic_Brown_T2 *pBrownCamera = dynamic_cast<const Pinhole_Intrinsic_Brown_T2 *>(pinhole_cam);
+				const Pinhole_Intrinsic_Radial_K3 *pPinholeRadialK3Camera = dynamic_cast<const Pinhole_Intrinsic_Radial_K3 *>(pinhole_cam);
+				const double flen = pinhole_cam->focal();
+				const Pose3 pose = sfm_data.GetPoseOrDie( view );
+				const Mat3 rotation = pose.rotation();
+				const Vec3 center = pose.center();
+				Vec3 transl = pose.translation();
+
+				const double Cx = center[0];
+				const double Cy = center[1];
+				const double Cz = center[2];
+				Eigen::Quaterniond q( rotation );
+				const double Qx = q.x();
+				const double Qy = q.y();
+				const double Qz = q.z();
+				const double Qw = q.w();
+				const double d0 = 0.0;
+
+				const Mat34 P = iterIntrinsic->second.get()->get_projective_equivalent(iterPose->second);
+
+				Mat3 R, K;
+				Vec3 t2;
+				KRt_From_P(P, &K, &R, &t2);
+				double k1 = 0.0, k2 = 0.0; // distortion already removed
+
+				Vec3 t3 = - (R.transpose() * t2);		// in world coordinates
+				const auto &t = t3;
+				double focal = K(0, 0);
+
+				std::ostringstream os;
+				os << std::setprecision(std::numeric_limits<long double>::digits10 + 1);
+				os << "$ImageID___________________________________________________(ORI_Ver_1.0)" << std::endl
+					<< "	    " << baseimagefilename << std::endl
+					<< "$IntOri_FocalLength_________________________________________________[mm]" << std::endl
+					<< "	      " << flen << std::endl
+					<< "$IntOri_PixelSize______(x|y)________________________________________[mm]" << std::endl
+					<< 	"        0.001000	        0.001000" << std::endl					// TODO
+					<< "$IntOri_SensorSize_____(x|y)_____________________________________[pixel]" << std::endl
+					<< "	            " << view->ui_width << "	            " << view->ui_height << std::endl
+					<< "$IntOri_PrincipalPoint_(x|y)_____________________________________[pixel]" << std::endl
+					<< "	   " << K(0, 2) << "	   " << K(1, 2) << std::endl
+					<< "$IntOri_CameraMatrix_____________________________(ImageCoordinateSystem)" << std::endl
+					<< "	   " << K(0, 0) << " " << K(0, 1) << " " << K(0, 2) << " " << std::endl
+					<< "	   " << K(1, 0) << " " << K(1, 1) << " " << K(1, 2) << " " << std::endl
+					<< "	   " << K(2, 0) << " " << K(2, 1) << " " << K(2, 2) << " " << std::endl
+					<< "$ExtOri_RotationMatrix____________________(World->ImageCoordinateSystem)" << std::endl
+					<< "	   " << R(0, 0) << " " << R(0, 1) << " " << R(0, 2) << " " << std::endl
+					<< "	   " << R(1, 0) << " " << R(1, 1) << " " << R(1, 2) << " " << std::endl
+					<< "	   " << R(2, 0) << " " << R(2, 1) << " " << R(2, 2) << " " << std::endl
+					<< "$ExtOri_TranslationVector________________________(WorldCoordinateSystem)" << std::endl
+					<< "	   " << t[0] << " " << t[1] << " " << t[2] << std::endl
+					<< "$IntOri_Distortion_____(Model|ParameterCount|(Parameters))______________" << std::endl;
+
+				if(pBrownCamera != nullptr)
+				{
+					auto params = pBrownCamera->getParams();	// K1, K2, K3, T1, T2
+					os << "	    Brown5	  5" << std::endl
+						<< "	 " << params[3] << "	  " << params[4] << "	  " << params[5] << std::endl
+						<< "	  " << params[6] << "	  " << params[7] << std::endl;
+				}
+				else if(pPinholeRadialK3Camera != nullptr)
+				{
+					auto params = pPinholeRadialK3Camera->getParams();	// K1, K2, K3
+					os << "	    Brown5	  5" << std::endl
+						<< "	 " << params[3] << "	  " << params[4] << "	  " << params[5] << std::endl
+						<< "	  " << 0.0 << "	  " << 0.0 << std::endl;
+				}
+				else
+				{
+					os << "	    NONE	  0" << std::endl;
+				}
+				std::string scriptStr = os.str();
+				oriFile.Write(scriptStr.c_str(), scriptStr.length());
+				oriFile.Close();
+
+			}
+
+			++count;
+		}
+	}
+
+	return true;
+}
+
 
 #if !defined(R3D_USE_OPENMVG_PRE08)
 

@@ -1165,6 +1165,7 @@ class Regard3DPropertiesDialogBase : public wxDialog
 			ID_REGARD3DPROPERTIESDIALOG = 1000,
 			ID_POPERTIESPANEL,
 			ID_DEFAULTPROJECTPATHDIRPICKER,
+			ID_USERCAMERADBLOCATIONDIRPICKER,
 			ID_MOUSEBUTTONRADIOBOX,
 			ID_MOUSEWHEELRADIOBOX,
 		};
@@ -1181,6 +1182,7 @@ class Regard3DPropertiesDialogBase : public wxDialog
 	
 	public:
 		wxDirPickerCtrl* pDefaultProjectPathDirPicker_;
+		wxDirPickerCtrl* pUserCameraDBLocationDirPicker_;
 		wxRadioBox* pMouseButtonRadioBox_;
 		wxRadioBox* pMouseWheelRadioBox_;
 		

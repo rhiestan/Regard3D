@@ -45,6 +45,7 @@ Regard3DSettings::Regard3DSettings()
 	configCameraDBFilename_ = wxT("CameraDBFilename");
 	configExternalEXEPath_ = wxT("ExternalEXEPath");
 	configDefaultProjectPath_ = wxT("DefaultProjectPath");
+	configUserCameraDBFilename_ = wxT("UserCameraDBFilename");
 	configIsMouseButtonSwitched_ = wxT("IsMouseButtonSwitched");
 	configIsMouseWheelSwitched_ = wxT("IsMouseWheelSwitched");
 }
@@ -547,6 +548,17 @@ wxString Regard3DSettings::getDefaultProjectPath()
 	return wxEmptyString;
 }
 
+wxString Regard3DSettings::getUserCameraDBFilename()
+{
+	wxConfig config;	// AppName and VendorName are set in Regard3DApp::OnInit()
+	config.SetPath(wxT("/"));
+	wxString str;
+	if(config.Read(configUserCameraDBFilename_, &str))
+		return str;
+
+	return wxEmptyString;
+}
+
 bool Regard3DSettings::getIsMouseButtonSwitched()
 {
 	wxConfig config;	// AppName and VendorName are set in Regard3DApp::OnInit()
@@ -574,6 +586,13 @@ void Regard3DSettings::setDefaultProjectPath(const wxString &defaultProjectPath)
 	wxConfig config;	// AppName and VendorName are set in Regard3DApp::OnInit()
 	config.SetPath(wxT("/"));
 	config.Write(configDefaultProjectPath_, defaultProjectPath);
+}
+
+void Regard3DSettings::setUserCameraDBFilename(const wxString &cameraUserDBFilename)
+{
+	wxConfig config;	// AppName and VendorName are set in Regard3DApp::OnInit()
+	config.SetPath(wxT("/"));
+	config.Write(configUserCameraDBFilename_, cameraUserDBFilename);
 }
 
 void Regard3DSettings::setIsMouseButtonSwitched(bool isSwitched)

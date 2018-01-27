@@ -1,6 +1,12 @@
 Version history of Regard3D
 ===========================
 
+Version 0.9.5, 27.01.2018:
+- Path of user camera db can be set in properties
+- Fixed bug: Now Brown camera model can be used
+- New export to external MVS SURE (commercial tool by nFrames)
+
+
 Version 0.9.4, 04.01.2018:
 - Upgraded to OpenMVG 1.3
 - Added SMVS as new densification tool

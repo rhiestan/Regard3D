@@ -53,9 +53,11 @@ public:
 	wxString getCameraDBFilename();		// Defined by installation
 	wxString getExternalEXEPath();		// Defined by installation
 	wxString getDefaultProjectPath();
+	wxString getUserCameraDBFilename();
 	bool getIsMouseButtonSwitched();
 	bool getIsMouseWheelSwitched();
 	void setDefaultProjectPath(const wxString &defaultProjectPath);
+	void setUserCameraDBFilename(const wxString &cameraUserDBFilename);
 	void setIsMouseButtonSwitched(bool isSwitched);
 	void setIsMouseWheelSwitched(bool isSwitched);
 
@@ -73,6 +75,7 @@ private:
 	wxString configCameraDBFilename_;
 	wxString configExternalEXEPath_;
 	wxString configDefaultProjectPath_;
+	wxString configUserCameraDBFilename_;
 	wxString configIsMouseButtonSwitched_;
 	wxString configIsMouseWheelSwitched_;
 

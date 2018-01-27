@@ -67,6 +67,8 @@ public:
 
 	static bool exportToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
 
+	static bool exportToSure(const openMVG::sfm::SfM_Data &sfm_data, const wxString &pathname);
+
 #if !defined(R3D_USE_OPENMVG_PRE08)
 	static void ColorizeTracks(const openMVG::sfm::SfM_Data &sfm_data, std::vector<Vec3> &vec_3dPoints, std::vector<Vec3> &vec_tracksColor);
 	static void GetCameraPositions(const openMVG::sfm::SfM_Data &sfm_data, std::vector<Vec3> &vec_camPosition);

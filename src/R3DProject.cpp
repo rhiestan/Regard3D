@@ -1080,6 +1080,7 @@ bool R3DProject::writeImageListTXT(const R3DProjectPaths &paths)
 #include "openMVG/sfm/sfm_data_io.hpp"
 #include "openMVG/cameras/Camera_Pinhole.hpp"
 #include "openMVG/cameras/Camera_Pinhole_Radial.hpp"
+#include "openMVG/cameras/Camera_Pinhole_Brown.hpp"
 #include "openMVG/cameras/Camera_Pinhole_Fisheye.hpp"
 #include "openMVG/cameras/Camera_IO.hpp"
 #endif
@@ -1145,6 +1146,10 @@ bool R3DProject::writeSfmData(const R3DProjectPaths &paths, int cameraModel)
 				break;
 			case openMVG::cameras::PINHOLE_CAMERA_RADIAL3:
 				intrinsic = std::make_shared<openMVG::cameras::Pinhole_Intrinsic_Radial_K3>
+					(width, height, focal, ppx, ppy, 0.0, 0.0, 0.0);  // setup no distortion as initial guess
+				break;
+			case openMVG::cameras::PINHOLE_CAMERA_BROWN:
+				intrinsic = std::make_shared<openMVG::cameras::Pinhole_Intrinsic_Brown_T2>
 					(width, height, focal, ppx, ppy, 0.0, 0.0, 0.0);  // setup no distortion as initial guess
 				break;
 			case openMVG::cameras::PINHOLE_CAMERA_FISHEYE:

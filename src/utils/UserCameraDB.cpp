@@ -19,6 +19,7 @@
 
 #include "CommonIncludes.h"
 #include "UserCameraDB.h"
+#include "Regard3DSettings.h"
 
 // wxWidgets
 #include <wx/stdpaths.h>
@@ -42,12 +43,24 @@ UserCameraDB::~UserCameraDB()
 
 void UserCameraDB::initialize()
 {
-	wxString userLocalDataDir = wxStandardPaths::Get().GetUserLocalDataDir();
-	wxFileName userCameraDBFileName(userLocalDataDir, wxT("usercamera.db"));
-	fileName_ = userCameraDBFileName.GetFullPath();
-
-	if(!userCameraDBFileName.Exists())
+	wxString userCameraDBFileNameSet = Regard3DSettings::getInstance().getUserCameraDBFilename();
+	if(userCameraDBFileNameSet.IsEmpty())
 	{
+		wxString userLocalDataDir = wxStandardPaths::Get().GetUserLocalDataDir();
+		wxFileName userCameraDBFN(userLocalDataDir, wxT("usercamera.db"));
+		userCameraDBFileNameSet = userCameraDBFN.GetFullPath();
+		Regard3DSettings::getInstance().setUserCameraDBFilename(userCameraDBFileNameSet);
+	}
+	wxFileName userCameraDBFilename(userCameraDBFileNameSet);
+	fileName_ = userCameraDBFilename.GetFullPath();
+
+	if(!userCameraDBFilename.Exists())
+	{
+		// Make sure path exists
+		wxFileName userCameraDBPath(userCameraDBFilename.GetPath(), wxEmptyString);
+		if(!userCameraDBPath.DirExists())
+			userCameraDBPath.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+
 		// Create database file
 		sqlite3 *pDb = NULL;
 		char *errmsg;

@@ -54,6 +54,7 @@
 #include "Regard3DPropertiesDialog.h"
 #include "Regard3DUserCameraDBDialog.h"
 #include "cpuinfo.hpp"
+#include "UserCameraDB.h"
 
 // wxWidgets
 #include <wx/mstream.h>
@@ -433,6 +434,8 @@ void Regard3DMainFrame::OnMainFrameExitMenuItem( wxCommandEvent& WXUNUSED(event)
 void Regard3DMainFrame::OnPropertiesMenuItem( wxCommandEvent& event )
 {
 	wxString defaultProjectPath = Regard3DSettings::getInstance().getDefaultProjectPath();
+	wxFileName userCameraDBFN(Regard3DSettings::getInstance().getUserCameraDBFilename());
+	wxString userCameraDBPath = userCameraDBFN.GetPath();
 	if(defaultProjectPath.IsEmpty())
 #if wxCHECK_VERSION(2, 9, 0)
 		defaultProjectPath = wxStandardPaths::Get().GetAppDocumentsDir();
@@ -443,11 +446,17 @@ void Regard3DMainFrame::OnPropertiesMenuItem( wxCommandEvent& event )
 		defaultProjectPath = dpp.GetPath(wxPATH_GET_VOLUME);
 	}
 #endif
+	if(userCameraDBPath.IsEmpty())
+	{
+		wxString userLocalDataDir = wxStandardPaths::Get().GetUserLocalDataDir();
+		userCameraDBPath = userLocalDataDir;
+	}
 	int mouseButtonType = (Regard3DSettings::getInstance().getIsMouseButtonSwitched() ? 1 : 0);
 	int mouseWheelType = (Regard3DSettings::getInstance().getIsMouseWheelSwitched() ? 1 : 0);
 
 	Regard3DPropertiesDialog dlg(this);
 	dlg.pDefaultProjectPathDirPicker_->SetPath(defaultProjectPath);
+	dlg.pUserCameraDBLocationDirPicker_->SetPath(userCameraDBPath);
 	dlg.pMouseButtonRadioBox_->SetSelection(mouseButtonType);
 	dlg.pMouseWheelRadioBox_->SetSelection(mouseWheelType);
 
@@ -455,9 +464,15 @@ void Regard3DMainFrame::OnPropertiesMenuItem( wxCommandEvent& event )
 	if(retVal == wxID_OK)
 	{
 		defaultProjectPath = dlg.pDefaultProjectPathDirPicker_->GetPath();
+		wxFileName userCameraDBFNNew(dlg.pUserCameraDBLocationDirPicker_->GetPath(), wxT("usercamera.db"));
 		mouseButtonType = dlg.pMouseButtonRadioBox_->GetSelection();
 		mouseWheelType = dlg.pMouseWheelRadioBox_->GetSelection();
 		Regard3DSettings::getInstance().setDefaultProjectPath(defaultProjectPath);
+		if(!userCameraDBFN.SameAs(userCameraDBFNNew))
+		{
+			Regard3DSettings::getInstance().setUserCameraDBFilename(userCameraDBFNNew.GetFullPath());
+			UserCameraDB::getInstance().initialize();
+		}
 		bool isMouseButtonSwitched = (mouseButtonType == 1);
 		Regard3DSettings::getInstance().setIsMouseButtonSwitched( isMouseButtonSwitched );
 		pOSGGLCanvas_->setIsMouseButtonSwitched(isMouseButtonSwitched);

@@ -36,6 +36,8 @@ public:
 
 	static bool exportSurface(R3DProject::Surface *pSurface, const wxString &filename);
 
+	static void convertSurfacePLYToOBJ(const wxString &plyFilename, const wxString &objFilename);
+
 private:
 	R3DModelOperations() { }
 	virtual ~R3DModelOperations() { }

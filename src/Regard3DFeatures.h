@@ -92,10 +92,6 @@ public:
 		FeatsR3D &feats, DescsR3D &descs, double kpSizeFactorIn = 0.5);
 
 	// Old method, not used anymore
-	static void detectAndExtractVLFEAT_CoV_Daisy(const openMVG::image::Image<unsigned char> &img,
-		FeatsR3D &feats, DescsR3D &descs);
-
-	// Old method, not used anymore
 	static void detectAndExtractVLFEAT_MSER_LIOP(const openMVG::image::Image<unsigned char> &img,
 		FeatsR3D &feats, DescsR3D &descs);
 
@@ -108,10 +104,6 @@ private:
 	static void detectKeypoints(const openMVG::image::Image<float> &img,
 		std::vector< cv::KeyPoint > &vec_keypoints, const std::string &fdname,
 		const R3DFParams &params);
-
-	static void extractDaisyFeatures(const openMVG::image::Image<unsigned char> &img,
-		std::vector< cv::KeyPoint > &vec_keypoints, float kpSizeFactor,
-		FeatsR3D &feats, DescsR3D &descs);
 
 	static void extractLIOPFeatures(const openMVG::image::Image<float> &img,
 		std::vector< cv::KeyPoint > &vec_keypoints, float kpSizeFactor,

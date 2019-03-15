@@ -29,6 +29,10 @@
 
 #include <mrpt.h>
 
+#include <random>
+
+#include <mutex>
+
 // Parameters from https://github.com/ejaasaari/mrpt-comparison/blob/master/parameters/sift.sh
 // MRPT_N_TREES="1 5 10 25 50 75 100 125 150 200 250 300 350 400 500 600"
 // MRPT_DEPTH="9 10 11 12 13 14 15 16 17"
@@ -45,6 +49,10 @@ public:
 
 	static int n_trees, depth, votes;
 	static float sparsity;
+	static float targetRecall_;
+	static bool autotune_;
+	static int treesMax_;
+	std::mutex mutex_;
 
 	ArrayMatcher_mrpt()
 		: datasetMap_(nullptr)
@@ -83,15 +91,48 @@ public:
 
 	datasetMap_ = new Eigen::Map<const Eigen::MatrixXf>(const_cast<Scalar *>(dataset_), dimension_, nbRows_);
 
-	//int n_trees = 50, depth = 10;
-	//float sparsity = 0.088f;
-
 	// Make sure depth is not too big such that 2^depth < nbRows
 	int depth_l = 0;
 	depth_l = std::max(2, std::min(depth, static_cast<int>(std::floor(std::log2(nbRows))) - 1));
-	index_ = std::unique_ptr<Mrpt>(new Mrpt(datasetMap_, n_trees, depth_l, sparsity));
+	//index_ = std::unique_ptr<Mrpt>(new Mrpt(datasetMap_));
+	index_ = std::unique_ptr<Mrpt>(new Mrpt(dataset_, dimension_, nbRows_));
 
-	index_->grow();
+	if(autotune_)
+	{
+		// Autotuned index generation
+		index_->grow_autotune(targetRecall_, 2, treesMax_);
+		/*
+		const int numberOfTestQueries = 100;
+
+		Eigen::MatrixXf testQueries;
+		testQueries.setZero(dimension_, numberOfTestQueries);
+		std::default_random_engine re;
+		std::uniform_int_distribution<> dis(0, nbRows_ - 1);
+		for(int i = 0; i < numberOfTestQueries; i++)
+		{
+			int index = dis(re);
+			testQueries.col(i) = datasetMap_->col(index);
+		}
+		index_->grow(targetRecall_, testQueries, 2);
+
+		//std::vector<Mrpt_Parameters> optimalParams = index_->optimal_parameters();*/
+		Mrpt_Parameters params = index_->parameters();
+
+		std::ostringstream ostr;
+		ostr << "MRPT params n_trees: " << params.n_trees
+			<< " depth: " << params.depth
+			<< " votes: " << params.votes
+			<< " estimated_qtime: " << params.estimated_qtime << std::endl;
+
+#if defined(_MSC_VER)
+		OutputDebugStringA(ostr.str().c_str());
+#endif
+	}
+	else
+	{
+		// Normal index generation
+		index_->grow(n_trees, depth_l);
+	}
 
 	return true;
 }
@@ -113,17 +154,14 @@ public:
 		DistanceType * distance
 	) override
 	{
-		//const int votes = 10;
 		if(index_.get() != nullptr)
 		{
 			int k = 1;
 			std::vector<int> result(k);
 			const Eigen::Map<Eigen::VectorXf> queryMap(const_cast<Scalar *>(query), dimension_);
-			index_->query(queryMap, k, votes, &result[0]);
+			index_->query(queryMap, k, votes, &result[0], distance);
 
-			Metric metric;
 			indice[0] = result[0];
-			distance[0] = metric(query, dataset_ + result[0]*dimension_, dimension_);
 	  }
 	  else
 	  {
@@ -160,8 +198,6 @@ public:
 			return false;
 		}
 
-		//const int votes = 2;
-
 		if(index_.get() != nullptr)
 		{
 			pvec_indices->reserve(nbQuery * NN);
@@ -174,20 +210,37 @@ public:
 				std::vector<float> dists(NN);
 
 				const Eigen::Map<Eigen::VectorXf> queryMap(const_cast<Scalar *>(query)+i*dimension_, dimension_);
-				index_->query(queryMap, NN, votes, &knn[0]);
 
-				// Calculate the distances
-				Metric metric;
-				for(int j = 0; j < NN; j++)
-					dists[j] = metric(query+i*dimension_, dataset_ + knn[j]*dimension_, dimension_);
+				if(autotune_)
+					index_->query(queryMap, &knn[0], &(dists[0]));
+				else
+					index_->query(queryMap, NN, votes, &knn[0], &(dists[0]));
 
-				// Save the resulting found indices
+				bool isValid = true;
 				for(int j = 0; j < NN; j++)
+					if(knn[j] < 0)
+						isValid = false;
+						//throw std::runtime_error("Query returned -1");
+
+				if(!isValid && !autotune_)
 				{
-					pvec_indices->emplace_back(i, knn[j]);
-					pvec_distances->emplace_back(dists[j]);
+					// Try again
+					index_->query(queryMap, NN, votes-1, &knn[0], &(dists[0]));
+					isValid = true;
+					for(int j = 0; j < NN; j++)
+						if(knn[j] < 0)
+							isValid = false;
 				}
 
+				if(isValid)
+				{
+					// Save the resulting found indices
+					for(int j = 0; j < NN; j++)
+					{
+						pvec_indices->emplace_back(i, knn[j]);
+						pvec_distances->emplace_back(dists[j]);
+					}
+				}
 			}
 			return true;
 		}

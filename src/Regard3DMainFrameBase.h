@@ -698,7 +698,6 @@ class Regard3DTriangulationDialogBase : public wxDialog
 		
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
-		void _wxFB_OnTriangulationMethodRadioBox( wxCommandEvent& event ){ OnTriangulationMethodRadioBox( event ); }
 		void _wxFB_OnTInitialImagePairColClick( wxListEvent& event ){ OnTInitialImagePairColClick( event ); }
 		void _wxFB_OnTInitialImagePairItemDeselected( wxListEvent& event ){ OnTInitialImagePairItemDeselected( event ); }
 		void _wxFB_OnTInitialImagePairItemSelected( wxListEvent& event ){ OnTInitialImagePairItemSelected( event ); }
@@ -710,8 +709,10 @@ class Regard3DTriangulationDialogBase : public wxDialog
 		{
 			ID_REGARD3DTRIANGULATIONDIALOG = 1000,
 			ID_TRIANGULATIONPANEL,
-			ID_TRIANGULATIONMETHODRADIOBOX,
-			ID_TREFINECAMERAINTRINSICSCHECKBOX,
+			ID_TRIANGULATIONCHOICEBOOK,
+			ID_INCREMENTALSFMPANEL,
+			ID_INCRSFMINITRADIOBOX,
+			ID_INCREMENTALSFMOLDPANEL,
 			ID_TINCREMENTALMETHODBOXSIZER,
 			ID_INCREMENTALMETHODBOXSPLITTER,
 			ID_INCREMENTALMETHODBOXLEFTPANEL,
@@ -719,16 +720,19 @@ class Regard3DTriangulationDialogBase : public wxDialog
 			ID_INCREMENTALMETHODBOXRIGHTPANEL,
 			ID_PREVIEWCANVAS,
 			ID_TPREVIEWWITHMATCHESCHECKBOX,
+			ID_PGLOBALSFMPANEL_,
 			ID_TGLOBALMETHODBOXSIZER,
 			ID_TGLOBALROTAVGMETHODRATIOBOX,
 			ID_TGLOBALTRANSLAVGMETHODRADIOBOX,
+			ID_TREFINECAMERAINTRINSICSCHECKBOX,
+			ID_USEGPSCHECKBOX,
 		};
 		
 		wxPanel* pTriangulationPanel_;
-		wxRadioBox* pTriangulationMethodRadioBox_;
-		
-		wxCheckBox* pTRefineCameraIntrinsicsCheckBox_;
-		
+		wxChoicebook* pTriangulationChoicebook_;
+		wxPanel* pIncrementalSFMPanel_;
+		wxRadioBox* pIncrSFMInitRadioBox_;
+		wxPanel* pIncrementalSFMOldPanel_;
 		wxStaticBoxSizer* pTIncrementalMethodBoxSizer_;
 		wxPanel* pIncrementalMethodBoxLeftPanel_;
 		wxListCtrl* pTInitialImagePairListCtrl_;
@@ -736,16 +740,20 @@ class Regard3DTriangulationDialogBase : public wxDialog
 		PreviewCanvas *pPreviewCanvas_;
 		wxCheckBox* pTPreviewWithMatchesCheckBox_;
 		
+		wxPanel* pGlobalSFMPanel_;
 		wxStaticBoxSizer* pTGlobalMethodBoxSizer_;
 		wxRadioBox* pTGlobalRotAvgMethodRatioBox_;
 		wxRadioBox* pTGlobalTranslAvgMethodRadioBox_;
+		
+		wxCheckBox* pTRefineCameraIntrinsicsCheckBox_;
+		wxCheckBox* pUseGPSCheckBox_;
+		
 		wxStdDialogButtonSizer* m_sdbSizer4;
 		wxButton* m_sdbSizer4OK;
 		wxButton* m_sdbSizer4Cancel;
 		
 		// Virtual event handlers, overide them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
-		virtual void OnTriangulationMethodRadioBox( wxCommandEvent& event ) = 0;
 		virtual void OnTInitialImagePairColClick( wxListEvent& event ) = 0;
 		virtual void OnTInitialImagePairItemDeselected( wxListEvent& event ) = 0;
 		virtual void OnTInitialImagePairItemSelected( wxListEvent& event ) = 0;

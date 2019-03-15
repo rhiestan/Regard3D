@@ -278,7 +278,7 @@ void compute_scharr_derivative_kernelsV2(cv::OutputArray _kx, cv::OutputArray _k
 
     // The standard Scharr kernel
     if (scale == 1) {
-        getDerivKernels(_kx, _ky, dx, dy, CV_SCHARR, true, CV_32F);
+        getDerivKernels(_kx, _ky, dx, dy, 0, true, CV_32F);
         return;
     }
 

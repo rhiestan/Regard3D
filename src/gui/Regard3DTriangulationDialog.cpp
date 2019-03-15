@@ -64,6 +64,17 @@ void Regard3DTriangulationDialog::setComputeMatches(R3DProject *pProject, R3DPro
 	if(pPictureSet_ == NULL)
 		return;
 	pProject_->getProjectPathsCM(paths_, pComputeMatches);
+
+	bool enableUseGPSInfo = false;
+	int numberOfImagesWithGPSInfo = 0;
+	for(const auto &imageInfo : pPictureSet_->imageList_)
+	{
+		if(imageInfo.hasGPSInfo_)
+			numberOfImagesWithGPSInfo++;
+	}
+	if(numberOfImagesWithGPSInfo > 2)
+		enableUseGPSInfo = true;
+	pUseGPSCheckBox_->Enable(enableUseGPSInfo);
 }
 
 bool Regard3DTriangulationDialog::isTriangulationPossible()
@@ -115,14 +126,22 @@ bool Regard3DTriangulationDialog::isTriangulationPossible()
 	return (isIncrementalTriPossible || isGlobalTriPossible);
 }
 
-void Regard3DTriangulationDialog::getResults(bool &global, size_t &initialImageID1, size_t &initialImageID2,
+void Regard3DTriangulationDialog::getResults(R3DProject::R3DTriangulationAlgorithm &algorithm, size_t &initialImageID1, size_t &initialImageID2,
 	int &rotAveraging, int &transAveraging,
-	bool &refineIntrinsics)
+	bool &refineIntrinsics, bool &useGPSInfo, R3DProject::R3DTriangulationInitialization &triInitilization)
 {
-	if(pTriangulationMethodRadioBox_->GetSelection() > 0)
-		global = true;
+	if(pTriangulationChoicebook_->GetSelection() == 0)
+	{
+		algorithm = R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental2;
+	}
+	else if(pTriangulationChoicebook_->GetSelection() == 1)
+	{
+		algorithm = R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental1;
+	}
 	else
-		global = false;
+	{
+		algorithm = R3DProject::R3DTriangulationAlgorithm::R3DTA_Global;
+	}
 
 	int stateMask = wxLIST_STATE_SELECTED;
 	int imagePairCount = pTInitialImagePairListCtrl_->GetItemCount();
@@ -144,6 +163,14 @@ void Regard3DTriangulationDialog::getResults(bool &global, size_t &initialImageI
 	rotAveraging = pTGlobalRotAvgMethodRatioBox_->GetSelection() + 1;
 	transAveraging = pTGlobalTranslAvgMethodRadioBox_->GetSelection() + 1;
 	refineIntrinsics = pTRefineCameraIntrinsicsCheckBox_->GetValue();
+
+	useGPSInfo = false;
+	if(pUseGPSCheckBox_->IsEnabled())
+		useGPSInfo = pUseGPSCheckBox_->GetValue();
+
+	triInitilization = (pIncrSFMInitRadioBox_->GetSelection() == 0
+		? R3DProject::R3DTriangulationInitialization::R3DTI_MaxPair
+		: R3DProject::R3DTriangulationInitialization::R3DTI_Stellar);
 }
 
 void Regard3DTriangulationDialog::OnPreviewFinished()
@@ -169,26 +196,6 @@ void Regard3DTriangulationDialog::OnInitDialog( wxInitDialogEvent& event )
 
 	Regard3DSettings::getInstance().loadTriangulationLayoutFromConfig(this);
 	aTimer_.Start(50);
-}
-
-void Regard3DTriangulationDialog::OnTriangulationMethodRadioBox( wxCommandEvent& event )
-{
-	if(event.GetInt() == 0)
-	{
-		// Incremental method
-		pTInitialImagePairListCtrl_->Enable();
-		pTPreviewWithMatchesCheckBox_->Enable();
-		pTGlobalRotAvgMethodRatioBox_->Disable();
-		pTGlobalTranslAvgMethodRadioBox_->Disable();
-	}
-	else
-	{
-		// Global method
-		pTInitialImagePairListCtrl_->Disable();
-		pTPreviewWithMatchesCheckBox_->Disable();
-		pTGlobalRotAvgMethodRatioBox_->Enable();
-		pTGlobalTranslAvgMethodRadioBox_->Enable();
-	}
 }
 
 // returns 0 if the items are equal, negative value if the first item is less than the second one and positive value if the first one is greater than the second one 
@@ -444,14 +451,9 @@ void Regard3DTriangulationDialog::updateInitialImagePairListCtrl()
 
 void Regard3DTriangulationDialog::updateTriangulationMethodChoice()
 {
-	pTriangulationMethodRadioBox_->Enable(1, isGlobalSfmAvailable_);
-	pTriangulationMethodRadioBox_->Select(0);
-
-	// Enable controls for incremental method, disable controls for global method
-	pTInitialImagePairListCtrl_->Enable();
-	pTPreviewWithMatchesCheckBox_->Enable();
-	pTGlobalRotAvgMethodRatioBox_->Disable();
-	pTGlobalTranslAvgMethodRadioBox_->Disable();
+	if(!isGlobalSfmAvailable_)
+		pTriangulationChoicebook_->RemovePage(2);
+	pTriangulationChoicebook_->SetSelection(0);
 
 	pTriangulationPanel_->Layout();
 }

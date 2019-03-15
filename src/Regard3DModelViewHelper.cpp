@@ -391,6 +391,7 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 	// https://github.com/adasta/osgpcl
 
 	osg::ref_ptr<osg::Group> root = new osg::Group;
+	osg::BoundingSphere bound;
 
 	try
 	{
@@ -484,6 +485,7 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 		geode->addDrawable(geometry.get());
 		geode->setUpdateCallback(new PointSizeUpdater(this));
 
+		bound = geode->getBound();
 		root->addChild(geode.get());
 	}
 	catch(std::exception &e)
@@ -492,6 +494,11 @@ osg::ref_ptr<osg::Node> Regard3DModelViewHelper::loadModel(const wxString &filen
 	}
 
 	osg::Node *pRotSphereNode = createRotationSphere();
+	osg::PositionAttitudeTransform *pTrackballPos = dynamic_cast<osg::PositionAttitudeTransform *>(pRotSphereNode);
+	pTrackballPos->setPosition(bound.center());
+	osg::Vec3d scalevec(bound.radius(), bound.radius(), bound.radius());
+	pTrackballPos->setScale(scalevec);
+
 	root->addChild(pRotSphereNode);
 
 	return root;

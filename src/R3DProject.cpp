@@ -20,6 +20,7 @@
 #include "CommonIncludes.h"
 #include <boost/serialization/vector.hpp>
 #include "R3DProject.h"
+#include "utils/ExifParser.h"
 
 #include <cmath>
 #include <iostream>
@@ -109,35 +110,52 @@ bool R3DProject::loadProject(const wxString &projectFilename)
 	fileIn.Close();
 
 	std::istringstream istr(data);
-	boost::archive::xml_iarchive ia(istr);
-	try
+
+	// Workaround for corrupted XML archives, see
+	// https://github.com/boostorg/serialization/issues/82
+	// https://stackoverflow.com/questions/2205404/how-to-flush-file-buffers-when-using-boostserialization
 	{
-		ia >> boost::serialization::make_nvp("R3DProject", *this);
-	}
-	catch(boost::archive::archive_exception &WXUNUSED(e))
-	{
+		try
+		{
+			boost::archive::xml_iarchive *ia = new boost::archive::xml_iarchive(istr);
+			(*ia) >> boost::serialization::make_nvp("R3DProject", *this);
+		}
+		catch(boost::archive::archive_exception &WXUNUSED(e))
+		{
 #if defined(_DEBUG) && defined(_MSC_VER)
-		DebugBreak();
-#endif
-		return false;
-	}
-
-	wxFileName projFN(projectFilename);
-	projectPath_ = projFN.GetPath(wxPATH_GET_VOLUME);
-
-	// Change current directory of this process to project path
-	bool isCwdSuccessful = wxFileName::SetCwd(projectPath_);
-	if(!isCwdSuccessful)
-	{
-#if defined(_MSC_VER)
-		if(IsDebuggerPresent())
 			DebugBreak();
 #endif
-		return false;
-	}
+			return false;
+		}
+		try
+		{
+			// If the XML archive does not contain the closing </boost_serialization> tag, the destructor throws.
+			// This is not allowed anymore under C++11 unless the destructor is noexcept(false) (which is not the case here).
+			// This leads to a termination of the program. So we take this small memory leak to stay compatible with old versions.
+			//delete ia;
+		}
+		catch(boost::archive::archive_exception &WXUNUSED(e))
+		{
+			// Ignore
+		}
 
-	isSaved_ = true;
-	isValidProject_ = true;
+		wxFileName projFN(projectFilename);
+		projectPath_ = projFN.GetPath(wxPATH_GET_VOLUME);
+
+		// Change current directory of this process to project path
+		bool isCwdSuccessful = wxFileName::SetCwd(projectPath_);
+		if(!isCwdSuccessful)
+		{
+#if defined(_MSC_VER)
+			if(IsDebuggerPresent())
+				DebugBreak();
+#endif
+			return false;
+		}
+
+		isSaved_ = true;
+		isValidProject_ = true;
+	}
 	return true;
 }
 
@@ -147,18 +165,27 @@ bool R3DProject::save()
 		return false;
 
 	std::ostringstream ostr;
-	boost::archive::xml_oarchive oa(ostr);
 
-	try
+
+	// Additional scope is a workaround for corrupted XML archives, see
+	// https://github.com/boostorg/serialization/issues/82
+	// https://stackoverflow.com/questions/2205404/how-to-flush-file-buffers-when-using-boostserialization
 	{
-		oa << boost::serialization::make_nvp("R3DProject", *this);
-	}
-	catch(boost::archive::archive_exception &WXUNUSED(e))
-	{
+		boost::archive::xml_oarchive oa(ostr);
+
+		try
+		{
+			oa << boost::serialization::make_nvp("R3DProject", *this);
+		}
+		catch(boost::archive::archive_exception &WXUNUSED(e))
+		{
 #if defined(_DEBUG) && defined(_MSC_VER)
-		DebugBreak();
+			DebugBreak();
 #endif
-		return false;
+			return false;
+		}
+
+		ostr.flush();
 	}
 	std::string data = ostr.str();
 
@@ -432,7 +459,7 @@ int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 }
 
 int R3DProject::addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
-	bool global, int rotAveraging, int transAveraging, bool refineIntrinsics)
+	R3DTriangulationAlgorithm algorithm, int rotAveraging, int transAveraging, bool refineIntrinsics, bool useGPSInfo, R3DTriangulationInitialization triInitialization)
 {
 	if(pComputeMatches == NULL)
 		return -1;
@@ -450,11 +477,14 @@ int R3DProject::addTriangulation(R3DProject::ComputeMatches *pComputeMatches, si
 	tri.version_ = R3DTV_0_8;
 	tri.initialImageIndexA_ = initialImageIndexA;
 	tri.initialImageIndexB_ = initialImageIndexB;
-	tri.global_ = global;
+	tri.global_ = (algorithm == R3DTriangulationAlgorithm::R3DTA_Global);
+	tri.algorithm_ = algorithm;
+	tri.triInitialization_ = triInitialization;
 	tri.globalMSTBasedRot_ = false;		// Was used for previous versions
 	tri.rotAveraging_ = rotAveraging;
 	tri.transAveraging_ = transAveraging;
 	tri.refineIntrinsics_ = refineIntrinsics;
+	tri.useGPSInfo_ = useGPSInfo;
 	tri.state_ = OSInvalid;
 	pComputeMatches->triangulations_.push_back(tri);
 
@@ -1082,7 +1112,7 @@ bool R3DProject::writeImageListTXT(const R3DProjectPaths &paths)
 #include "openMVG/cameras/Camera_Pinhole_Radial.hpp"
 #include "openMVG/cameras/Camera_Pinhole_Brown.hpp"
 #include "openMVG/cameras/Camera_Pinhole_Fisheye.hpp"
-#include "openMVG/cameras/Camera_IO.hpp"
+#include "openMVG/cameras/cameras_io.hpp"
 #endif
 
 bool R3DProject::writeSfmData(const R3DProjectPaths &paths, int cameraModel)
@@ -1161,25 +1191,54 @@ bool R3DProject::writeSfmData(const R3DProjectPaths &paths, int cameraModel)
 			}
 		}
 
-		// Build the view corresponding to the image
-		openMVG::sfm::View v(imgFilenameBase, views.size(), views.size(), views.size(), width, height);
-
-		// Add intrinsic related to the image (if any)
-		if(intrinsic == NULL)
+		if(ii.hasGPSInfo_)
 		{
-			//Since the view have invalid intrinsic data
-			// (export the view, with an invalid intrinsic field value)
-			v.id_intrinsic = openMVG::UndefinedIndexT;
+			openMVG::sfm::ViewPriors v(imgFilenameBase, views.size(), views.size(), views.size(), width, height);
+
+			// Add intrinsic related to the image (if any)
+			if(intrinsic == nullptr)
+			{
+				//Since the view have invalid intrinsic data
+				// (export the view, with an invalid intrinsic field value)
+				v.id_intrinsic = openMVG::UndefinedIndexT;
+			}
+			else
+			{
+				// Add the defined intrinsic to the sfm_container
+				intrinsics[v.id_intrinsic] = intrinsic;
+			}
+
+			v.b_use_pose_center_ = true;
+			v.pose_center_ = Eigen::Vector3d(ii.ecef_[0], ii.ecef_[1], ii.ecef_[2]);
+			// prior weights
+			//if(prior_w_info.first == true)
+			//{
+			//	v.center_weight_ = prior_w_info.second;
+			//}
+
+			// Add the view to the sfm_container
+			views[v.id_view] = std::make_shared<openMVG::sfm::ViewPriors>(v);
 		}
 		else
 		{
-			// Add the intrinsic to the sfm_container
-			intrinsics[v.id_intrinsic] = intrinsic;
+			openMVG::sfm::View v(imgFilenameBase, views.size(), views.size(), views.size(), width, height);
+
+			// Add intrinsic related to the image (if any)
+			if(intrinsic == nullptr)
+			{
+				//Since the view have invalid intrinsic data
+				// (export the view, with an invalid intrinsic field value)
+				v.id_intrinsic = openMVG::UndefinedIndexT;
+			}
+			else
+			{
+				// Add the defined intrinsic to the sfm_container
+				intrinsics[v.id_intrinsic] = intrinsic;
+			}
+
+			// Add the view to the sfm_container
+			views[v.id_view] = std::make_shared<openMVG::sfm::View>(v);
 		}
-
-		// Add the view to the sfm_container
-		views[v.id_view] = std::make_shared<openMVG::sfm::View>(v);
-
 
 		iter++;
 	}
@@ -1631,6 +1690,7 @@ R3DProject::Triangulation::Triangulation()
 	: Object(), version_(R3DProject::R3DTV_0_7), initialImageIndexA_(0), initialImageIndexB_(0),
 	global_(false), globalMSTBasedRot_(false),
 	refineIntrinsics_(true), rotAveraging_(2), transAveraging_(1),
+	useGPSInfo_(false),
 	state_(R3DProject::OSInvalid)
 {
 }
@@ -1651,11 +1711,14 @@ R3DProject::Triangulation &R3DProject::Triangulation::copy(const R3DProject::Tri
 	initialImageIndexA_ = o.initialImageIndexA_;
 	initialImageIndexB_ = o.initialImageIndexB_;
 	global_ = o.global_;
+	algorithm_ = o.algorithm_;
+	triInitialization_ = o.triInitialization_;
 	state_ = o.state_;
 	globalMSTBasedRot_ = o.globalMSTBasedRot_;
 	refineIntrinsics_ = o.refineIntrinsics_;
 	rotAveraging_ = o.rotAveraging_;
 	transAveraging_ = o.transAveraging_;
+	useGPSInfo_ = o.useGPSInfo_;
 	resultCameras_ = o.resultCameras_;
 	resultNumberOfTracks_ = o.resultNumberOfTracks_;
 	resultResidualErrors_ = o.resultResidualErrors_;
@@ -1825,9 +1888,16 @@ namespace boost
 			ar & boost::serialization::make_nvp("cameraModel", i.cameraModel_);
 			ar & boost::serialization::make_nvp("focalLength", i.focalLength_);
 			ar & boost::serialization::make_nvp("sensorWidth", i.sensorWidth_);
+			if(version >= 1)
+			{
+				ar & boost::serialization::make_nvp("hasGPSInfo", i.hasGPSInfo_);
+				ar & boost::serialization::make_nvp("lla", i.lla_);
+				ar & boost::serialization::make_nvp("ecef", i.ecef_);
+			}
 		}
 	}
 }
+BOOST_CLASS_VERSION(ImageInfo, 1)
 
 // Serialize Surface class
 template<class Archive>
@@ -1920,6 +1990,23 @@ void R3DProject::Triangulation::serialize(Archive & ar, const unsigned int versi
 		ar & boost::serialization::make_nvp("rotAveraging", rotAveraging_);
 		ar & boost::serialization::make_nvp("transAveraging", transAveraging_);
 	}
+	if(version > 1)
+	{
+		ar & boost::serialization::make_nvp("algorithm", algorithm_);
+		ar & boost::serialization::make_nvp("triInitialization", triInitialization_);
+		if(version > 2)
+		{
+			ar & boost::serialization::make_nvp("useGPSInfo", useGPSInfo_);
+		}
+	}
+	else
+	{
+		if(Archive::is_loading::value)
+		{
+			algorithm_ = (global_ ? R3DTriangulationAlgorithm::R3DTA_Global : R3DTriangulationAlgorithm::R3DTA_Incremental1);
+			triInitialization_ = R3DTriangulationInitialization::R3DTI_MaxPair;
+		}
+	}
 	ar & boost::serialization::make_nvp("resultCameras", resultCameras_);
 	ar & boost::serialization::make_nvp("resultNumberOfTracks", resultNumberOfTracks_);
 	ar & boost::serialization::make_nvp("resultResidualErrors", resultResidualErrors_);
@@ -1927,7 +2014,7 @@ void R3DProject::Triangulation::serialize(Archive & ar, const unsigned int versi
 	ar & boost::serialization::make_nvp("orientation", orientation_);
 	ar & boost::serialization::make_nvp("Densifications", densifications_);
 }
-BOOST_CLASS_VERSION(R3DProject::Triangulation, 1)
+BOOST_CLASS_VERSION(R3DProject::Triangulation, 3)
 
 // Serialize ComputeMatches class
 template<class Archive>

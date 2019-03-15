@@ -41,6 +41,12 @@ ImageInfoThread::ImageInfoThread()
 	imageInfo_.cameraModel_ = wxEmptyString;
 	imageInfo_.focalLength_ = 0;
 	imageInfo_.sensorWidth_ = 0;
+	imageInfo_.hasGPSInfo_ = false;
+	for(int i = 0; i < 3; i++)
+	{
+		imageInfo_.lla_[i] = 0;
+		imageInfo_.ecef_[i] = 0;
+	}
 }
 
 ImageInfoThread::~ImageInfoThread()
@@ -112,6 +118,16 @@ bool ImageInfoThread::getNewImageInfo(wxString &iiFilename, ImageInfo &imageInfo
 	imageInfo.cameraModel_ = imageInfo_.cameraModel_;
 	imageInfo.focalLength_ = imageInfo_.focalLength_;
 	imageInfo.sensorWidth_ = imageInfo_.sensorWidth_;
+	imageInfo.hasGPSInfo_ = imageInfo_.hasGPSInfo_;
+	if(imageInfo.hasGPSInfo_)
+	{
+		for(int i = 0; i < 3; i++)
+		{
+			imageInfo.lla_[i] = imageInfo_.lla_[i];
+			imageInfo.ecef_[i] = imageInfo_.ecef_[i];
+		}
+	}
+
 	iiFilename = iiFilename_;
 	hasNewImageInfo_ = false;
 	outputCond_.Signal();
@@ -154,6 +170,12 @@ wxThread::ExitCode ImageInfoThread::Entry()
 		imageInfo.cameraModel_ = wxEmptyString;
 		imageInfo.focalLength_ = 0;
 		imageInfo.sensorWidth_ = 0;
+		imageInfo.hasGPSInfo_ = false;
+		for(int i = 0; i < 3; i++)
+		{
+			imageInfo.lla_[i] = 0;
+			imageInfo.ecef_[i] = 0;
+		}
 
 		try
 		{
@@ -189,6 +211,15 @@ wxThread::ExitCode ImageInfoThread::Entry()
 				imageInfo_.cameraModel_ = imageInfo.cameraModel_;
 				imageInfo_.focalLength_ = imageInfo.focalLength_;
 				imageInfo_.sensorWidth_ = imageInfo.sensorWidth_;
+				imageInfo_.hasGPSInfo_ = imageInfo.hasGPSInfo_;
+				if(imageInfo_.hasGPSInfo_)
+				{
+					for(int i = 0; i < 3; i++)
+					{
+						imageInfo_.lla_[i] = imageInfo.lla_[i];
+						imageInfo_.ecef_[i] = imageInfo.ecef_[i];
+					}
+				}
 				iiFilename_ = localImageInfoRequestFilename_;
 				hasNewImageInfo_ = true;
 			}
@@ -281,6 +312,15 @@ bool ImageInfoThread::createImageInfo(const wxString &localFilename, ImageInfo &
 				imageInfo.sensorWidth_ = sensorWidth;
 			}
 			
+			imageInfo.hasGPSInfo_ = exifInfo.hasGPS_;
+			if(imageInfo.hasGPSInfo_)
+			{
+				for(int i = 0; i < 3; i++)
+				{
+					imageInfo.lla_[i] = exifInfo.lla_[i];
+					imageInfo.ecef_[i] = exifInfo.ecef_[i];
+				}
+			}
 		}
 	}
 

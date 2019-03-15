@@ -101,6 +101,7 @@ void Regard3DPictureSetDialog::OnInitDialog( wxInitDialogEvent& event )
 	pImageListCtrl_->InsertColumn(3, wxT("Camera model"));
 	pImageListCtrl_->InsertColumn(4, wxT("Focal length"));
 	pImageListCtrl_->InsertColumn(5, wxT("Sensor width"));
+	pImageListCtrl_->InsertColumn(6, wxT("GPS Info"));
 
 	if(pPictureSet_ != NULL)
 	{
@@ -420,6 +421,11 @@ void Regard3DPictureSetDialog::addFileToImageList(const wxString &filename, bool
 			if(pImageInfo->sensorWidth_ > 0)
 				sensorWidthStr = wxString::Format(wxT("%.3g mm"), pImageInfo->sensorWidth_);
 			pImageListCtrl_->SetItem(newId, 5, sensorWidthStr);
+
+			wxString hasGPSInfoStr(wxT("No"));
+			if(pImageInfo->hasGPSInfo_)
+				hasGPSInfoStr = wxT("Yes");
+			pImageListCtrl_->SetItem(newId, 6, hasGPSInfoStr);
 		}
 		else
 		{
@@ -432,7 +438,7 @@ void Regard3DPictureSetDialog::addFileToImageList(const wxString &filename, bool
 		pImageListCtrl_->SetColumnWidth(3, wxLIST_AUTOSIZE);
 		pImageListCtrl_->SetColumnWidth(4, wxLIST_AUTOSIZE);
 		pImageListCtrl_->SetColumnWidth(5, wxLIST_AUTOSIZE);
-
+		pImageListCtrl_->SetColumnWidth(6, wxLIST_AUTOSIZE);
 	}
 }
 
@@ -511,6 +517,11 @@ void Regard3DPictureSetDialog::checkForNewImageInfos()
 				if(imageInfo.sensorWidth_ > 0)
 					sensorWidthStr = wxString::Format(wxT("%.3g mm"), imageInfo.sensorWidth_);
 				pImageListCtrl_->SetItem(i, 5, sensorWidthStr);
+
+				wxString hasGPSInfoStr(wxT("No"));
+				if(imageInfo.hasGPSInfo_)
+					hasGPSInfoStr = wxT("Yes");
+				pImageListCtrl_->SetItem(i, 6, hasGPSInfoStr);
 			}
 		}
 
@@ -520,6 +531,7 @@ void Regard3DPictureSetDialog::checkForNewImageInfos()
 		pImageListCtrl_->SetColumnWidth(3, wxLIST_AUTOSIZE);
 		pImageListCtrl_->SetColumnWidth(4, wxLIST_AUTOSIZE);
 		pImageListCtrl_->SetColumnWidth(5, wxLIST_AUTOSIZE);
+		pImageListCtrl_->SetColumnWidth(6, wxLIST_AUTOSIZE);
 
 		// Update entry in imageList_
 
@@ -536,6 +548,12 @@ void Regard3DPictureSetDialog::checkForNewImageInfos()
 				if(imageInfo.focalLength_ > 0)
 					ii.focalLength_ = imageInfo.focalLength_;
 				ii.sensorWidth_ = imageInfo.sensorWidth_;
+				ii.hasGPSInfo_ = imageInfo.hasGPSInfo_;
+				for(int i = 0; i < 3; i++)
+				{
+					ii.lla_[i] = imageInfo.lla_[i];
+					ii.ecef_[i] = imageInfo.ecef_[i];
+				}
 			}
 			iter++;
 		}

@@ -31,7 +31,7 @@
 
 #define _USE_EIGEN
 //#define _USE_OPENCV
-#include "openMVG/software/SfM/InterfaceMVS.h"
+#include "software/SfM/InterfaceMVS.h"
 
 //#include <opencv2/core/eigen.hpp>
 

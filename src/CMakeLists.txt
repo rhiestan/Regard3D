@@ -1,5 +1,19 @@
-cmake_minimum_required(VERSION 2.6)
-project(Regard3D)
+cmake_minimum_required(VERSION 3.10)
+project(Regard3D CXX)
+
+# Fix for Clang detection, see https://cmake.org/cmake/help/latest/policy/CMP0025.html
+cmake_policy(SET CMP0025 NEW)
+# Set options for Clang
+IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=libc++ -stdlib=libc++ -std=c++11 ${EXTRA_COMPILER_OPTIONS}" )
+	message("-std=libc++")
+ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+
+# Set options for Clang
+IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=libc++ -stdlib=libc++ -std=c++11 ${EXTRA_COMPILER_OPTIONS}" )
+	message("-std=libc++")
+ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 # Enable Unicode
 ADD_DEFINITIONS(-D_UNICODE -DUNICODE)
@@ -71,7 +85,7 @@ IF(APPLE)
 ENDIF (APPLE)
 
 # wxWidgets
-IF(WIN32)
+IF(NOT DEFINED wxWidgets_LIB_DIR AND WIN32)
 	IF(CMAKE_COMPILER_IS_GNUCC)
 		IF(${IS_64BITS} EQUAL 1)
 			SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/gcc_lib64)
@@ -80,7 +94,7 @@ IF(WIN32)
 		ENDIF(${IS_64BITS} EQUAL 1)
 	ELSE(CMAKE_COMPILER_IS_GNUCC)
 		IF(${IS_64BITS} EQUAL 1)
-			SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/vc_lib64)
+			SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/vc_x64_lib)
 		ELSE(${IS_64BITS} EQUAL 1)
 			SET(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/vc_lib)
 		ENDIF(${IS_64BITS} EQUAL 1)
@@ -180,6 +194,7 @@ ENDIF(UNIX AND NOT APPLE)
 
 # OpenCV
 SET(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${OpenCV_DIR}")
+SET(OpenCV_STATIC ON)
 FIND_PACKAGE( OpenCV REQUIRED core flann imgproc features2d calib3d highgui imgcodecs videoio ml )	# ml video legacy objdetect photo gpu videostab ts ocl superres nonfree stitching contrib
 # Workaround for OpenCV: Use Release libraries for RelWithDebInfo target
 # (found here: http://stackoverflow.com/questions/24262081/cmake-relwithdebinfo-links-to-debug-libs)
@@ -276,6 +291,16 @@ IF(R3D_USE_BLAS)
 	ENDIF(NOT BLAS_LIBS_PATH EQUAL "")
 
 ENDIF(R3D_USE_BLAS)
+IF(R3D_USE_OPENBLAS)
+	FIND_PACKAGE(OpenBLAS REQUIRED)
+	ADD_DEFINITIONS(-DEIGEN_USE_LAPACKE)
+	IF(MSVC)
+		ADD_DEFINITIONS(-Dlapack_complex_float=std::complex<float> -Dlapack_complex_double=std::complex<double>)
+	ENDIF(MSVC)
+	IF(DEFINED OpenBLAS_VERSION)
+		SET(R3D_HAVE_OpenBLAS_VERSION TRUE)
+	ENDIF(DEFINED OpenBLAS_VERSION)
+ENDIF(R3D_USE_OPENBLAS)
 
 # Ceres
 MESSAGE("-- Check for Ceres")
@@ -337,8 +362,8 @@ IF(MSVC)
 	LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 	# Use the SuiteSparseConfig.cmake file provided by the suitesparse-metis-for-windows project
-	INCLUDE(${USE_SuiteSparse})
-	INCLUDE_DIRECTORIES(${SuiteSparse_INCLUDE_DIR})
+#	INCLUDE(${USE_SuiteSparse})
+#	INCLUDE_DIRECTORIES(${SuiteSparse_INCLUDE_DIR})
 	IF(SuiteSparse_FOUND)
 		MESSAGE("-- Found SuiteSparse: ${SUITESPARSE_INCLUDE_DIRS} ${SuiteSparse_INCLUDE_DIR}")
 	ELSE(SuiteSparse_FOUND)
@@ -380,6 +405,13 @@ ELSE(MSVC)
 	#SET(SuiteSparse_LIBRARIES "")
 ENDIF(MSVC)
 
+IF(MSVC)
+# Glog
+FIND_PACKAGE(Glog REQUIRED)
+SET_TARGET_PROPERTIES(${GLOG_LIBRARIES} PROPERTIES MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
+message("GLOG_INCLUDE_DIRS = ${GLOG_INCLUDE_DIRS}")
+message("GLOG_LIBRARIES = ${GLOG_LIBRARIES}")
+ENDIF(MSVC)
 
 # AssImp
 IF(WIN32 OR APPLE)
@@ -451,21 +483,28 @@ SET(OPENMVG_EXCLUDE_PATENTED ON)
 #INCLUDE_DIRECTORIES(${OpenMVG_INCLUDE_DIRS})
 
 FIND_PACKAGE(OpenMVG REQUIRED)
-message("OPENMVG_LIBRARIES: ${OPENMVG_LIBRARIES}")
-message("OPENMVG_INCLUDE_DIRS: ${OPENMVG_INCLUDE_DIRS}")
-foreach(CURDIR ${OPENMVG_INCLUDE_DIRS})
-	IF(IS_DIRECTORY "${CURDIR}/third_party")
-		LIST(APPEND OPENMVG_INCLUDE_DIRS "${CURDIR}/third_party")
-	ENDIF()
-endforeach()
-message("OPENMVG_INCLUDE_DIRS: ${OPENMVG_INCLUDE_DIRS}")
-INCLUDE_DIRECTORIES(${OPENMVG_INCLUDE_DIRS})
+#get_property(OPENMVG_INCLUDE_DIRS TARGET OpenMVG::OpenMVG_sfm PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+#message("OPENMVG_LIBRARIES: ${OPENMVG_LIBRARIES}")
+#message("OPENMVG_INCLUDE_DIRS: ${OPENMVG_INCLUDE_DIRS}")
+#foreach(CURDIR ${OPENMVG_INCLUDE_DIRS})
+#	IF(IS_DIRECTORY "${CURDIR}/third_party")
+#		LIST(APPEND OPENMVG_INCLUDE_DIRS "${CURDIR}/third_party")
+#	ENDIF()
+#endforeach()
+#message("OPENMVG_INCLUDE_DIRS: ${OPENMVG_INCLUDE_DIRS}")
+#INCLUDE_DIRECTORIES(${OPENMVG_INCLUDE_DIRS})
+# The above doesn't work, this is an ugly workaround:
+INCLUDE_DIRECTORIES("${wxWidgets_ROOT_DIR}/include/openMVG_dependencies")
+INCLUDE_DIRECTORIES("${wxWidgets_ROOT_DIR}/include/openMVG_dependencies/cereal/include")
 
 #SET_TARGET_PROPERTIES(${OPENMVG_LIBRARIES} PROPERTIES MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
 
 IF(DEFINED OPENMVG_VERSION)
 	SET(R3D_HAVE_OPENMVG_VERSION TRUE)
 ENDIF(DEFINED OPENMVG_VERSION)
+IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+	ADD_DEFINITIONS(-DOPENMVG_STD_UNORDERED_MAP)
+ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 # VLFEAT (optional)
 SET( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" )
@@ -514,7 +553,8 @@ ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
 
 # Set options for Clang
 IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -std=c++11 ${EXTRA_COMPILER_OPTIONS}" )
+	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=libc++ -stdlib=libc++ -std=c++11 ${EXTRA_COMPILER_OPTIONS}" )
+	message("-std=libc++")
 ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 IF(MSVC)
@@ -584,8 +624,8 @@ IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 # Daisy
-ADD_SUBDIRECTORY(thirdparty/daisy)
-INCLUDE_DIRECTORIES(thirdparty/daisy/include)
+#ADD_SUBDIRECTORY(thirdparty/daisy)
+#INCLUDE_DIRECTORIES(thirdparty/daisy/include)
 
 # AKAZE
 ADD_SUBDIRECTORY(thirdparty/akaze)
@@ -617,10 +657,15 @@ INCLUDE_DIRECTORIES(thirdparty/efanna)
 # MRPT
 INCLUDE_DIRECTORIES(thirdparty/mrpt)
 
+# MRPT
+INCLUDE_DIRECTORIES(thirdparty/hnswlib/hnswlib)
+
 # CPUID
 ADD_SUBDIRECTORY(thirdparty/cpuid)
 INCLUDE_DIRECTORIES(thirdparty/cpuid/cpuid)
 
+# OpenMVG (some include files which do not get installed)
+INCLUDE_DIRECTORIES(thirdparty/OpenMVG)
 
 ## Organize source files in folders
 
@@ -687,18 +732,25 @@ IF(DEFINED OSG_PLUGINS_DIR)
 	LINK_DIRECTORIES(${OSG_PLUGINS_DIR})
 ENDIF(DEFINED OSG_PLUGINS_DIR)
 
-IF(TARGET openMVG_SfM_Global)
-	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} openMVG_SfM_Global)
-ENDIF(TARGET openMVG_SfM_Global)
-IF(TARGET openMVG_SfM_Sequential)
-	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} openMVG_SfM_Sequential)
-ENDIF(TARGET openMVG_SfM_Sequential)
-
 SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIES}
-	${Boost_LIBRARIES} daisy AKAZE fast-akaze liop kgraph sqlite ${OpenCV_LIBRARIES} ${OPENMVG_LIBRARIES}
+	${Boost_LIBRARIES} AKAZE fast-akaze liop kgraph sqlite ${OpenCV_LIBRARIES}
+	OpenMVG::openMVG_sfm OpenMVG::openMVG_stlplus OpenMVG::openMVG_fast OpenMVG::minilog
+	OpenMVG::openMVG_exif OpenMVG::openMVG_features OpenMVG::openMVG_image
+	OpenMVG::openMVG_linearProgramming OpenMVG::openMVG_lInftyComputerVision
+	OpenMVG::openMVG_geometry OpenMVG::openMVG_matching OpenMVG::openMVG_kvld
+	OpenMVG::openMVG_matching_image_collection OpenMVG::openMVG_multiview
+	OpenMVG::openMVG_numeric OpenMVG::openMVG_robust_estimation
+	OpenMVG::openMVG_system 
 	${CERES_LIBRARIES} ${GLOG_LIBRARIES} ${SuiteSparse_LIBRARIES} ${FLANN_LIBRARIES}
-	easyexif ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} ${ASSIMP_LIBRARIES} ${OPENGL_LIBRARIES}
-	optimized;minilog;debug;minilog_d tinyply cpuid)
+	${ASSIMP_LIBRARIES} ${OPENGL_LIBRARIES}
+	optimized;minilog;debug;minilog_d tinyply cpuid
+)
+IF(R3D_USE_BLAS)
+	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
+ENDIF(R3D_USE_BLAS)
+IF(R3D_USE_OPENBLAS)
+	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} OpenBLAS::OpenBLAS)
+ENDIF(R3D_USE_OPENBLAS)
 	
 IF(MKL_FOUND)
 	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${MKL_LIBRARIES} )

@@ -83,7 +83,7 @@ class Mrpt {
     */
     void grow(int n_trees_, int depth_, float density_ = -1.0, int seed = 0) {
 
-      if (!empty()) {
+      if(!empty()) {
         throw std::logic_error("The index has already been grown.");
       }
 
@@ -144,8 +144,6 @@ class Mrpt {
     * is not reached at all, then an index giving the highest recall level
     * is built. The parameters() function can be used to retrieve these optimal
     * parameter values and the estimated query time and the estimated recall.
-    * There is a version which uses a separate set of test queries (`grow`),
-    * and a version which samples a test set from the data set (`grow_autotune`).
     */
 
     /**
@@ -164,11 +162,10 @@ class Mrpt {
     * @param depth_min_ minimum depth of trees considered when searching for
     * optimal parameters; in the set
     * \f$\{1,2, \dots ,\lfloor \log_2 (n) \rfloor \}\f$; a default value -1
-    * sets this to \f$ \mathrm{max}(\lfloor \log_2 (n) \rfloor - 11, 5)\f$
+    * sets this to 5
     * @param votes_max_ maximum number of votes considered when searching for
     * optimal parameters; a default value -1 sets this to
-    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor,
-    * \mathrm{min}(10, \mathrm{trees\_max})) \f$
+    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor, 10) \f$
     * @param density expected proportion of non-zero components in the random vectors;
     * default value -1.0 sets this to \f$ 1 / \sqrt{d} \f$, where \f$ d\f$ is
     * the dimension of data
@@ -202,69 +199,25 @@ class Mrpt {
     * @param depth_min_ minimum depth of trees considered when searching for
     * optimal parameters; in the set
     * \f$\{1,2, \dots ,\lfloor \log_2 (n) \rfloor \}\f$; a default value -1
-    * sets this to \f$ \mathrm{max}(\lfloor \log_2 (n) \rfloor - 11, 5)\f$
+    * sets this to 5
     * @param votes_max_ maximum number of votes considered when searching for
     * optimal parameters; a default value -1 sets this to
-    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor,
-    * \mathrm{min}(10, \mathrm{trees\_max})) \f$
+    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor, 10) \f$
     * @param density expected proportion of non-zero components in the random vectors;
     * default value -1.0 sets this to \f$ 1 / \sqrt{d} \f$, where \f$ d\f$ is
     * the dimension of data
     * @param seed seed given to a rng when generating random vectors;
     * a default value 0 initializes the rng randomly with std::random_device
-    * @param indices_test parameter used by the version which uses no
-    * separate test set, leave empty.
     */
     void grow(double target_recall, const float *Q, int n_test, int k_, int trees_max = -1,
               int depth_max = -1, int depth_min_ = -1, int votes_max_ = -1,
-              float density = -1.0, int seed = 0, const std::vector<int> &indices_test = {}) {
+              float density = -1.0, int seed = 0) {
       if (target_recall < 0.0 - epsilon || target_recall > 1.0 + epsilon) {
         throw std::out_of_range("Target recall must be on the interval [0,1].");
       }
 
-      grow(Q, n_test, k_, trees_max, depth_max, depth_min_, votes_max_, density, seed, indices_test);
+      grow(Q, n_test, k_, trees_max, depth_max, depth_min_, votes_max_, density, seed);
       prune(target_recall);
-    }
-
-    /** Build an autotuned index sampling test queries from the training set.
-    *
-    * @param target_recall target recall level; on the range [0,1]
-    * @param n_test number of test queries
-    * @param k_ number of nearest neighbors searched for
-    * @param trees_max number of trees grown; default value -1 sets this to
-    * \f$ \mathrm{min}(\sqrt{n}, 1000)\f$, where \f$n\f$ is the number of data points.
-    * @param depth_max maximum depth of trees considered when searching for
-    * optimal parameters; in the set
-    * \f$\{1,2, \dots ,\lfloor \log_2 (n) \rfloor \}\f$, where \f$n \f$
-    * is the number of data points; default value -1 sets this to
-    * \f$ \log_2(n) - 4 \f$, where \f$n\f$ is the number of data points
-    * @param depth_min_ minimum depth of trees considered when searching for
-    * optimal parameters; in the set
-    * \f$\{1,2, \dots ,\lfloor \log_2 (n) \rfloor \}\f$; a default value -1
-    * sets this to \f$ \mathrm{max}(\lfloor \log_2 (n) \rfloor - 11, 5)\f$
-    * @param votes_max_ maximum number of votes considered when searching for
-    * optimal parameters; a default value -1 sets this to
-    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor,
-    * \mathrm{min}(10, \mathrm{trees\_max})) \f$
-    * @param density_ expected proportion of non-zero components in the random vectors;
-    * default value -1.0 sets this to \f$ 1 / \sqrt{d} \f$, where \f$ d\f$ is
-    * the dimension of data
-    * @param seed seed given to a rng when generating random vectors;
-    * a default value 0 initializes the rng randomly with std::random_device
-    * @param n_test number of test queries sampled from the training set.
-    */
-    void grow_autotune(double target_recall, int k_, int trees_max = -1, int depth_max = -1, int depth_min_ = -1,
-                       int votes_max_ = -1, float density_ = -1.0, int seed = 0, int n_test = 100) {
-      if (n_test < 1) {
-        throw std::out_of_range("Test set size must be > 0.");
-      }
-
-      n_test = n_test > n_samples ? n_samples : n_test;
-      std::vector<int> indices_test(sample_indices(n_test, seed));
-      const Eigen::MatrixXf Q(subset(indices_test));
-
-      grow(target_recall, Q.data(), Q.cols(), k_, trees_max,
-        depth_max, depth_min_, votes_max_, density_, seed, indices_test);
     }
 
     /**
@@ -290,15 +243,6 @@ class Mrpt {
       return par;
     }
 
-    /**
-     * Get whether the index has been autotuned.
-     *
-     * @return true if the index has been autotuned, false otherwise.
-    */
-    bool is_autotuned() const {
-      return index_type == autotuned;
-    }
-
     /**@}*/
 
     /** @name Autotuned index building without preset recall level
@@ -306,9 +250,7 @@ class Mrpt {
     * a target recall level, but an index generated by this function can be used
     * to subset different indices with different recall levels. This is done by
     * subset(). The function optimal_parameters() can be used to retrieve a
-    * pareto frontier of optimal parameters. There is a version which uses a
-    * separate set of test queries (`grow`), and a version which samples a
-    * test set from the data set (`grow_autotune`).
+    * pareto frontier of optimal parameters.
     */
 
     /**@{*/
@@ -328,84 +270,79 @@ class Mrpt {
     * @param depth_min_ minimum depth of trees considered when searching for
     * optimal parameters; in the set
     * \f$\{1,2, \dots ,\lfloor \log_2 (n) \rfloor \}\f$; a default value -1
-    * sets this to \f$ \mathrm{max}(\lfloor \log_2 (n) \rfloor - 11, 5)\f$
+    * sets this to 5
     * @param votes_max_ maximum number of votes considered when searching for
     * optimal parameters; a default value -1 sets this to
-    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor,
-    * \mathrm{min}(10, \mathrm{trees\_max})) \f$
+    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor, 10) \f$
     * @param density_ expected proportion of non-zero components in the random vectors;
     * default value -1.0 sets this to \f$ 1 / \sqrt{d} \f$, where \f$ d\f$ is
     * the dimension of data
     * @param seed seed given to a rng when generating random vectors;
     * a default value 0 initializes the rng randomly with std::random_device
-    * @param indices_test parameter used by the version which uses no
-    * separate test set, leave empty.
     **/
     void grow(const float *data, int n_test, int k_, int trees_max = -1, int depth_max = -1,
-              int depth_min_ = -1, int votes_max_ = -1, float density_ = -1.0, int seed = 0,
-              const std::vector<int> &indices_test = {}) {
+              int depth_min_ = -1, int votes_max_ = -1, float density_ = -1.0, int seed = 0) {
+
+      if(!empty()) {
+        throw std::logic_error("The index has already been grown.");
+      }
+      
+      if (k_ <= 0 || k_ > n_samples) {
+        throw std::out_of_range("k_ must belong to the set {1, ..., n}.");
+      }
+
+      if (trees_max < -1 || trees_max == 0) {
+        throw std::out_of_range("trees_max must be positive.");
+      }
+
+      if (depth_max < -1 || depth_max == 0 || depth_max > std::log2(n_samples)) {
+        throw std::out_of_range("depth_max must belong to the set {1, ... , log2(n)}.");
+      }
+
+      if (depth_min_ < -1 || depth_min_ == 0 || depth_min_ > depth_max) {
+        throw std::out_of_range("depth_min_ must belong to the set {1, ... , depth_max}");
+      }
+
+      if (votes_max_ < -1 || votes_max_ == 0 || votes_max_ > trees_max) {
+        throw std::out_of_range("votes_max_ must belong to the set {1, ... , trees_max}.");
+      }
+
+      if (density_ < -1.0001 || density_ > 1.0001 || (density_ > -0.9999 && density_ < -0.0001)) {
+        throw std::out_of_range("The density must be on the interval (0,1].");
+      }
 
       if (trees_max == - 1) {
         trees_max = std::min(std::sqrt(n_samples), 1000.0);
       }
 
       if (depth_min_ == -1) {
-        depth_min_ = std::max(static_cast<int>(std::log2(n_samples) - 11), 5);
+        depth_min = std::min(static_cast<int>(std::log2(n_samples)), 5);
+      } else {
+        depth_min = depth_min_;
       }
 
       if (depth_max == -1) {
-        depth_max = std::max(static_cast<int>(std::log2(n_samples) - 4), depth_min_);
+        depth_max = std::max(static_cast<int>(std::log2(n_samples) - 4), depth_min);
       }
 
       if (votes_max_ == -1) {
-        votes_max_ = std::max(trees_max / 10, std::min(trees_max, 10));
+        votes_max = std::max(trees_max / 10, std::min(trees_max, 10));
+      } else {
+        votes_max = votes_max_;
       }
 
-      if (density_ > -1.0001 && density_ < -0.9999) {
-        density_ = 1.0 / std::sqrt(dim);
+      if (density_ < 0) {
+        density = 1.0 / std::sqrt(dim);
+      } else {
+        density = density_;
       }
 
-      if (!empty()) {
-        throw std::logic_error("The index has already been grown.");
-      }
-
-      if (k_ <= 0 || k_ > n_samples) {
-        throw std::out_of_range("k_ must belong to the set {1, ..., n}.");
-      }
-
-      if (trees_max <= 0) {
-        throw std::out_of_range("trees_max must be positive.");
-      }
-
-      if (depth_max <= 0 || depth_max > std::log2(n_samples)) {
-        throw std::out_of_range("depth_max must belong to the set {1, ... , log2(n)}.");
-      }
-
-      if (depth_min_ <= 0 || depth_min_ > depth_max) {
-        throw std::out_of_range("depth_min_ must belong to the set {1, ... , depth_max}");
-      }
-
-      if (votes_max_ <= 0 || votes_max_ > trees_max) {
-        throw std::out_of_range("votes_max_ must belong to the set {1, ... , trees_max}.");
-      }
-
-      if (density_ < 0.0 || density_ > 1.0001) {
-        throw std::out_of_range("The density must be on the interval (0,1].");
-      }
-
-      if(n_samples < 101) {
-        throw std::out_of_range("Sample size must be at least 101 to autotune an index.");
-      }
-
-      depth_min = depth_min_;
-      votes_max = votes_max_;
       k = k_;
-
       const Eigen::Map<const Eigen::MatrixXf> Q(data, dim, n_test);
 
-      grow(trees_max, depth_max, density_, seed);
+      grow(trees_max, depth_max, density, seed);
       Eigen::MatrixXi exact(k, n_test);
-      compute_exact(Q, exact, indices_test);
+      compute_exact(Q, exact);
 
       std::vector<Eigen::MatrixXd> recalls(depth_max - depth_min + 1);
       cs_sizes = std::vector<Eigen::MatrixXd>(depth_max - depth_min + 1);
@@ -454,12 +391,11 @@ class Mrpt {
     * @param depth_min_ minimum depth of trees considered when searching for
     * optimal parameters on the set
     * \f$\{1,2, \dots ,\lfloor \log_2 (n) \rfloor \}\f$; a default value -1
-    * sets this to \f$ \mathrm{max}(\lfloor \log_2 (n) \rfloor - 11, 5)\f$
+    * sets this to 5
     * @param votes_max_ maximum number of votes considered when searching for
     * optimal parameters; a default value -1 sets this to
-    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor,
-    * \mathrm{min}(10, \mathrm{trees\_max})) \f$
-    * @param density_ expected proportion of non-zero components of random vectors;
+    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor, 10) \f$
+    * @param density expected proportion of non-zero components of random vectors;
     * default value -1.0 sets this to \f$ 1 / \sqrt{d} \f$, where \f$ d\f$ is
     * the dimension of data
     * @param seed seed given to a rng when generating random vectors;
@@ -475,45 +411,6 @@ class Mrpt {
         depth_max, depth_min_, votes_max_, density_, seed);
     }
 
-    /** Build an autotuned index sampling test queries from the training set
-    * and without prespecifying a recall level.
-    *
-    * @param k_ number of nearest neighbors searched for
-    * @param trees_max number of trees grown; default value -1 sets this to
-    * \f$ \mathrm{min}(\sqrt{n}, 1000)\f$, where \f$n\f$ is the number of data points.
-    * @param depth_max depth of trees grown; in the set
-    * \f$\{1,2, \dots ,\lfloor \log_2 (n) \rfloor \}\f$, where \f$n \f$
-    * is the number of data points; default value -1 sets this to
-    * \f$ \log_2(n) - 4 \f$, where \f$n\f$ is the number of data points
-    * @param depth_min_ minimum depth of trees considered when searching for
-    * optimal parameters on the set
-    * \f$\{1,2, \dots ,\lfloor \log_2 (n) \rfloor \}\f$; a default value -1
-    * sets this to \f$ \mathrm{max}(\lfloor \log_2 (n) \rfloor - 11, 5)\f$
-    * @param votes_max_ maximum number of votes considered when searching for
-    * optimal parameters; a default value -1 sets this to
-    * \f$ \mathrm{max}(\lfloor \mathrm{trees\_max} / 10 \rfloor,
-    * \mathrm{min}(10, \mathrm{trees\_max})) \f$
-    * @param density_ expected proportion of non-zero components of random vectors;
-    * default value -1.0 sets this to \f$ 1 / \sqrt{d} \f$, where \f$ d\f$ is
-    * the dimension of data
-    * @param seed seed given to a rng when generating random vectors;
-    * a default value 0 initializes the rng randomly with std::random_device
-    * @param n_test number of test queries sampled from the training set.
-    */
-    void grow_autotune(int k_, int trees_max = -1, int depth_max = -1, int depth_min_ = -1,
-                    int votes_max_ = -1, float density_ = -1.0, int seed = 0, int n_test = 100) {
-      if (n_test < 1) {
-        throw std::out_of_range("Test set size must be > 0.");
-      }
-
-      n_test = n_test > n_samples ? n_samples : n_test;
-      std::vector<int> indices_test(sample_indices(n_test, seed));
-      const Eigen::MatrixXf Q(subset(indices_test));
-
-      grow(Q.data(), Q.cols(), k_, trees_max,
-        depth_max, depth_min_, votes_max_, density_, seed, indices_test);
-    }
-
     /** Create a new index by copying trees from an autotuned index grown
     * without a prespecified recall level. The index is created so that
     * it gives a fastest query time at the recall level given as the parameter.
@@ -521,8 +418,8 @@ class Mrpt {
     * highest possible recall level.
     *
     * @param target_recall target recall level; on the range [0,1]
-    * @return an autotuned Mrpt index with a recall level at least as high as
-    * target_recall
+    * @return an autotuned Mrpt index with a recall level at least as
+    * high as target_recall
     */
     Mrpt subset(double target_recall) const {
       if (target_recall < 0.0 - epsilon || target_recall > 1.0 + epsilon) {
@@ -558,60 +455,8 @@ class Mrpt {
             dense_random_matrix.middleRows(n_tree * depth_max, index2.depth);
       }
       index2.index_type = autotuned;
-
       return index2;
     }
-
-
-    /** Create a new index by copying trees from an autotuned index grown
-    * without a prespecified recall level. The index is created so that
-    * it gives a fastest query time at the recall level given as the parameter.
-    * If this recall level is not met, then it creates an index with a
-    * highest possible recall level. This function differs from subset() only
-    * by the return value.
-    *
-    * @param target_recall target recall level; on the range [0,1]
-    * @return pointer to a dynamically allocated autotuned Mrpt index with
-    * a recall level at least as high as target_recall
-    */
-    Mrpt *subset_pointer(double target_recall) const {
-      if (target_recall < 0.0 - epsilon || target_recall > 1.0 + epsilon) {
-        throw std::out_of_range("Target recall must be on the interval [0,1].");
-      }
-
-      Mrpt *index2 = new Mrpt(X);
-      index2->par = parameters(target_recall);
-
-      int depth_max = depth;
-
-      index2->n_trees = index2->par.n_trees;
-      index2->depth = index2->par.depth;
-      index2->votes = index2->par.votes;
-      index2->n_pool = index2->depth * index2->n_trees;
-      index2->n_array = 1 << (index2->depth + 1);
-      index2->tree_leaves.assign(tree_leaves.begin(), tree_leaves.begin() + index2->n_trees);
-      index2->leaf_first_indices_all = leaf_first_indices_all;
-      index2->density = density;
-      index2->k = k;
-
-      index2->split_points = split_points.topLeftCorner(index2->n_array, index2->n_trees);
-      index2->leaf_first_indices = leaf_first_indices_all[index2->depth];
-      if (index2->density < 1) {
-        index2->sparse_random_matrix = Eigen::SparseMatrix<float, Eigen::RowMajor>(index2->n_pool, index2->dim);
-        for (int n_tree = 0; n_tree < index2->n_trees; ++n_tree)
-          index2->sparse_random_matrix.middleRows(n_tree * index2->depth, index2->depth) =
-            sparse_random_matrix.middleRows(n_tree * depth_max, index2->depth);
-      } else {
-        index2->dense_random_matrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>(index2->n_pool, index2->dim);
-        for (int n_tree = 0; n_tree < index2->n_trees; ++n_tree)
-          index2->dense_random_matrix.middleRows(n_tree * index2->depth, index2->depth) =
-            dense_random_matrix.middleRows(n_tree * depth_max, index2->depth);
-      }
-      index2->index_type = autotuned;
-
-      return index2;
-    }
-
 
     /**
     * Return the pareto frontier of optimal parameters for an index which
@@ -877,6 +722,7 @@ class Mrpt {
 
     /**
     * @param q pointer to an array containing the query point
+    * @param X pointer to an array containing the data set
     * @param k number of points searched for
     * @param out output buffer (size = k) for the indices of k nearest neighbors
     * @param out_distances optional output buffer (size = k) for the distances to k nearest neighbors
@@ -1015,9 +861,6 @@ class Mrpt {
       }
 
       fclose(fd);
-
-      k = par.k;
-      votes = par.votes;
       return true;
     }
 
@@ -1284,23 +1127,14 @@ class Mrpt {
                     [&normal_dist, &gen] { return normal_dist(gen); });
     }
 
-    void compute_exact(const Eigen::Map<const Eigen::MatrixXf> &Q, Eigen::MatrixXi &out_exact,
-                       const std::vector<int> &indices_test = {}) const {
+    void compute_exact(const Eigen::Map<const Eigen::MatrixXf> &Q, Eigen::MatrixXi &out_exact) const {
       int n_test = Q.cols();
-
       Eigen::VectorXi idx(n_samples);
       std::iota(idx.data(), idx.data() + n_samples, 0);
 
       for (int i = 0; i < n_test; ++i) {
-        if(!indices_test.empty()) {
-          std::remove(idx.data(), idx.data() + n_samples, indices_test[i]);
-        }
-        exact_knn(Eigen::Map<const Eigen::VectorXf>(Q.data() + i * dim, dim), k, idx,
-                  (indices_test.empty() ? n_samples : n_samples - 1), out_exact.data() + i * k);
+        exact_knn(Eigen::Map<const Eigen::VectorXf>(Q.data() + i * dim, dim), k, idx, n_samples, out_exact.data() + i * k);
         std::sort(out_exact.data() + i * k, out_exact.data() + i * k + k);
-        if(!indices_test.empty()) {
-          idx[n_samples - 1] = indices_test[i];
-        }
       }
     }
 
@@ -1473,7 +1307,7 @@ class Mrpt {
       std::uniform_int_distribution<int> uni2(0, n_samples - 1);
 
       std::vector<double> ex;
-      int n_sim = 20;
+      int n_sim = 100;
       for (int i = 0; i < (int) s_tested.size(); ++i) {
         double mean_exact_time = 0;
         int s_size = s_tested[i];
@@ -1716,27 +1550,6 @@ class Mrpt {
            + get_voting_time(tree, depth, v)
            + get_exact_time(tree, depth, v);
     }
-
-    std::vector<int> sample_indices(int n_test, int seed = 0) const {
-      std::random_device rd;
-      int s = seed ? seed : rd();
-      std::mt19937 gen(s);
-
-      std::vector<int> indices_data(n_samples);
-      std::iota(indices_data.begin(), indices_data.end(), 0);
-      std::shuffle(indices_data.begin(), indices_data.end(), gen);
-      return std::vector<int>(indices_data.begin(), indices_data.begin() + n_test);
-    }
-
-    Eigen::MatrixXf subset(const std::vector<int> &indices) const {
-      int n_test = indices.size();
-      Eigen::MatrixXf Q = Eigen::MatrixXf(dim, n_test);
-      for(int i = 0; i < n_test; ++i)
-        Q.col(i) = X.col(indices[i]);
-
-      return Q;
-    }
-
 
     const Eigen::Map<const Eigen::MatrixXf> X; // the data matrix
     Eigen::MatrixXf split_points; // all split points in all trees

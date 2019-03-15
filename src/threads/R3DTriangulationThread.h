@@ -41,11 +41,11 @@ public:
 
 	void setMainFrame(Regard3DMainFrame *pMainFrame);
 
-	void setParameters(bool global,
+	void setParameters(R3DProject::R3DTriangulationAlgorithm algorithm,
 		int initialPairA, int initialPairB,
 		int rotAveraging, int transAveraging,
-		bool refineIntrinsics);
-//		bool globalMSTBasedRot);
+		bool refineIntrinsics, bool useGPSInfo,
+		R3DProject::R3DTriangulationInitialization triInitialization);
 	void setTriangulation(R3DProject *pProject, R3DProject::Triangulation *pTriangulation);
 	R3DProject::Triangulation *getTriangulation() const { return pTriangulation_; }
 
@@ -74,11 +74,12 @@ protected:
 private:
 	Regard3DMainFrame *pMainFrame_;
 
-	bool global_;
+	R3DProject::R3DTriangulationAlgorithm algorithm_;
 	int initialPairA_, initialPairB_;
 	int rotAveraging_, transAveraging_;
 	bool refineIntrinsics_;
-//	bool globalMSTBasedRot_;
+	bool useGPSInfo_;
+	R3DProject::R3DTriangulationInitialization triInitialization_;
 
 	R3DProject *pProject_;
 	R3DProject::Triangulation *pTriangulation_;

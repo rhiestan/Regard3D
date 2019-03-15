@@ -27,6 +27,7 @@
 #include "minilog/minilog.h"
 
 #include "utils/matcher_kgraph.h"
+#include "utils/matcher_hnsw.h"
 #include "openMVG/matching/regions_matcher.hpp"
 
 #include <boost/chrono.hpp>
@@ -412,14 +413,96 @@ template< typename Scalar, typename Metric >
 int ArrayMatcher_mrpt<Scalar, Metric>::votes;
 template< typename Scalar, typename Metric >
 float ArrayMatcher_mrpt<Scalar, Metric>::sparsity;
-
+template< typename Scalar, typename Metric >
+float ArrayMatcher_mrpt<Scalar, Metric>::targetRecall_;
+template< typename Scalar, typename Metric >
+bool ArrayMatcher_mrpt<Scalar, Metric>::autotune_;
+template< typename Scalar, typename Metric >
+int ArrayMatcher_mrpt<Scalar, Metric>::treesMax_;
 
 void mrpt_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
 	Pair_Set pairs, PairWiseMatches &map_PutativesMatches, float fDistRatio, int matchingAlgorithm)
 {
 	const int K = 2;
 
-	kgraph::verbosity = 0;
+	// Sort pairs according the first index to minimize the MatcherT build operations
+	using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
+	Map_vectorT map_Pairs;
+	for(Pair_Set::const_iterator iter = pairs.begin(); iter != pairs.end(); ++iter)
+	{
+		map_Pairs[iter->first].push_back(iter->second);
+	}
+
+	// Perform matching between all the pairs
+	for(Map_vectorT::const_iterator iter = map_Pairs.begin();
+		iter != map_Pairs.end(); ++iter)
+	{
+		const IndexT I = iter->first;
+		const auto & indexToCompare = iter->second;
+
+		std::shared_ptr<features::Regions> regionsI = regions_provider->get(I);
+		if(regionsI->RegionCount() == 0)
+		{
+			continue;
+		}
+		
+		// Initialize the matching interface
+		using MatcherT = ArrayMatcher_mrpt<float>;
+		typedef openMVG::matching::RegionsMatcherT<MatcherT> R3DRegionsMatcher;
+
+		MatcherT::n_trees = 26;	//32;
+		MatcherT::depth = 6;	//7;
+		MatcherT::votes = 5;	//3;
+		MatcherT::sparsity = 0.088;
+
+		MatcherT::autotune_ = false;
+		MatcherT::targetRecall_ = 0.8;
+		MatcherT::treesMax_ = 35;
+
+		std::unique_ptr<R3DRegionsMatcher> matcher(new R3DRegionsMatcher(*regionsI.get(), false));
+
+
+#pragma omp parallel for schedule(dynamic)
+		for(int j = 0; j < (int)indexToCompare.size(); ++j)
+		{
+			const IndexT J = indexToCompare[j];
+
+			std::shared_ptr<features::Regions> regionsJ = regions_provider->get(J);
+			if(regionsJ->RegionCount() == 0
+				|| regionsI->Type_id() != regionsJ->Type_id())
+			{
+				continue;
+			}
+
+			IndMatches vec_putatives_matches;
+			//matcher->Match(fDistRatio, *regionsJ.get(), vec_putatives_matches);
+			matcher->MatchDistanceRatio(fDistRatio, *regionsJ.get(), vec_putatives_matches);
+
+#pragma omp critical
+			{
+				if(!vec_putatives_matches.empty())
+				{
+					map_PutativesMatches.insert({ {I,J}, std::move(vec_putatives_matches) });
+				}
+			}
+		}
+	}
+
+}
+
+
+// Static variables
+template< typename Scalar, typename Metric >
+int ArrayMatcher_hnsw<Scalar, Metric>::efConstruction_;//{40};
+template< typename Scalar, typename Metric >
+int ArrayMatcher_hnsw<Scalar, Metric>::ef_;
+template< typename Scalar, typename Metric >
+int ArrayMatcher_hnsw<Scalar, Metric>::M_;//{16};
+
+void hnsw_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
+	Pair_Set pairs, PairWiseMatches &map_PutativesMatches, float fDistRatio, int matchingAlgorithm)
+{
+	const int K = 2;
 
 	// Sort pairs according the first index to minimize the MatcherT build operations
 	using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
@@ -446,13 +529,42 @@ void mrpt_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provid
 		//using MetricT = L2<double>;
 		using MetricT = L2<float>;
 //		using MetricT = R3D_L2<float>;
-		using MatcherT = ArrayMatcher_mrpt<float, MetricT>;
-		typedef openMVG::matching::RegionsMatcherT<MatcherT> R3DRegionsMatcher;
+		using MatcherT = ArrayMatcher_hnsw<float, MetricT>;
+		if(matchingAlgorithm == 0)
+		{
+			// Fast
+			//MatcherT::efConstruction_ = 21;
+			//MatcherT::M_ = 5;
 
-		MatcherT::n_trees = 26;
-		MatcherT::depth = 6;
-		MatcherT::votes = 5;
-		MatcherT::sparsity = 0.088;
+			// New: 112 5 5 efconstruction ef M
+			MatcherT::efConstruction_ = 112;
+			MatcherT::ef_ = 5;
+			MatcherT::M_ = 5;
+		}
+		else if(matchingAlgorithm == 1)
+		{
+			// Medium 35
+			//MatcherT::efConstruction_ = 22;
+			//MatcherT::M_ = 8;
+
+			// New: 112 10 15 efconstruction ef M
+			MatcherT::efConstruction_ = 112;
+			MatcherT::ef_ = 10;
+			MatcherT::M_ = 15;
+		}
+		else
+		{
+			// Precise 294
+			//MatcherT::efConstruction_ = 33;
+			//MatcherT::M_ = 25;
+
+			// New: 112 5 10 efconstruction ef M
+			MatcherT::efConstruction_ = 100;
+			MatcherT::ef_ = 15;
+			MatcherT::M_ = 19;
+		}
+
+		typedef openMVG::matching::RegionsMatcherT<MatcherT> R3DRegionsMatcher;
 
 		std::unique_ptr<R3DRegionsMatcher> matcher(new R3DRegionsMatcher(*regionsI.get(), true));
 
@@ -470,7 +582,7 @@ void mrpt_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provid
 			}
 
 			IndMatches vec_putatives_matches;
-			matcher->Match(fDistRatio, *regionsJ.get(), vec_putatives_matches);
+			matcher->MatchDistanceRatio(fDistRatio, *regionsJ.get(), vec_putatives_matches);
 
 #pragma omp critical
 			{
@@ -483,6 +595,7 @@ void mrpt_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provid
 	}
 
 }
+
 #if 0
 void efanna_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
 	Pair_Set pairs, PairWiseMatches &map_PutativesMatches, float fDistRatio, int matchingAlgorithm)
@@ -576,10 +689,7 @@ void mrpt_match_withparams(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Reg
 		}
 		
 		// Initialize the matching interface
-		//using MetricT = L2<double>;
-		using MetricT = L2<float>;
-//		using MetricT = R3D_L2<float>;
-		using MatcherT = ArrayMatcher_mrpt<float, MetricT>;
+		using MatcherT = ArrayMatcher_mrpt<float>;
 
 		MatcherT::n_trees = n_trees;
 		MatcherT::depth = depth;
@@ -604,7 +714,7 @@ void mrpt_match_withparams(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Reg
 			}
 
 			IndMatches vec_putatives_matches;
-			matcher->Match(fDistRatio, *regionsJ.get(), vec_putatives_matches);
+			matcher->MatchDistanceRatio(fDistRatio, *regionsJ.get(), vec_putatives_matches);
 
 #pragma omp critical
 			{
@@ -617,6 +727,77 @@ void mrpt_match_withparams(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Reg
 	}
 
 }
+
+void hnsw_match_withparams(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
+	Pair_Set pairs, PairWiseMatches &map_PutativesMatches, float fDistRatio, int matchingAlgorithm,
+	int efConstruction, int M)
+{
+	const int K = 2;
+
+	// Sort pairs according the first index to minimize the MatcherT build operations
+	using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
+	Map_vectorT map_Pairs;
+	for(Pair_Set::const_iterator iter = pairs.begin(); iter != pairs.end(); ++iter)
+	{
+		map_Pairs[iter->first].push_back(iter->second);
+	}
+
+	// Perform matching between all the pairs
+	for(Map_vectorT::const_iterator iter = map_Pairs.begin();
+		iter != map_Pairs.end(); ++iter)
+	{
+		const IndexT I = iter->first;
+		const auto & indexToCompare = iter->second;
+
+		std::shared_ptr<features::Regions> regionsI = regions_provider->get(I);
+		if(regionsI->RegionCount() == 0)
+		{
+			continue;
+		}
+		
+		// Initialize the matching interface
+		//using MetricT = L2<double>;
+		using MetricT = L2<float>;
+//		using MetricT = R3D_L2<float>;
+		using MatcherT = ArrayMatcher_hnsw<float, MetricT>;
+
+
+		MatcherT::efConstruction_ = efConstruction;
+		MatcherT::M_ = M;
+
+		typedef openMVG::matching::RegionsMatcherT<MatcherT> R3DRegionsMatcher;
+
+		std::unique_ptr<R3DRegionsMatcher> matcher(new R3DRegionsMatcher(*regionsI.get(), true));
+
+
+#pragma omp parallel for schedule(dynamic)
+		for(int j = 0; j < (int)indexToCompare.size(); ++j)
+		{
+			const IndexT J = indexToCompare[j];
+
+			std::shared_ptr<features::Regions> regionsJ = regions_provider->get(J);
+			if(regionsJ->RegionCount() == 0
+				|| regionsI->Type_id() != regionsJ->Type_id())
+			{
+				continue;
+			}
+
+			IndMatches vec_putatives_matches;
+			matcher->MatchDistanceRatio(fDistRatio, *regionsJ.get(), vec_putatives_matches);
+
+#pragma omp critical
+			{
+				if(!vec_putatives_matches.empty())
+				{
+					map_PutativesMatches.insert({ {I,J}, std::move(vec_putatives_matches) });
+				}
+			}
+		}
+	}
+
+}
+
+
 
 // Static variables
 template< typename Scalar, typename Metric >
@@ -706,7 +887,7 @@ void kgraph_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Prov
 			}
 
 			IndMatches vec_putatives_matches;
-			matcher->Match(fDistRatio, *regionsJ.get(), vec_putatives_matches);
+			matcher->MatchDistanceRatio(fDistRatio, *regionsJ.get(), vec_putatives_matches);
 
 #pragma omp critical
 			{
@@ -774,7 +955,7 @@ void kgraph_match_withparams(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<R
 			}
 
 			IndMatches vec_putatives_matches;
-			matcher->Match(fDistRatio, *regionsJ.get(), vec_putatives_matches);
+			matcher->MatchDistanceRatio(fDistRatio, *regionsJ.get(), vec_putatives_matches);
 
 #pragma omp critical
 			{
@@ -947,6 +1128,72 @@ void performParamsOptimizationMRPT(openMVG::sfm::SfM_Data &sfm_data, std::shared
 		{
 			depth = j;
 			singleRunMRPT(sfm_data, regions_provider, pairs, fDistRatio, sMatchesDirectory, n_trees, depth, votes, sparsity);
+		}
+	}
+}
+
+void singleRunHNSW(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
+	Pair_Set pairs, float fDistRatio, const std::string &sMatchesDirectory,
+	int efConstruction, int M)
+{
+	PairWiseMatches map_PutativesMatches;
+
+	boost::chrono::high_resolution_clock::time_point t1 = boost::chrono::high_resolution_clock::now();
+
+	hnsw_match_withparams(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, 0,
+		efConstruction, M);
+
+	boost::chrono::duration<double, boost::milli> diff = boost::chrono::high_resolution_clock::now() - t1;
+
+	Save(map_PutativesMatches, std::string(sMatchesDirectory + "/matches.putative.txt"));
+
+
+	PairWiseMatches map_GeometricMatches;
+
+	const double maxResidualError = 4.0;	// Orig: 4 (higher is more relaxed, e.g. 5.5)
+	ImageCollectionGeometricFilter collectionGeomFilter(&sfm_data, regions_provider);
+	int imax_iteration = 2048;
+	bool bGuided_matching = false;
+
+	map_GeometricMatches.clear();
+	collectionGeomFilter.Robust_model_estimation(GeometricFilter_FMatrix_AC(4.0, imax_iteration),
+		map_PutativesMatches, bGuided_matching);
+	map_GeometricMatches = collectionGeomFilter.Get_geometric_matches();
+
+	Save(map_GeometricMatches, std::string(sMatchesDirectory + "/matches.f.txt"));
+
+
+	// Find best matches
+	std::vector< size_t > vec_NbMatchesPerPair_p = getNumberOfMatches(sfm_data, std::string(sMatchesDirectory + "/matches.putative.txt"));
+	std::vector< size_t > vec_NbMatchesPerPair_f = getNumberOfMatches(sfm_data, std::string(sMatchesDirectory + "/matches.f.txt"));
+
+	std::ostringstream ostr;
+	ostr << "HNSW params efConstruction: " << efConstruction
+		<< " M: " << M
+		<< " time: " << diff << " ms, ";
+	if(vec_NbMatchesPerPair_p.size() > 1)
+		ostr << " P: " << vec_NbMatchesPerPair_p[0] << ", " << vec_NbMatchesPerPair_p[1];
+	if(vec_NbMatchesPerPair_p.size() > 1)
+		ostr << " F: " << vec_NbMatchesPerPair_f[0] << ", " << vec_NbMatchesPerPair_f[1];
+	ostr << std::endl;
+
+#if defined(_MSC_VER)
+	OutputDebugStringA(ostr.str().c_str());
+#endif
+}
+
+void performParamsOptimizationHNSW(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
+	Pair_Set pairs, float fDistRatio, const std::string &sMatchesDirectory)
+{
+	int efConstruction;
+	int M;
+	for(int i = 0; i < 100; i++)
+	{
+		efConstruction = static_cast<int>(std::round(100.0 * std::pow(20.0, static_cast<double>(i) / 100.0)));		// Values between 100 and 2000
+		for(int j = 0; j < 20; j++)
+		{
+			M = 5 + static_cast<int>(static_cast<double>(j)*static_cast<double>(efConstruction - 6)/20.0);			// Values between 5 and efConstruction-1
+			singleRunHNSW(sfm_data, regions_provider, pairs, fDistRatio, sMatchesDirectory, efConstruction, M);
 		}
 	}
 }
@@ -1776,6 +2023,14 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
 		}
 	}*/
 
+	/*{
+		if(regions_provider->load(sfm_data, sMatchesDirectory, regions_type))
+		{
+			Pair_Set pairs = exhaustivePairs(sfm_data.GetViews().size());
+			performParamsOptimizationHNSW(sfm_data, regions_provider, pairs, fDistRatio, sMatchesDirectory);
+		}
+	}*/
+
 	
 	std::unique_ptr<Matcher_Regions> collectionMatcher;
 	if(matchingAlgorithm == 0)
@@ -1790,16 +2045,20 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
 		if(matchingAlgorithm == 0
 			|| matchingAlgorithm == 4)
 		{
-			collectionMatcher->Match(sfm_data, regions_provider, pairs, map_PutativesMatches);
+			collectionMatcher->Match(regions_provider, pairs, map_PutativesMatches);
 		}
 		else if(matchingAlgorithm > 0 && matchingAlgorithm < 4)
 		{
 			kgraph_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm-1);
 		}
-		else
+		else if(matchingAlgorithm == 5)
 		{
 			mrpt_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm-5);
 			//efanna_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm);
+		}
+		else if(matchingAlgorithm >= 6 && matchingAlgorithm <= 8)
+		{
+			hnsw_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm-6);
 		}
 
 		if (!Save(map_PutativesMatches, std::string(sMatchesDirectory + "/matches.putative.txt")))

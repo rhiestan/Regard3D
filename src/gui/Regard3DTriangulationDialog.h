@@ -35,9 +35,9 @@ public:
 
 	bool isTriangulationPossible();
 
-	void getResults(bool &global, size_t &initialImageID1, size_t &initialImageID2,
+	void getResults(R3DProject::R3DTriangulationAlgorithm &algorithm, size_t &initialImageID1, size_t &initialImageID2,
 		int &rotAveraging, int &transAveraging,
-		bool &refineIntrinsics);
+		bool &refineIntrinsics, bool &useGPSInfo, R3DProject::R3DTriangulationInitialization &triInitilization);
 
 	virtual void OnPreviewFinished();
 	virtual void OnNewImageInfos();
@@ -46,7 +46,6 @@ public:
 
 protected:
 	virtual void OnInitDialog( wxInitDialogEvent& event );
-	virtual void OnTriangulationMethodRadioBox( wxCommandEvent& event );
 	virtual void OnTInitialImagePairColClick( wxListEvent& event );
 	virtual void OnTInitialImagePairItemDeselected( wxListEvent& event );
 	virtual void OnTInitialImagePairItemSelected( wxListEvent& event );

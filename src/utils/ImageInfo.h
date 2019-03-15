@@ -34,6 +34,9 @@ public:
 	int imageWidth_, imageHeight_;
 	wxString cameraMaker_, cameraModel_;
 	double focalLength_, sensorWidth_;
+	bool hasGPSInfo_;
+	double lla_[3];			// Longitude, latitude and altitude in WGS84
+	double ecef_[3];		// Earth centered, earth fixed
 };
 
 typedef std::vector<ImageInfo> ImageInfoVector;

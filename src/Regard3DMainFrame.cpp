@@ -2079,6 +2079,12 @@ void Regard3DMainFrame::updateProjectDetails()
 					matchingAlgorithmString = wxT("Brute Force");
 				else if(pComputeMatches->matchingAlgorithm_ == 5)
 					matchingAlgorithmString = wxT("MRPT");
+				else if(pComputeMatches->matchingAlgorithm_ == 6)
+					matchingAlgorithmString = wxT("HNSW - Fast");
+				else if(pComputeMatches->matchingAlgorithm_ == 7)
+					matchingAlgorithmString = wxT("HNSW - Medium");
+				else if(pComputeMatches->matchingAlgorithm_ == 8)
+					matchingAlgorithmString = wxT("HNSW - Precise");
 
 				if(!pComputeMatches->featureDetector_.IsEmpty())
 					params = wxString::Format(wxT("Detector(s): %s/Threshold: %3g/Dist ratio: %3g/Camera model: "),
@@ -2145,7 +2151,7 @@ void Regard3DMainFrame::updateProjectDetails()
 				}
 				else if(pTriangulation->version_ == R3DProject::R3DTV_0_8)
 				{
-					if(pTriangulation->global_)
+					if(pTriangulation->algorithm_ == R3DProject::R3DTriangulationAlgorithm::R3DTA_Global)
 					{
 						params = wxString(wxT("Global ("));
 						if(pTriangulation->rotAveraging_ == 1)
@@ -2159,9 +2165,19 @@ void Regard3DMainFrame::updateProjectDetails()
 						else
 							params.Append(wxT("SoftL1 translation averaging)"));
 					}
+					else if(pTriangulation->algorithm_ == R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental2)
+					{
+						params = wxString::Format(wxT("New Incremental, "));
+						if(pTriangulation->triInitialization_ == R3DProject::R3DTriangulationInitialization::R3DTI_MaxPair)
+							params.Append(wxT("MaxPair initilization"));
+						else if(pTriangulation->triInitialization_ == R3DProject::R3DTriangulationInitialization::R3DTI_Stellar)
+							params.Append(wxT("stellar initilization"));
+						else if(pTriangulation->triInitialization_ == R3DProject::R3DTriangulationInitialization::R3DTI_Auto)
+							params.Append(wxT("auto initilization"));
+					}
 					else
 					{
-						params = wxString::Format(wxT("Incremental, initial pair %d/%d"), pTriangulation->initialImageIndexA_,
+						params = wxString::Format(wxT("Old Incremental, initial pair %d/%d"), pTriangulation->initialImageIndexA_,
 							pTriangulation->initialImageIndexB_);
 					}
 					if(pTriangulation->refineIntrinsics_)
@@ -2500,10 +2516,12 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 	if(retVal == wxID_OK)
 	{
-		bool useGlobalAlgorithm = false, refineIntrinsics = true;
+		R3DProject::R3DTriangulationAlgorithm algorithm;
+		bool refineIntrinsics = true, useGPSInfo = false;
 		size_t initialPairA = 0, initialPairB = 0;
 		int rotAveraging = 2, transAveraging = 1;
-		dlg.getResults(useGlobalAlgorithm, initialPairA, initialPairB, rotAveraging, transAveraging, refineIntrinsics);
+		R3DProject::R3DTriangulationInitialization triInitilization;
+		dlg.getResults(algorithm, initialPairA, initialPairB, rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization);
 
 		if(pR3DTriangulationThread_ != NULL)
 			delete pR3DTriangulationThread_;
@@ -2513,7 +2531,7 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 		R3DProject::Triangulation *pTriangulation = NULL;
 		int newID = project_.addTriangulation(pComputeMatches, initialPairA, initialPairB,
-			useGlobalAlgorithm, rotAveraging, transAveraging, refineIntrinsics);
+			algorithm, rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization);
 		if(newID >= 0)
 		{
 			project_.populateTreeControl(pProjectTreeCtrl_);
@@ -2537,8 +2555,8 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 		pR3DTriangulationThread_ = new R3DTriangulationThread();
 		pR3DTriangulationThread_->setMainFrame(this);
-		pR3DTriangulationThread_->setParameters(useGlobalAlgorithm, initialPairA, initialPairB,
-			rotAveraging, transAveraging, refineIntrinsics);
+		pR3DTriangulationThread_->setParameters(algorithm, initialPairA, initialPairB,
+			rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization);
 		pR3DTriangulationThread_->setTriangulation(&project_, pTriangulation);
 		pR3DTriangulationThread_->startTriangulationThread();
 	}
@@ -3008,6 +3026,12 @@ void Regard3DMainFrame::restoreOrientation()
 							pTrackballManip->setTransformation(eye, rot);
 						}
 
+					}
+					else
+					{
+						osgGA::CameraManipulator *pManip = viewer_->getCameraManipulator();
+						pManip->computeHomePosition(viewer_->getCamera());
+						viewer_->home();
 					}
 				}
 			}

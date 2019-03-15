@@ -1017,7 +1017,7 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	wxStaticBoxSizer* sbSizer221;
 	sbSizer221 = new wxStaticBoxSizer( new wxStaticBox( pComputeMatchesDialogPanel_, wxID_ANY, wxT("Matching algorithm") ), wxVERTICAL );
 	
-	wxString pMatchingAlgorithmChoice_Choices[] = { wxT("FLANN"), wxT("KGraph - Fast"), wxT("KGraph - Medium"), wxT("KGraph - Precise"), wxT("Brute Force"), wxT("MRPT") };
+	wxString pMatchingAlgorithmChoice_Choices[] = { wxT("FLANN"), wxT("KGraph - Fast"), wxT("KGraph - Medium"), wxT("KGraph - Precise"), wxT("Brute Force"), wxT("MRPT"), wxT("HNSW - Fast"), wxT("HNSW - Medium"), wxT("HNSW - Precise") };
 	int pMatchingAlgorithmChoice_NChoices = sizeof( pMatchingAlgorithmChoice_Choices ) / sizeof( wxString );
 	pMatchingAlgorithmChoice_ = new wxChoice( pComputeMatchesDialogPanel_, ID_MATCHINGALGORITHMCHOICE, wxDefaultPosition, wxDefaultSize, pMatchingAlgorithmChoice_NChoices, pMatchingAlgorithmChoice_Choices, 0 );
 	pMatchingAlgorithmChoice_->SetSelection( 0 );
@@ -1066,7 +1066,6 @@ Regard3DComputeMatchesDialogBase::~Regard3DComputeMatchesDialogBase()
 
 BEGIN_EVENT_TABLE( Regard3DTriangulationDialogBase, wxDialog )
 	EVT_INIT_DIALOG( Regard3DTriangulationDialogBase::_wxFB_OnInitDialog )
-	EVT_RADIOBOX( ID_TRIANGULATIONMETHODRADIOBOX, Regard3DTriangulationDialogBase::_wxFB_OnTriangulationMethodRadioBox )
 	EVT_LIST_COL_CLICK( ID_TINITIALIMAGEPAIRLISTCTRL, Regard3DTriangulationDialogBase::_wxFB_OnTInitialImagePairColClick )
 	EVT_LIST_ITEM_DESELECTED( ID_TINITIALIMAGEPAIRLISTCTRL, Regard3DTriangulationDialogBase::_wxFB_OnTInitialImagePairItemDeselected )
 	EVT_LIST_ITEM_SELECTED( ID_TINITIALIMAGEPAIRLISTCTRL, Regard3DTriangulationDialogBase::_wxFB_OnTInitialImagePairItemSelected )
@@ -1088,34 +1087,30 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	sbSizer4 = new wxStaticBoxSizer( new wxStaticBox( pTriangulationPanel_, wxID_ANY, wxT("Triangulation parameters") ), wxVERTICAL );
 	
 	wxBoxSizer* bSizer55;
-	bSizer55 = new wxBoxSizer( wxHORIZONTAL );
+	bSizer55 = new wxBoxSizer( wxVERTICAL );
 	
-	wxString pTriangulationMethodRadioBox_Choices[] = { wxT("Incremental Structure from Motion"), wxT("Global Structure from Motion") };
-	int pTriangulationMethodRadioBox_NChoices = sizeof( pTriangulationMethodRadioBox_Choices ) / sizeof( wxString );
-	pTriangulationMethodRadioBox_ = new wxRadioBox( pTriangulationPanel_, ID_TRIANGULATIONMETHODRADIOBOX, wxT("Method"), wxDefaultPosition, wxDefaultSize, pTriangulationMethodRadioBox_NChoices, pTriangulationMethodRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
-	pTriangulationMethodRadioBox_->SetSelection( 0 );
-	bSizer55->Add( pTriangulationMethodRadioBox_, 0, wxALL, 3 );
+	pTriangulationChoicebook_ = new wxChoicebook( pTriangulationPanel_, ID_TRIANGULATIONCHOICEBOOK, wxDefaultPosition, wxDefaultSize, wxCHB_DEFAULT );
+	pIncrementalSFMPanel_ = new wxPanel( pTriangulationChoicebook_, ID_INCREMENTALSFMPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bSizer61;
+	bSizer61 = new wxBoxSizer( wxVERTICAL );
 	
-	wxBoxSizer* bSizer60;
-	bSizer60 = new wxBoxSizer( wxVERTICAL );
+	wxString pIncrSFMInitRadioBox_Choices[] = { wxT("Use image pair with highest matches"), wxT("Stellar initialization") };
+	int pIncrSFMInitRadioBox_NChoices = sizeof( pIncrSFMInitRadioBox_Choices ) / sizeof( wxString );
+	pIncrSFMInitRadioBox_ = new wxRadioBox( pIncrementalSFMPanel_, ID_INCRSFMINITRADIOBOX, wxT("Scene initializer"), wxDefaultPosition, wxDefaultSize, pIncrSFMInitRadioBox_NChoices, pIncrSFMInitRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
+	pIncrSFMInitRadioBox_->SetSelection( 0 );
+	bSizer61->Add( pIncrSFMInitRadioBox_, 0, wxALL, 5 );
 	
+	pIncrementalSFMPanel_->SetSizer( bSizer61 );
+	pIncrementalSFMPanel_->Layout();
+	bSizer61->Fit( pIncrementalSFMPanel_ );
+	pTriangulationChoicebook_->AddPage( pIncrementalSFMPanel_, wxT("Incremental Structure from Motion"), false );
+	pIncrementalSFMOldPanel_ = new wxPanel( pTriangulationChoicebook_, ID_INCREMENTALSFMOLDPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bSizer62;
+	bSizer62 = new wxBoxSizer( wxVERTICAL );
 	
-	bSizer60->Add( 0, 0, 1, wxEXPAND, 5 );
+	pTIncrementalMethodBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pIncrementalSFMOldPanel_, ID_TINCREMENTALMETHODBOXSIZER, wxT("Initial image pair for incremental method") ), wxVERTICAL );
 	
-	pTRefineCameraIntrinsicsCheckBox_ = new wxCheckBox( pTriangulationPanel_, ID_TREFINECAMERAINTRINSICSCHECKBOX, wxT("Refine camera intrinsics"), wxDefaultPosition, wxDefaultSize, 0 );
-	pTRefineCameraIntrinsicsCheckBox_->SetValue(true); 
-	bSizer60->Add( pTRefineCameraIntrinsicsCheckBox_, 0, wxALL, 3 );
-	
-	
-	bSizer60->Add( 0, 0, 1, wxEXPAND, 5 );
-	
-	bSizer55->Add( bSizer60, 0, wxEXPAND, 5 );
-	
-	sbSizer4->Add( bSizer55, 0, wxEXPAND, 5 );
-	
-	pTIncrementalMethodBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pTriangulationPanel_, ID_TINCREMENTALMETHODBOXSIZER, wxT("Initial image pair for incremental method") ), wxVERTICAL );
-	
-	pIncrementalMethodBoxSplitter_ = new wxSplitterWindow( pTriangulationPanel_, ID_INCREMENTALMETHODBOXSPLITTER, wxDefaultPosition, wxDefaultSize, wxSP_3D );
+	pIncrementalMethodBoxSplitter_ = new wxSplitterWindow( pIncrementalSFMOldPanel_, ID_INCREMENTALMETHODBOXSPLITTER, wxDefaultPosition, wxDefaultSize, wxSP_3D );
 	pIncrementalMethodBoxSplitter_->Connect( wxEVT_IDLE, wxIdleEventHandler( Regard3DTriangulationDialogBase::pIncrementalMethodBoxSplitter_OnIdle ), NULL, this );
 	
 	pIncrementalMethodBoxLeftPanel_ = new wxPanel( pIncrementalMethodBoxSplitter_, ID_INCREMENTALMETHODBOXLEFTPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
@@ -1156,23 +1151,57 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	pIncrementalMethodBoxSplitter_->SplitVertically( pIncrementalMethodBoxLeftPanel_, pIncrementalMethodBoxRightPanel_, 0 );
 	pTIncrementalMethodBoxSizer_->Add( pIncrementalMethodBoxSplitter_, 1, wxEXPAND, 5 );
 	
-	sbSizer4->Add( pTIncrementalMethodBoxSizer_, 1, wxALL|wxEXPAND, 3 );
+	bSizer62->Add( pTIncrementalMethodBoxSizer_, 1, wxALL|wxEXPAND, 3 );
 	
-	pTGlobalMethodBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pTriangulationPanel_, ID_TGLOBALMETHODBOXSIZER, wxT("Global method parameters") ), wxHORIZONTAL );
+	pIncrementalSFMOldPanel_->SetSizer( bSizer62 );
+	pIncrementalSFMOldPanel_->Layout();
+	bSizer62->Fit( pIncrementalSFMOldPanel_ );
+	pTriangulationChoicebook_->AddPage( pIncrementalSFMOldPanel_, wxT("Old Incremental Structure from Motion"), false );
+	pGlobalSFMPanel_ = new wxPanel( pTriangulationChoicebook_, ID_PGLOBALSFMPANEL_, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bSizer63;
+	bSizer63 = new wxBoxSizer( wxVERTICAL );
+	
+	pTGlobalMethodBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pGlobalSFMPanel_, ID_TGLOBALMETHODBOXSIZER, wxT("Global method parameters") ), wxHORIZONTAL );
 	
 	wxString pTGlobalRotAvgMethodRatioBox_Choices[] = { wxT(" L1 rotation averaging (Chatterjee)"), wxT("L2 rotation averaging (Martinec)") };
 	int pTGlobalRotAvgMethodRatioBox_NChoices = sizeof( pTGlobalRotAvgMethodRatioBox_Choices ) / sizeof( wxString );
-	pTGlobalRotAvgMethodRatioBox_ = new wxRadioBox( pTriangulationPanel_, ID_TGLOBALROTAVGMETHODRATIOBOX, wxT("Rotation averaging method"), wxDefaultPosition, wxDefaultSize, pTGlobalRotAvgMethodRatioBox_NChoices, pTGlobalRotAvgMethodRatioBox_Choices, 1, wxRA_SPECIFY_COLS );
+	pTGlobalRotAvgMethodRatioBox_ = new wxRadioBox( pGlobalSFMPanel_, ID_TGLOBALROTAVGMETHODRATIOBOX, wxT("Rotation averaging method"), wxDefaultPosition, wxDefaultSize, pTGlobalRotAvgMethodRatioBox_NChoices, pTGlobalRotAvgMethodRatioBox_Choices, 1, wxRA_SPECIFY_COLS );
 	pTGlobalRotAvgMethodRatioBox_->SetSelection( 1 );
 	pTGlobalMethodBoxSizer_->Add( pTGlobalRotAvgMethodRatioBox_, 0, wxALL, 3 );
 	
 	wxString pTGlobalTranslAvgMethodRadioBox_Choices[] = { wxT("L1 minimization"), wxT("L2 minimization of sum of squared Chordal distances"), wxT("SoftL1 minimization") };
 	int pTGlobalTranslAvgMethodRadioBox_NChoices = sizeof( pTGlobalTranslAvgMethodRadioBox_Choices ) / sizeof( wxString );
-	pTGlobalTranslAvgMethodRadioBox_ = new wxRadioBox( pTriangulationPanel_, ID_TGLOBALTRANSLAVGMETHODRADIOBOX, wxT("Translation averaging method"), wxDefaultPosition, wxDefaultSize, pTGlobalTranslAvgMethodRadioBox_NChoices, pTGlobalTranslAvgMethodRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
+	pTGlobalTranslAvgMethodRadioBox_ = new wxRadioBox( pGlobalSFMPanel_, ID_TGLOBALTRANSLAVGMETHODRADIOBOX, wxT("Translation averaging method"), wxDefaultPosition, wxDefaultSize, pTGlobalTranslAvgMethodRadioBox_NChoices, pTGlobalTranslAvgMethodRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
 	pTGlobalTranslAvgMethodRadioBox_->SetSelection( 2 );
 	pTGlobalMethodBoxSizer_->Add( pTGlobalTranslAvgMethodRadioBox_, 0, wxALL, 3 );
 	
-	sbSizer4->Add( pTGlobalMethodBoxSizer_, 0, wxALL|wxEXPAND, 3 );
+	bSizer63->Add( pTGlobalMethodBoxSizer_, 0, wxALL|wxEXPAND, 3 );
+	
+	pGlobalSFMPanel_->SetSizer( bSizer63 );
+	pGlobalSFMPanel_->Layout();
+	bSizer63->Fit( pGlobalSFMPanel_ );
+	pTriangulationChoicebook_->AddPage( pGlobalSFMPanel_, wxT("Global Structure from Motion"), false );
+	bSizer55->Add( pTriangulationChoicebook_, 1, wxEXPAND | wxALL, 3 );
+	
+	wxBoxSizer* bSizer60;
+	bSizer60 = new wxBoxSizer( wxVERTICAL );
+	
+	
+	bSizer60->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	pTRefineCameraIntrinsicsCheckBox_ = new wxCheckBox( pTriangulationPanel_, ID_TREFINECAMERAINTRINSICSCHECKBOX, wxT("Refine camera intrinsics"), wxDefaultPosition, wxDefaultSize, 0 );
+	pTRefineCameraIntrinsicsCheckBox_->SetValue(true); 
+	bSizer60->Add( pTRefineCameraIntrinsicsCheckBox_, 0, wxALL, 3 );
+	
+	pUseGPSCheckBox_ = new wxCheckBox( pTriangulationPanel_, ID_USEGPSCHECKBOX, wxT("Use GPS Information to initialize triangulation"), wxDefaultPosition, wxDefaultSize, 0 );
+	bSizer60->Add( pUseGPSCheckBox_, 0, wxALL, 3 );
+	
+	
+	bSizer60->Add( 0, 0, 1, wxEXPAND, 5 );
+	
+	bSizer55->Add( bSizer60, 0, wxALL|wxEXPAND, 5 );
+	
+	sbSizer4->Add( bSizer55, 0, wxEXPAND, 5 );
 	
 	bSizer39->Add( sbSizer4, 1, wxALL|wxEXPAND, 3 );
 	

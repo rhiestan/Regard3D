@@ -23,8 +23,14 @@
 ImageInfo::ImageInfo()
 	:	isImported_(false),
 	imageWidth_(0), imageHeight_(0),
-	focalLength_(0), sensorWidth_(0)
+	focalLength_(0), sensorWidth_(0),
+	hasGPSInfo_(false)
 {
+	for(int i = 0; i < 3; i++)
+	{
+		lla_[i] = 0;
+		ecef_[i] = 0;
+	}
 }
 
 ImageInfo::ImageInfo(const ImageInfo &o)
@@ -47,6 +53,12 @@ ImageInfo &ImageInfo::copy(const ImageInfo &o)
 	cameraModel_ = o.cameraModel_;
 	focalLength_ = o.focalLength_;
 	sensorWidth_ = o.sensorWidth_;
+	hasGPSInfo_ = o.hasGPSInfo_;
+	for(int i = 0; i < 3; i++)
+	{
+		lla_[i] = o.lla_[i];
+		ecef_[i] = o.ecef_[i];
+	}
 
 	return *this;
 }

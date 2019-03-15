@@ -98,11 +98,10 @@ Section "Main program" Section_Main
 
 	; Put files there
 	File ..\..\build_msvc64_2015\Regard3D.exe
-	File ..\..\openblas_files\libgcc_s_seh-1.dll
-	File ..\..\openblas_files\libgfortran-3.dll
-	File ..\..\openblas_files\libopenblas.dll
-	File ..\..\openblas_files\libquadmath-0.dll
-	File ..\..\openblas_files\libwinpthread-1.dll
+	File ..\..\openblas_files\flang.dll
+	File ..\..\openblas_files\flangrti.dll
+	File ..\..\openblas_files\libomp.dll
+	File ..\..\openblas_files\openblas.dll
 	WriteUninstaller "$INSTDIR\Uninstall.exe"
 
 	SetOutPath $INSTDIR\poisson
@@ -129,7 +128,7 @@ Section "Main program" Section_Main
   	!insertmacro MUI_STARTMENU_WRITE_END
 
 	; Write uninstall routine and some additional info into registry
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Regard3D" "DisplayName" "EncFS MP"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Regard3D" "DisplayName" "Regard3D"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Regard3D" "UninstallString" '"$INSTDIR\Uninstall.exe"'
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Regard3D" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Regard3D" "InstallLocation" "$\"$INSTDIR$\""
@@ -191,6 +190,10 @@ Section "Uninstall" Uninstall
 	Delete "$INSTDIR\libopenblas.dll"
 	Delete "$INSTDIR\libquadmath-0.dll"
 	Delete "$INSTDIR\libwinpthread-1.dll"
+	Delete "$INSTDIR\flang.dll"
+	Delete "$INSTDIR\flangrti.dll"
+	Delete "$INSTDIR\libomp.dll"
+	Delete "$INSTDIR\openblas.dll"
 	Delete "$INSTDIR\Regard3D.exe"
 	RMDir "$INSTDIR"
 

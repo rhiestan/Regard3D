@@ -18,6 +18,12 @@ The Regard3D source code is released under the [MIT license](http://opensource.o
 Version history
 ---------------
 
+### Version 1.0.0, 14.03.2019:
+- Upgraded to OpenMVG 1.4
+- Upgraded to OpenCV 4.0
+- Added new Incremental pipeline of OpenMVG
+- GPS information can be used now
+
 ### Version 0.9.4, 04.01.2018:
 - Upgraded to OpenMVG 1.3
 - Added SMVS as new densification tool

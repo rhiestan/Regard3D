@@ -56,9 +56,6 @@ extern "C" {
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/features2d.hpp"
 
-// Daisy
-#include "daisy/daisy.h"
-
 // AKAZE
 #include "AKAZE.h"
 
@@ -201,8 +198,6 @@ std::vector<std::string> Regard3DFeatures::getKeypointDetectors()
 std::vector<std::string> Regard3DFeatures::getFeatureExtractors()
 {
 	std::vector<std::string> ret;
-	// DAISY is not enabled, because Daisy descriptors have a different size
-//	ret.push_back( std::string( "DAISY" ) );
 	ret.push_back( std::string( "LIOP" ) );
 
 	return ret;
@@ -261,121 +256,6 @@ void Regard3DFeatures::detectAndExtract_NLOPT(const openMVG::image::Image<unsign
 //	detectKeypoints(img, vec_keypoints, keypointDetector, params);
 
 //	extractLIOPFeatures(img, vec_keypoints, kpSizeFactorIn, feats, descs);
-}
-
-/**
- * Detect keypoints using VLFEAT covariant feature detectors, create daisy descriptors.
- */
-void Regard3DFeatures::detectAndExtractVLFEAT_CoV_Daisy(const openMVG::image::Image<unsigned char> &img,
-	Regard3DFeatures::FeatsR3D &feats, Regard3DFeatures::DescsR3D &descs)
-{
-#if defined(R3D_HAVE_VLFEAT)
-	// Convert image float
-	openMVG::image::Image<float> imgFloat( img.GetMat().cast<float>() );
-	int w = img.Width(), h = img.Height();
-
-	int octaveResolution = 2;
-	double peakThreshold = 0.01;	// Default values: for DoG 0.01, Harris 0.000002, Hessian 0.003
-	double edgeThreshold = 10.0;	// Default values: for all variants 10
-	double boundaryMargin = 2.0;
-	int patchResolution = 20;
-	double patchRelativeExtent = 4.0;
-	double patchRelativeSmoothing = 1.2;	//0.5;
-	bool doubleImage = false;
-	double smoothBeforeDetection = 0;	//1.0;
-
-	// VL_COVDET_METHOD_DOG
-	// VL_COVDET_METHOD_MULTISCALE_HARRIS
-	// VL_COVDET_METHOD_MULTISCALE_HESSIAN (didn't find a good value for peakThreshold, always returns lots of features)
-	VlCovDet * covdet = vl_covdet_new(VL_COVDET_METHOD_DOG);
-
-	vl_covdet_set_first_octave(covdet, doubleImage ? -1 : 0);
-	vl_covdet_set_octave_resolution(covdet, octaveResolution);
-	vl_covdet_set_peak_threshold(covdet, peakThreshold);
-	vl_covdet_set_edge_threshold(covdet, edgeThreshold);
-
-	// Smooth image
-	if(smoothBeforeDetection > 0)
-		vl_imsmooth_f(imgFloat.data(), w, imgFloat.data(), w, h, w,
-			smoothBeforeDetection, smoothBeforeDetection);
-
-	// process the image and run the detector
-	vl_covdet_put_image(covdet, imgFloat.data(), w, h);
-	vl_covdet_detect(covdet);
-
-	// drop features on the margin
-	vl_covdet_drop_features_outside(covdet, boundaryMargin);
-
-	// compute the affine shape of the features
-//	vl_covdet_extract_affine_shape(covdet);
-
-	// compute the orientation of the features
-	vl_covdet_extract_orientations(covdet);
-
-	// get feature frames back
-	vl_size numFeatures = vl_covdet_get_num_features(covdet) ;
-	VlCovDetFeature const *feature = reinterpret_cast<VlCovDetFeature const *>(vl_covdet_get_features(covdet));
-
-
-	// get normalized feature appearance patches
-	vl_size patchSize = 2*patchResolution + 1;
-	std::vector<float> patch(patchSize * patchSize);
-
-	// Prepare Daisy descriptor
-	daisy* pDaisyDescr = new daisy();
-	pDaisyDescr->verbose( 0 );
-	double rad = 15.0;
-	int radq = 3, thq = 8, histq = 8;
-	pDaisyDescr->set_parameters(rad, radq, thq, histq); // we use 15,3,8,8 for wide baseline stereo.
-//	pDaisyDescr->initialize_single_descriptor_mode();
-
-	int dimension = pDaisyDescr->descriptor_size();
-	std::vector<float> desc(dimension);
-	DescriptorR3D descriptor;
-
-	for (int i = 0 ; i < numFeatures ; i++)
-	{
-		// This is very slow, as for each keypoint the patch needs to be extracted and
-		// the daisy descriptor calculated.
-		daisy daisyDescr;
-		daisyDescr.verbose( 0 );
-		daisyDescr.set_parameters(rad, radq, thq, histq);
-		vl_covdet_extract_patch_for_frame(covdet,
-			&(patch[0]),
-			patchResolution,
-			patchRelativeExtent,
-			patchRelativeSmoothing,
-			feature[i].frame);
-
-		daisyDescr.set_image(&(patch[0]), patchSize, patchSize);
-		daisyDescr.initialize_single_descriptor_mode();
-		int dimension2 = daisyDescr.descriptor_size();
-
-		// Calculate Daisy descriptor
-		double x = static_cast<double>(patchSize)/2.0;	//feature[i].frame.x;
-		double y = static_cast<double>(patchSize)/2.0;	//feature[i].frame.y;
-		int orientation = 0;
-		double scale = 1.0;
-		daisyDescr.get_descriptor(y, x, orientation,  &(desc[0]));
-
-		// Convert to OpenMVG keypoint and descriptor
-		openMVG::features::SIOPointFeature fp;
-		fp.x() = feature[i].frame.x;
-		fp.y() = feature[i].frame.y;
-		fp.scale() = static_cast<float>(scale);
-		fp.orientation() = 0.0f;		// TODO
-
-		for(int j = 0; j < dimension; j++)
-			descriptor[j] = desc[j];
-		descs.push_back(descriptor);
-		feats.push_back(fp);
-
-	}
-
-	// Clean up
-	delete pDaisyDescr;
-	vl_covdet_delete(covdet);
-#endif
 }
 
 /**
@@ -703,47 +583,9 @@ void Regard3DFeatures::detectKeypoints(const openMVG::image::Image<float> &img,
 		cv::Mat cvimg;
 		cv::eigen2cv(img.GetMat(), cvimg);
 
-//		cv::Mat img_32;
-//		cvimg.convertTo(img_32, CV_32F, 1.0/255.0, 0); // Convert to float, value range 0..1
-
-		AKAZEOptions options;
-		options.omin = 0;
-		options.verbosity = false;
-
-		options.dthreshold = params.threshold_;	// default: 0.001
-		options.img_width = img.Width();
-		options.img_height = img.Height();
-
-		// Extract AKAZE features
-		libAKAZE::AKAZE evolution(options);
-		evolution.Create_Nonlinear_Scale_Space(cvimg);			//(img_32);
-		evolution.Feature_Detection(vec_keypoints);
-
-#if defined(R3D_USE_TBB_THREADING)
-		tbb::parallel_for(tbb::blocked_range<size_t>(0, vec_keypoints.size()),
-			[=, &vec_keypoints](const tbb::blocked_range<size_t>& r)				// Use lambda notation
-		{
-			for(size_t i = r.begin(); i != r.end(); ++i)
-#else
-#ifdef R3D_HAVE_OPENMP
-		//omp_set_num_threads(OMP_MAX_THREADS);
-#pragma omp parallel for
-#endif
-		for(int i = 0; i < static_cast<int>(vec_keypoints.size()); i++)
-#endif
-		{
-			evolution.Compute_Main_Orientation(vec_keypoints[i]);
-			// Convert from radians to degrees
-			(vec_keypoints[i].angle) *= 180.0 / CV_PI;
-			vec_keypoints[i].angle += 90.0f;
-			while(vec_keypoints[i].angle < 0)
-				vec_keypoints[i].angle += 360.0f;
-			while(vec_keypoints[i].angle > 360.0f)
-				vec_keypoints[i].angle -= 360.0f;
-		}
-#if defined(R3D_USE_TBB_THREADING)
-	} );
-#endif
+		cv::Ptr<cv::FeatureDetector> akazeDetector(cv::AKAZE::create(cv::AKAZE::DESCRIPTOR_MLDB,
+			0, 3, params.threshold_, 4, 4, cv::KAZE::DIFF_PM_G2));
+		akazeDetector->detect(cvimg, vec_keypoints);
 	}
 	else if(fdname == std::string("Fast-AKAZE"))
 	{
@@ -872,79 +714,6 @@ float Regard3DFeatures::getKpSizeFactor(const std::string &fdname)
 		retVal = 1.0f;
 
 	return retVal;
-}
-
-void Regard3DFeatures::extractDaisyFeatures(const openMVG::image::Image<unsigned char> &img, 
-	std::vector< cv::KeyPoint > &vec_keypoints, float kpSizeFactor,
-	FeatsR3D &feats, DescsR3D &descs)
-{
-	// Prepare Daisy descriptor
-	std::auto_ptr<daisy> pDaisyDescr(new daisy());
-	pDaisyDescr->verbose( 0 );
-	pDaisyDescr->set_image(img.data(), img.Height(), img.Width());
-	double rad = 15.0;
-	int radq = 3, thq = 8, histq = 8;
-	pDaisyDescr->set_parameters(rad, radq, thq, histq); // Quote Daisy doc: "We use 15,3,8,8 for wide baseline stereo"
-	pDaisyDescr->initialize_single_descriptor_mode();
-
-	int dimension = pDaisyDescr->descriptor_size();
-	assert(dimension == DescriptorR3D::static_size);	// Must be equal to the size of DescriptorR3D
-/*
-	{
-		cv::Mat cvimg, outimg;
-		cv::eigen2cv(img.GetMat(), cvimg);
-
-		std::ostringstream ostr;
-		ostr << "F:/Projects/libs/openMVG/run/matches/kp_" << wxThread::GetCurrentId() << ".png";
-		cv::drawKeypoints(cvimg, vec_keypoints, outimg, cv::Scalar(1.0, 0, 0, 1.0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-		cv::imwrite(ostr.str(), outimg);
-	}
-*/
-	std::vector<float> desc(dimension);
-	std::vector<double> H(9);
-	DescriptorR3D descriptor;
-
-	for(std::vector< cv::KeyPoint >::const_iterator i_keypoint = vec_keypoints.begin();
-		i_keypoint != vec_keypoints.end(); ++i_keypoint)
-	{
-		const cv::KeyPoint &kp = *(i_keypoint);
-		double x = kp.pt.x;
-		double y = kp.pt.y;
-		int orientation = static_cast<int>(kp.angle + 0.5f);	//180.0 * kp.angle / CV_PI + 0.5f);//static_cast<int>(kpSizeFactor*kp.angle + 0.5f);
-		if(orientation < 0)	// Value -1 means "not valid"
-			orientation = 0;
-		if(orientation > 359)
-			orientation = 0;
-/*
-		char buf[1024];
-		sprintf_s(buf, 1024, "%g", kp.angle);
-		OutputDebugStringA(buf);
-*/
-		double keypointSize = kp.size * 0.25;	//kpSizeFactor;
-		for(int i = 0; i < 9; i++)
-			H[i] = 0;
-		H[0] = keypointSize;
-		H[4] = keypointSize;
-		H[8] = 1.0;
-		H[2] = (1.0 - keypointSize) * x;
-		H[5] = (1.0 - keypointSize) * y;
-		bool extractOK = pDaisyDescr->get_descriptor(y, x, orientation, &(H[0]), &(desc[0]));
-
-		if(extractOK)
-		{
-			// Convert to OpenMVG keypoint and descriptor
-			openMVG::features::SIOPointFeature fp;
-			fp.x() = kp.pt.x;
-			fp.y() = kp.pt.y;
-			fp.scale() = kp.size/2.0f;		// kp.size is diameter, convert to radius
-			fp.orientation() = kp.angle;
-
-			for(int j = 0; j < dimension; j++)
-				descriptor[j] = desc[j];
-			descs.push_back(descriptor);
-			feats.push_back(fp);
-		}
-	}
 }
 
 void Regard3DFeatures::extractLIOPFeatures(const openMVG::image::Image<float> &img, 

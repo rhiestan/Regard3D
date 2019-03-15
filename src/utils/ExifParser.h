@@ -20,6 +20,8 @@
 #ifndef EXIFPARSER_H
 #define EXIFPARSER_H
 
+#include <Eigen/Core>
+
 class ExifParser
 {
 public:
@@ -29,8 +31,13 @@ public:
 		int width_, height_;
 		wxString cameraMaker_, cameraModel_;
 		double focalLength_;
+		bool hasGPS_;
+		double lla_[3];
+		double ecef_[3];
 	};
 	static bool extractExifInfo(const wxString &filename, EPExifInfo &exifInfo);
+
+	static std::pair<bool, Eigen::Vector3d> checkGPS(const wxString &filename, int GPS_to_XYZ_method = 0);
 
 private:
 	ExifParser() { }

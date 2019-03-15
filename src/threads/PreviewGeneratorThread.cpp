@@ -290,7 +290,7 @@ bool PreviewGeneratorThread::createPreview(wxImage &localPreviewImage, PreviewIn
 
 				// Add keypoints to image
 				cv::Mat img_outcv;
-				int flags = cv::DrawMatchesFlags::DEFAULT;
+				cv::DrawMatchesFlags flags = cv::DrawMatchesFlags::DEFAULT;
 				if(previewInfo.keypointType_ == PreviewInfo::PIKPTRichKeypoints)
 					flags = cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS;
 				cv::drawKeypoints(img_cv, vec_keypoints, img_outcv, cv::Scalar::all(-1), flags);
@@ -400,7 +400,7 @@ bool PreviewGeneratorThread::createPreview(wxImage &localPreviewImage, PreviewIn
                 OpenCVHelper::convertWxImageToCVMat(image2, img2);
 
                 cv::Mat outimg;
-				int flags = cv::DrawMatchesFlags::DEFAULT;
+				cv::DrawMatchesFlags flags = cv::DrawMatchesFlags::DEFAULT;
 				if(previewInfo.keypointType_ == PreviewInfo::PIKPTRichKeypoints)
 					flags = cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS;
 				if(!previewInfo.showSingleKeypoints_)

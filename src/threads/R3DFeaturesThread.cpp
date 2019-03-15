@@ -182,7 +182,7 @@ void R3DFeaturesThread::processWorkItem(wxString &workItem)
 
 			// Convert to gray
 			cv::Mat cvimg_gray;
-			cv::cvtColor(cvimg_float, cvimg_gray, CV_BGR2GRAY);
+			cv::cvtColor(cvimg_float, cvimg_gray, cv::COLOR_BGR2GRAY);
 			cvimg_float.release();		// Dispose of memory
 			type = cvimg_gray.type();
 			channels = cvimg_gray.channels();

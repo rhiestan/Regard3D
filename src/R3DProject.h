@@ -221,9 +221,22 @@ public:
 	enum R3DTriangulationVersion
 	{
 		R3DTV_0_7 = 0,		// openMVG 0.7
-		R3DTV_0_8,			// openMVG 0.8.x
+		R3DTV_0_8,			// openMVG 0.8.x or newer
 		R3DTV_Illegal
 	};
+	enum R3DTriangulationAlgorithm
+	{
+		R3DTA_Incremental1 = 0,
+		R3DTA_Incremental2,
+		R3DTA_Global
+	};
+	enum R3DTriangulationInitialization
+	{
+		R3DTI_MaxPair = 0,
+		R3DTI_Stellar,
+		R3DTI_Auto			// For the future
+	};
+
 	/**
 	 * Defines a triangulation step.
 	 */
@@ -244,9 +257,12 @@ public:
 
 		R3DTriangulationVersion version_;
 		size_t initialImageIndexA_, initialImageIndexB_;
+		R3DTriangulationAlgorithm algorithm_;
+		R3DTriangulationInitialization triInitialization_;
 		bool global_, globalMSTBasedRot_;
 		bool refineIntrinsics_;
 		int rotAveraging_, transAveraging_;
+		bool useGPSInfo_;
 		R3DObjectState state_;
 		wxString resultCameras_, resultNumberOfTracks_;
 		wxString resultResidualErrors_, runningTime_;
@@ -346,7 +362,7 @@ public:
 		const wxString &featureDetector, const wxString &descriptorExtractor,
 		float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm);
 	int addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
-		bool global, int rotAveraging, int transAveraging, bool refineIntrinsics);
+		R3DTriangulationAlgorithm algorithm, int rotAveraging, int transAveraging, bool refineIntrinsics, bool useGPSInfo, R3DTriangulationInitialization triInitialization);
 	int addDensification(R3DProject::Triangulation *pTriangulation);
 	int addSurface(R3DProject::Densification *pDensification);
 	void removePictureSet(PictureSet *pPictureSet);

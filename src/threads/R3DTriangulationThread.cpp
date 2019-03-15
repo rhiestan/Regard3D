@@ -39,6 +39,9 @@
 #else
 #include "openMVG/sfm/sfm.hpp"
 #include "openMVG/sfm/pipelines/global/sfm_global_engine_relative_motions.hpp"
+#include "openMVG/sfm/pipelines/sequential/sequential_SfM2.hpp"
+#include "openMVG/sfm/pipelines/sequential/SfmSceneInitializerMaxPair.hpp"
+#include "openMVG/sfm/pipelines/sequential/SfmSceneInitializerStellar.hpp"
 #include "software/SfM/SfMPlyHelper.hpp"
 #endif
 
@@ -46,13 +49,15 @@
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
 
 using namespace openMVG;
+using namespace openMVG::cameras;
+using namespace openMVG::sfm;
 
 R3DTriangulationThread::R3DTriangulationThread() : wxThread(wxTHREAD_JOINABLE),
-	pMainFrame_(NULL), global_(false),
+	pMainFrame_(NULL), algorithm_(R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental2),
 	initialPairA_(0), initialPairB_(0),
 	rotAveraging_(2), transAveraging_(1),
-	refineIntrinsics_(true),
-	//globalMSTBasedRot_(true),
+	refineIntrinsics_(true), useGPSInfo_(false),
+	triInitialization_(R3DProject::R3DTriangulationInitialization::R3DTI_MaxPair),
 	isOK_(true)
 {
 }
@@ -66,19 +71,20 @@ void R3DTriangulationThread::setMainFrame(Regard3DMainFrame *pMainFrame)
 	pMainFrame_ = pMainFrame;
 }
 
-void R3DTriangulationThread::setParameters(bool global,
+void R3DTriangulationThread::setParameters(R3DProject::R3DTriangulationAlgorithm algorithm,
 	int initialPairA, int initialPairB,
 	int rotAveraging, int transAveraging,
-	bool refineIntrinsics)
-	//bool globalMSTBasedRot)
+	bool refineIntrinsics, bool useGPSInfo,
+	R3DProject::R3DTriangulationInitialization triInitialization)
 {
-	global_ = global;
+	algorithm_ = algorithm;
 	initialPairA_ = initialPairA;
 	initialPairB_ = initialPairB;
 	rotAveraging_ = rotAveraging;
 	transAveraging_ = transAveraging;
 	refineIntrinsics_ = refineIntrinsics;
-//	globalMSTBasedRot_ = globalMSTBasedRot;
+	useGPSInfo_ = useGPSInfo;
+	triInitialization_ = triInitialization;
 }
 
 void R3DTriangulationThread::setTriangulation(R3DProject *pProject, R3DProject::Triangulation *pTriangulation)
@@ -112,9 +118,9 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 
 	wxDateTime beginTime = wxDateTime::UNow();
 
-	if(global_)
+	if(algorithm_ == R3DProject::R3DTriangulationAlgorithm::R3DTA_Global)
 	{
-		// The following code is copied form OpenMVG's main_GlobalSfM
+		// The following code is copied from OpenMVG's main_GlobalSfM
 
 
 		// Copyright (c) 2012, 2013, 2014 Pierre MOULON.
@@ -233,7 +239,7 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 					if(!bRefineIntrinsics)
 						intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
 					sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
-					sfmEngine.Set_Use_Motion_Prior(false);		// Currently unsupported
+					sfmEngine.Set_Use_Motion_Prior(useGPSInfo_);
 
 					// Configure motion averaging method
 					sfmEngine.SetRotationAveragingMethod(
@@ -407,74 +413,141 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 					if(!stlplus::folder_exists(sOutDir))
 						stlplus::folder_create(sOutDir);
 
-					openMVG::sfm::SequentialSfMReconstructionEngine sfmEngine(
-						sfm_data,
-						sOutDir,
-						stlplus::create_filespec(sOutDir, "Reconstruction_Report.html"));
-
-					// Configure the features_provider & the matches_provider
-					sfmEngine.SetFeaturesProvider(feats_provider.get());
-					sfmEngine.SetMatchesProvider(matches_provider.get());
-
-					// Configure reconstruction parameters
-					//sfmEngine.Set_bFixedIntrinsics(!bRefineIntrinsics);
-					cameras::Intrinsic_Parameter_Type intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::ADJUST_ALL;
-					if(!bRefineIntrinsics)
-						intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
-					sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
-					sfmEngine.Set_Use_Motion_Prior(false);		// Currently unsupported
-
-					sfmEngine.SetUnknownCameraType(i_User_camera_model);
-
-					// Handle Initial pair parameter
-					Pair initialPairIndex(initialPairA_, initialPairB_);
-					sfmEngine.setInitialPair(initialPairIndex);
-
-					if(sfmEngine.Process())
+					if(algorithm_ == R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental1)
 					{
-						//std::cout << std::endl << " Total Ac-Sfm took (s): " << timer.elapsed() << std::endl;
+						openMVG::sfm::SequentialSfMReconstructionEngine sfmEngine(
+							sfm_data,
+							sOutDir,
+							stlplus::create_filespec(sOutDir, "Reconstruction_Report.html"));
 
-						//std::cout << "...Generating SfM_Report.html" << std::endl;
-						Generate_SfM_Report(sfmEngine.Get_SfM_Data(),
-							stlplus::create_filespec(sOutDir, "SfMReconstruction_Report.html"));
+						// Configure the features_provider & the matches_provider
+						sfmEngine.SetFeaturesProvider(feats_provider.get());
+						sfmEngine.SetMatchesProvider(matches_provider.get());
 
-						updateProgressBar(0.7f, wxT("Exporting results to disk"));
+						// Configure reconstruction parameters
+						//sfmEngine.Set_bFixedIntrinsics(!bRefineIntrinsics);
+						cameras::Intrinsic_Parameter_Type intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::ADJUST_ALL;
+						if(!bRefineIntrinsics)
+							intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
+						sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
+						sfmEngine.Set_Use_Motion_Prior(useGPSInfo_);
 
-						//-- Export to disk computed scene (data & visualizable results)
-						//std::cout << "...Export SfM_Data to disk." << std::endl;
-						Save(sfmEngine.Get_SfM_Data(),
-							stlplus::create_filespec(sOutDir, "sfm_data", ".bin"),
-							openMVG::sfm::ESfM_Data(openMVG::sfm::ALL));
+						sfmEngine.SetUnknownCameraType(i_User_camera_model);
 
-						Save(sfmEngine.Get_SfM_Data(),
-							stlplus::create_filespec(sOutDir, "cloud_and_poses", ".ply"),
-							openMVG::sfm::ESfM_Data(openMVG::sfm::ALL));
+						// Handle Initial pair parameter
+						Pair initialPairIndex(initialPairA_, initialPairB_);
+						sfmEngine.setInitialPair(initialPairIndex);
 
-						updateProgressBar(0.8f, wxT("Colorize tracks"));
+						if(sfmEngine.Process())
+						{
+							//std::cout << std::endl << " Total Ac-Sfm took (s): " << timer.elapsed() << std::endl;
 
-						// Compute the scene structure color
-						std::vector<Vec3> vec_3dPoints, vec_tracksColor, vec_camPosition;
-						OpenMVGHelper::ColorizeTracks(sfmEngine.Get_SfM_Data(), vec_3dPoints, vec_tracksColor);
-						OpenMVGHelper::GetCameraPositions(sfmEngine.Get_SfM_Data(), vec_camPosition);
+							//std::cout << "...Generating SfM_Report.html" << std::endl;
+							Generate_SfM_Report(sfmEngine.Get_SfM_Data(),
+								stlplus::create_filespec(sOutDir, "SfMReconstruction_Report.html"));
 
-						updateProgressBar(0.9f, wxT("Exporting model"));
+							updateProgressBar(0.7f, wxT("Exporting results to disk"));
 
-						// Export the SfM_Data scene in the expected format
-						if(!plyHelper::exportToPly(vec_3dPoints, vec_camPosition, 
-							stlplus::create_filespec(sOutDir, "FinalColorized", ".ply"), &vec_tracksColor))
+							//-- Export to disk computed scene (data & visualizable results)
+							//std::cout << "...Export SfM_Data to disk." << std::endl;
+							Save(sfmEngine.Get_SfM_Data(),
+								stlplus::create_filespec(sOutDir, "sfm_data", ".bin"),
+								openMVG::sfm::ESfM_Data(openMVG::sfm::ALL));
+
+							Save(sfmEngine.Get_SfM_Data(),
+								stlplus::create_filespec(sOutDir, "cloud_and_poses", ".ply"),
+								openMVG::sfm::ESfM_Data(openMVG::sfm::ALL));
+
+							updateProgressBar(0.8f, wxT("Colorize tracks"));
+
+							// Compute the scene structure color
+							std::vector<Vec3> vec_3dPoints, vec_tracksColor, vec_camPosition;
+							OpenMVGHelper::ColorizeTracks(sfmEngine.Get_SfM_Data(), vec_3dPoints, vec_tracksColor);
+							OpenMVGHelper::GetCameraPositions(sfmEngine.Get_SfM_Data(), vec_camPosition);
+
+							updateProgressBar(0.9f, wxT("Exporting model"));
+
+							// Export the SfM_Data scene in the expected format
+							if(!plyHelper::exportToPly(vec_3dPoints, vec_camPosition, 
+								stlplus::create_filespec(sOutDir, "FinalColorized", ".ply"), &vec_tracksColor))
+							{
+								isOK_ = false;
+								errorMessage_ = wxT("Error while writing model file.");
+							}
+
+							wxTimeSpan runTime = wxDateTime::UNow() - beginTime;
+							prepareResultStrings(sfmEngine.Get_SfM_Data(),
+								sfm_data.GetViews().size(), runTime);
+						}
+						else
 						{
 							isOK_ = false;
-							errorMessage_ = wxT("Error while writing model file.");
+							errorMessage_ = wxT("Error in incremental reconstruction engine");
 						}
 
-						wxTimeSpan runTime = wxDateTime::UNow() - beginTime;
-						prepareResultStrings(sfmEngine.Get_SfM_Data(),
-							sfm_data.GetViews().size(), runTime);
 					}
 					else
 					{
-						isOK_ = false;
-						errorMessage_ = wxT("Error in incremental reconstruction engine");
+						// Incremental SfM engine 2
+						std::unique_ptr<SfMSceneInitializer> scene_initializer(new SfMSceneInitializerStellar(sfm_data,
+							feats_provider.get(), matches_provider.get()));
+						SequentialSfMReconstructionEngine2 sfmEngine(
+							scene_initializer.get(),
+							sfm_data,
+							sOutDir,
+							stlplus::create_filespec(sOutDir, "Reconstruction_Report.html"));
+
+						// Configure the features_provider & the matches_provider
+						sfmEngine.SetFeaturesProvider(feats_provider.get());
+						sfmEngine.SetMatchesProvider(matches_provider.get());
+
+						// Configure reconstruction parameters
+						cameras::Intrinsic_Parameter_Type intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::ADJUST_ALL;
+						if(!bRefineIntrinsics)
+							intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
+						sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
+						sfmEngine.SetUnknownCameraType(EINTRINSIC(i_User_camera_model));
+						sfmEngine.Set_Use_Motion_Prior(useGPSInfo_);
+
+						if (sfmEngine.Process())
+						{
+							//std::cout << "...Generating SfM_Report.html" << std::endl;
+							Generate_SfM_Report(sfmEngine.Get_SfM_Data(),
+								stlplus::create_filespec(sOutDir, "SfMReconstruction_Report.html"));
+
+							updateProgressBar(0.7f, wxT("Exporting results to disk"));
+
+							//-- Export to disk computed scene (data & visualizable results)
+							//std::cout << "...Export SfM_Data to disk." << std::endl;
+							Save(sfmEngine.Get_SfM_Data(),
+								stlplus::create_filespec(sOutDir, "sfm_data", ".bin"),
+								openMVG::sfm::ESfM_Data(openMVG::sfm::ALL));
+
+							Save(sfmEngine.Get_SfM_Data(),
+								stlplus::create_filespec(sOutDir, "cloud_and_poses", ".ply"),
+								openMVG::sfm::ESfM_Data(openMVG::sfm::ALL));
+
+							updateProgressBar(0.8f, wxT("Colorize tracks"));
+
+							// Compute the scene structure color
+							std::vector<Vec3> vec_3dPoints, vec_tracksColor, vec_camPosition;
+							OpenMVGHelper::ColorizeTracks(sfmEngine.Get_SfM_Data(), vec_3dPoints, vec_tracksColor);
+							OpenMVGHelper::GetCameraPositions(sfmEngine.Get_SfM_Data(), vec_camPosition);
+
+							updateProgressBar(0.9f, wxT("Exporting model"));
+
+							// Export the SfM_Data scene in the expected format
+							if(!plyHelper::exportToPly(vec_3dPoints, vec_camPosition, 
+								stlplus::create_filespec(sOutDir, "FinalColorized", ".ply"), &vec_tracksColor))
+							{
+								isOK_ = false;
+								errorMessage_ = wxT("Error while writing model file.");
+							}
+
+							wxTimeSpan runTime = wxDateTime::UNow() - beginTime;
+							prepareResultStrings(sfmEngine.Get_SfM_Data(),
+								sfm_data.GetViews().size(), runTime);
+						}
 					}
 				}
 				else

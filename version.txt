@@ -1,6 +1,13 @@
 Version history of Regard3D
 ===========================
 
+Version 1.0.0, 14.03.2019:
+- Upgraded to OpenMVG 1.4
+- Upgraded to OpenCV 4.0
+- Added new Incremental pipeline of OpenMVG
+- GPS information can be used now
+
+
 Version 0.9.5, 27.01.2018:
 - Path of user camera db can be set in properties
 - Fixed bug: Now Brown camera model can be used

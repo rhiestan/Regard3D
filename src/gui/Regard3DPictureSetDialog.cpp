@@ -141,7 +141,17 @@ void Regard3DPictureSetDialog::OnAddFilesButton( wxCommandEvent& event )
 
 		for(size_t i = 0; i < filenames.GetCount(); i++)
 		{
-			wxFileName fn(directory, filenames[i], wxPATH_NATIVE);
+			// On some platforms/dialogs, GetFilenames() already returns full paths.
+			// Passing such a string as the "name" part to wxFileName(dir, name, format)
+			// triggers an assertion, so detect it and skip prepending the directory.
+			wxFileName fn(filenames[i], wxPATH_NATIVE);
+			bool containsPath = (fn.IsAbsolute(wxPATH_NATIVE)
+				|| fn.HasVolume()
+				|| fn.GetDirCount() > 0);
+
+			if(!containsPath)
+				fn.Assign(directory, filenames[i], wxPATH_NATIVE);
+
 			wxString filename = fn.GetFullPath();
 
 			addFileToImageList(filename, true);

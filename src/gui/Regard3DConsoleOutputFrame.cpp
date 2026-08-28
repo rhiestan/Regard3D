@@ -19,7 +19,7 @@
 
 #include "CommonIncludes.h"
 #include "Regard3DConsoleOutputFrame.h"
-
+/*
 #include "minilog/minilog.h"
 
 class minilog_mutex_impl_wx: public minilog_mutex_interface
@@ -46,7 +46,7 @@ public:
 private:
 	wxMutex mutex_;
 };
-
+*/
 enum
 {
 	ID_CONSOLE_WIN_TIMER = 3500,
@@ -199,8 +199,8 @@ Regard3DConsoleOutputFrame::Regard3DConsoleOutputFrame(wxWindow* parent)
 	this->Layout();
 	this->Centre( wxBOTH );
 
-	pminilog_mutex_impl_wx_ = new minilog_mutex_impl_wx();
-	minilog::inst().set_locker(pminilog_mutex_impl_wx_);
+	//pminilog_mutex_impl_wx_ = new minilog_mutex_impl_wx();
+	//minilog::inst().set_locker(pminilog_mutex_impl_wx_);
 	aTimer_.Start(100);
 }
 
@@ -216,8 +216,8 @@ Regard3DConsoleOutputFrame::~Regard3DConsoleOutputFrame()
 	delete pStreamToTextRedirectorStdErr_;
 #endif
 
-	minilog::inst().set_locker(NULL);
-	delete pminilog_mutex_impl_wx_;
+	//minilog::inst().set_locker(NULL);
+	//delete pminilog_mutex_impl_wx_;
 }
 
 void Regard3DConsoleOutputFrame::OnConsoleOutputClose( wxCloseEvent& event )
@@ -238,10 +238,10 @@ void Regard3DConsoleOutputFrame::OnTimer( wxTimerEvent &event )
 	if(nOutRead > 0)
 		pConsoleOutputTextCtrl_->AppendText(wxString(buf, *wxConvCurrent));
 #endif
-	std::string str = minilog::inst().getbuf();
-	if(!str.empty())
+	//std::string str = minilog::inst().getbuf();
+	//if(!str.empty())
 	{
-		pConsoleOutputTextCtrl_->AppendText(wxString(str.c_str(), *wxConvCurrent));
+		//pConsoleOutputTextCtrl_->AppendText(wxString(str.c_str(), *wxConvCurrent));
 	}
 }
 

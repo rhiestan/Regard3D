@@ -45,7 +45,7 @@ using namespace std;
 #include "openMVG/image/pixel_types.hpp"
 #include "openMVG/image/image_io.hpp"
 #include "openMVG/features/feature.hpp"
-#include "third_party/vectorGraphics/svgDrawer.hpp"
+#include "openMVG/vector_graphics/svgDrawer.hpp"
 using namespace svg;
 #include "openMVG/matching/indMatch.hpp"
 #include "openMVG/matching/indMatch_utils.hpp"
@@ -59,7 +59,7 @@ using namespace svg;
 #include "openMVG/sfm/sfm_data_io.hpp"
 #include "openMVG/sfm/pipelines/sfm_matches_provider.hpp"
 #endif
-#include "third_party/progress/progress.hpp"
+#include "openMVG/system/loggerprogress.hpp"
 
 // stlpus
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
@@ -91,7 +91,7 @@ void OpenMVGHelper::exportKeypoints(const std::vector<openMVG::SfMIO::CameraInfo
 			vec_focalGroup[iterFilename->m_intrinsicId].m_h);
 
 		svgDrawer svgStream( dimImage.first, dimImage.second);
-		svgStream.drawImage(stlplus::create_filespec(sImaDirectory, iterFilename->m_sImageName),
+		svgStream << drawImage(stlplus::create_filespec(sImaDirectory, iterFilename->m_sImageName),
 			dimImage.first,
 			dimImage.second);
 
@@ -104,8 +104,8 @@ void OpenMVGHelper::exportKeypoints(const std::vector<openMVG::SfMIO::CameraInfo
 		//-- Draw features
 		for (size_t i=0; i< vec_feat.size(); ++i)  {
 			const openMVG::features::SIOPointFeature & feature = vec_feat[i];
-			svgStream.drawCircle(feature.x(), feature.y(), feature.scale(),
-				svgStyle().stroke("yellow", 2.0));
+			svgStream << drawCircle(feature.x(), feature.y(), feature.scale(),
+				svgAttributes().stroke("yellow", 2.0));
 		}
 
 		// Write the SVG file
@@ -216,10 +216,10 @@ void OpenMVGHelper::exportMatches(const std::vector<openMVG::SfMIO::CameraInfo> 
 			dimImage_J = std::make_pair(view_J->ui_width, view_J->ui_height);
 
 		svgDrawer svgStream(dimImage_I.first + dimImage_J.first, max(dimImage_I.second, dimImage_J.second));
-		svgStream.drawImage(sView_I,
+		svgStream << drawImage(sView_I,
 			dimImage_I.first,
 			dimImage_I.second);
-		svgStream.drawImage(sView_J,
+		svgStream << drawImage(sView_J,
 			dimImage_J.first,
 			dimImage_J.second, dimImage_I.first);
 
@@ -239,18 +239,18 @@ void OpenMVGHelper::exportMatches(const std::vector<openMVG::SfMIO::CameraInfo> 
 				hslToRgb((rand() % 360) / 360., 1.0, .5, r, g, b);
 				std::ostringstream osCol;
 				osCol << "rgb(" << (int)r << ',' << (int)g << ',' << (int)b << ")";
-				svgStream.drawLine(imaA.x(), imaA.y(),
-					imaB.x() + dimImage_I.first, imaB.y(), svgStyle().stroke(osCol.str(), 2.0));
+				svgStream << drawLine(imaA.x(), imaA.y(),
+					imaB.x() + dimImage_I.first, imaB.y(), svgAttributes().stroke(osCol.str(), 2.0));
 			}
 
 			//-- Draw features (in two loop, in order to have the features upper the link, svg layer order):
 			for(size_t i = 0; i< vec_FilteredMatches.size(); ++i) {
 				const PointFeature & imaA = vec_feat_I[vec_FilteredMatches[i].i_];
 				const PointFeature & imaB = vec_feat_J[vec_FilteredMatches[i].j_];
-				svgStream.drawCircle(imaA.x(), imaA.y(), 3.0,
-					svgStyle().stroke("yellow", 2.0));
-				svgStream.drawCircle(imaB.x() + dimImage_I.first, imaB.y(), 3.0,
-					svgStyle().stroke("yellow", 2.0));
+				svgStream << drawCircle(imaA.x(), imaA.y(), 3.0,
+					svgAttributes().stroke("yellow", 2.0));
+				svgStream << drawCircle(imaB.x() + dimImage_I.first, imaB.y(), 3.0,
+					svgAttributes().stroke("yellow", 2.0));
 			}
 		}
 		std::ostringstream os;
@@ -519,7 +519,7 @@ bool OpenMVGHelper::exportToPMVSFormat(
 
   if (bOk)
   {
-    C_Progress_display my_progress_bar( doc._map_camera.size()*2 );
+    system::LoggerProgress my_progress_bar( doc._map_camera.size()*2 );
     // Export data :
     //Camera
 
@@ -691,7 +691,7 @@ bool OpenMVGHelper::exportToPMVSFormat(
 
   if (bOk)
   {
-    C_Progress_display my_progress_bar( sfm_data.GetViews().size()*2 );
+    system::LoggerProgress my_progress_bar( sfm_data.GetViews().size()*2 );
 
     // Export valid views as Projective Cameras:
     size_t count = 0;
@@ -1332,7 +1332,7 @@ bool CreateNVMFile( const SfM_Data & sfm_data ,
 
   // Export undistorted images
   {
-    C_Progress_display my_progress_bar( sfm_data.GetViews().size(), std::cout, "\n- EXPORT UNDISTORTED IMAGES -\n" );
+    system::LoggerProgress my_progress_bar( sfm_data.GetViews().size(), "\n- EXPORT UNDISTORTED IMAGES -\n" );
     Image<openMVG::image::RGBColor> image, image_ud;
   #ifdef OPENMVG_USE_OPENMP
       #pragma omp parallel for schedule(dynamic) private(image, image_ud)
@@ -1380,8 +1380,13 @@ bool CreateNVMFile( const SfM_Data & sfm_data ,
       else // (no distortion)
       {
         // If extensions match, copy the PNG image
-        if ( boost::filesystem::extension( srcImage ) == "PNG" ||
-             boost::filesystem::extension( srcImage ) == "png" )
+        // Note: boost::filesystem::extension() (removed in Boost 1.7x) returned the
+        // extension *with* its leading dot, and path::extension() does the same, so
+        // these comparisons against "PNG"/"png" never match and this branch is dead.
+        // Behaviour is preserved verbatim here -- comparing against ".png"/".PNG"
+        // would enable the copy fast path, which is a runtime change, not a port fix.
+        if ( srcImage.extension().string() == "PNG" ||
+             srcImage.extension().string() == "png" )
         {
           boost::filesystem::copy_file( srcImage, dstImage );
         }
@@ -1397,7 +1402,7 @@ bool CreateNVMFile( const SfM_Data & sfm_data ,
 
   // Export camera parameters
   {
-    C_Progress_display my_progress_bar( sfm_data.GetViews().size(), std::cout, "\n- EXPORT CAMERA PARAMETERS -\n" );
+    system::LoggerProgress my_progress_bar( sfm_data.GetViews().size(), "\n- EXPORT CAMERA PARAMETERS -\n" );
     for (Views::const_iterator iter = sfm_data.GetViews().begin();
          iter != sfm_data.GetViews().end(); ++iter, ++my_progress_bar)
     {
@@ -1454,7 +1459,7 @@ bool CreateNVMFile( const SfM_Data & sfm_data ,
   const Landmarks & landmarks = sfm_data.GetLandmarks();
   const size_t featureCount = landmarks.size();
   file << featureCount << std::endl;
-  C_Progress_display my_progress_bar( featureCount, std::cout, "\n- EXPORT LANDMARKS DATA -\n" );
+  system::LoggerProgress my_progress_bar( featureCount, "\n- EXPORT LANDMARKS DATA -\n" );
   for ( Landmarks::const_iterator iterLandmarks = landmarks.begin();
         iterLandmarks != landmarks.end(); ++iterLandmarks, ++my_progress_bar )
   {
@@ -2457,8 +2462,7 @@ void OpenMVGHelper::ColorizeTracks(const openMVG::sfm::SfM_Data &sfm_data, std::
 	//    and iterate to provide a color to each 3D point
 
 	{
-		C_Progress_display my_progress_bar(sfm_data.GetLandmarks().size(),
-			std::cout,
+		system::LoggerProgress my_progress_bar(sfm_data.GetLandmarks().size(),
 			"\nCompute scene structure color\n");
 
 		vec_tracksColor.resize(sfm_data.GetLandmarks().size());

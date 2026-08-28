@@ -50,6 +50,7 @@ extern "C" {
 extern "C" {
 #include "vl_liop.h"
 }
+#undef isnan
 
 // OpenCV Includes
 #include "opencv2/core/eigen.hpp" //To Convert Eigen matrix to cv matrix
@@ -126,7 +127,7 @@ wxSemaphore *AKAZESemaLocker::pAKAZESemaphore_ = NULL;
 
 
 Regard3DFeatures::R3DFParams::R3DFParams()
-	: threshold_(0.001), nFeatures_(20000), distRatio_(0.6),
+	: threshold_(0.001f), nFeatures_(20000), distRatio_(0.6f),
 	computeHomographyMatrix_(true),
 	computeFundalmentalMatrix_(true), computeEssentialMatrix_(true)
 {
@@ -249,7 +250,7 @@ void Regard3DFeatures::detectAndExtract_NLOPT(const openMVG::image::Image<unsign
 	std::vector< cv::KeyPoint > vec_keypoints;
 	Regard3DFeatures::R3DFParams params;
 	params.nFeatures_ = 10000;
-	params.threshold_ = 0.0007;
+	params.threshold_ = 0.0007f;
 
 	std::string keypointDetector("AKAZE");
 	vec_keypoints.clear();
@@ -604,7 +605,7 @@ void Regard3DFeatures::detectKeypoints(const openMVG::image::Image<float> &img,
 		for(int i = 0; i < static_cast<int>(vec_keypoints.size()); i++)
 		{
 			// Convert from radians to degrees
-			(vec_keypoints[i].angle) *= 180.0 / CV_PI;
+			(vec_keypoints[i].angle) *= static_cast<float>(180.0 / CV_PI);
 			vec_keypoints[i].angle += 90.0f;
 			while(vec_keypoints[i].angle < 0)
 				vec_keypoints[i].angle += 360.0f;
@@ -699,7 +700,7 @@ float Regard3DFeatures::getKpSizeFactor(const std::string &fdname)
 	else if(fdname == std::string("DOG"))
 		retVal = 0.25f;
 	else if(fdname == std::string( "MSER" ))
-		retVal = 0.08;
+		retVal = 0.08f;
 	else if(fdname == std::string( "ORB" ))
 		retVal = 0.025f;
 	else if(fdname == std::string( "BRISK" ))

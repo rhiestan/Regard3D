@@ -22,7 +22,6 @@
 #include "R3DSurfaceGenProcess.h"
 #include "Regard3DMainFrame.h"
 #include "R3DExternalPrograms.h"
-#include "minilog/minilog.h"
 
 R3DSurfaceGenProcess::R3DSurfaceGenProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),
@@ -218,7 +217,7 @@ void R3DSurfaceGenProcess::readConsoleOutput()
 				buf.push_back( static_cast<char>(curc) );
 		}
 
-		MLOG << buf.c_str();
+		//MLOG << buf.c_str();
 	}
 	wxInputStream *pErr = GetErrorStream();
 	if(pErr != NULL)
@@ -231,7 +230,7 @@ void R3DSurfaceGenProcess::readConsoleOutput()
 				buf.push_back( static_cast<char>(curc) );
 		}
 
-		MLOG << buf.c_str();
+		//MLOG << buf.c_str();
 	}
 }
 

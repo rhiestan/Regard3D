@@ -22,7 +22,6 @@
 #include "R3DDensificationProcess.h"
 #include "Regard3DMainFrame.h"
 #include "R3DExternalPrograms.h"
-#include "minilog/minilog.h"
 #include "cpuinfo.hpp"
 
 
@@ -200,7 +199,7 @@ void R3DDensificationProcess::readConsoleOutput()
 				buf.push_back( static_cast<char>(curc) );
 		}
 
-		MLOG << buf.c_str();
+		//MLOG << buf.c_str();
 	}
 	wxInputStream *pErr = GetErrorStream();
 	if(pErr != NULL)
@@ -213,7 +212,7 @@ void R3DDensificationProcess::readConsoleOutput()
 				buf.push_back( static_cast<char>(curc) );
 		}
 
-		MLOG << buf.c_str();
+		//MLOG << buf.c_str();
 	}
 }
 

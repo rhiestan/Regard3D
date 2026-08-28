@@ -24,9 +24,9 @@
 #include "R3DProject.h"
 #include "Regard3DMainFrame.h"
 
-#include "minilog/minilog.h"
+//#include "minilog/minilog.h"
 
-#include "utils/matcher_kgraph.h"
+//#include "utils/matcher_kgraph.h"
 #include "utils/matcher_hnsw.h"
 #include "openMVG/matching/regions_matcher.hpp"
 
@@ -138,7 +138,7 @@ bool testIntrinsicsEquality(
   return ci1.m_K == ci2.m_K;
 }
 
-#include <kgraph.h>
+//#include <kgraph.h>
 //#include "utils/matcher_efanna.h"
 #include "utils/matcher_mrpt.h"
 /*
@@ -295,7 +295,7 @@ struct R3D_L2
 };
 
 
-class R3D_IndexOracle: public kgraph::IndexOracle
+/*class R3D_IndexOracle: public kgraph::IndexOracle
 {
 public:
 	R3D_IndexOracle(openMVG::features::Regions *pRegions)
@@ -358,7 +358,7 @@ public:
 	openMVG::features::Regions *pRegionsDB_, *pRegionsQuery_;
 	size_t index_;
 };
-
+*/
 #include "openMVG/sfm/pipelines/sfm_matches_provider.hpp"
 
 std::vector< size_t > getNumberOfMatches(openMVG::sfm::SfM_Data &sfm_data, const std::string &matchesfilename)
@@ -798,7 +798,7 @@ void hnsw_match_withparams(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Reg
 }
 
 
-
+/*
 // Static variables
 template< typename Scalar, typename Metric >
 kgraph::KGraph::IndexParams ArrayMatcher_kgraph<Scalar, Metric>::iparams;
@@ -1060,7 +1060,7 @@ void performParamsOptimization(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr
 	}
 }
 
-
+*/
 
 void singleRunMRPT(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
 	Pair_Set pairs, float fDistRatio, const std::string &sMatchesDirectory,
@@ -1753,8 +1753,8 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
   //---------------------------------------
   openMVG::sfm::SfM_Data sfm_data;
   if(!Load(sfm_data, sSfM_Data_Filename, openMVG::sfm::ESfM_Data(openMVG::sfm::VIEWS | openMVG::sfm::INTRINSICS))) {
-	  MLOG << std::endl
-		  << "The input SfM_Data file \"" << sSfM_Data_Filename << "\" cannot be read." << std::endl;
+	  //MLOG << std::endl
+	//	  << "The input SfM_Data file \"" << sSfM_Data_Filename << "\" cannot be read." << std::endl;
 	  return false;	// EXIT_FAILURE;
   }
 
@@ -2049,7 +2049,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
 		}
 		else if(matchingAlgorithm > 0 && matchingAlgorithm < 4)
 		{
-			kgraph_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm-1);
+			//kgraph_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm-1);
 		}
 		else if(matchingAlgorithm == 5)
 		{
@@ -2063,9 +2063,9 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
 
 		if (!Save(map_PutativesMatches, std::string(sMatchesDirectory + "/matches.putative.txt")))
 		{
-			MLOG
-				<< "Cannot save computed matches in: "
-				<< std::string(sMatchesDirectory + "/matches.putative.txt");
+			//MLOG
+			//	<< "Cannot save computed matches in: "
+			//	<< std::string(sMatchesDirectory + "/matches.putative.txt");
 			return EXIT_FAILURE;
 		}
 	}
@@ -2093,7 +2093,7 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
   // Load the features
   std::shared_ptr<openMVG::sfm::Features_Provider> feats_provider = std::make_shared<openMVG::sfm::Features_Provider>();
   if(!feats_provider->load(sfm_data, sMatchesDirectory, regions_type)) {
-    MLOG << std::endl << "Invalid features." << std::endl;
+    //MLOG << std::endl << "Invalid features." << std::endl;
 	return false;	// EXIT_FAILURE;
   }
   ImageCollectionGeometricFilter collectionGeomFilter(&sfm_data, regions_provider);
@@ -2120,9 +2120,9 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
       if(!Save(map_GeometricMatches,
         std::string(paths.matchesFFilename_.c_str())))
       {
-        MLOG
-            << "Cannot save computed matches in: "
-            << std::string(paths.matchesFFilename_.c_str());
+        //MLOG
+         //   << "Cannot save computed matches in: "
+        //    << std::string(paths.matchesFFilename_.c_str());
         return EXIT_FAILURE;
       }
       statistics_.fundamentalMatches_ = map_GeometricMatches;
@@ -2196,9 +2196,9 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
       if(!Save(map_GeometricMatches,
         std::string(paths.matchesEFilename_.c_str())))
       {
-        MLOG
-            << "Cannot save computed matches in: "
-            << std::string(paths.matchesEFilename_.c_str());
+        //MLOG
+        //    << "Cannot save computed matches in: "
+        //    << std::string(paths.matchesEFilename_.c_str());
         return EXIT_FAILURE;
       }
       statistics_.essentialMatches_ = map_GeometricMatches;
@@ -2224,9 +2224,9 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
       if(!Save(map_GeometricMatches,
         std::string(paths.matchesHFilename_.c_str())))
       {
-        MLOG
-            << "Cannot save computed matches in: "
-            << std::string(paths.matchesEFilename_.c_str());
+        //MLOG
+        //    << "Cannot save computed matches in: "
+        //    << std::string(paths.matchesEFilename_.c_str());
         return EXIT_FAILURE;
       }
       statistics_.homographyMatches_ = map_GeometricMatches;

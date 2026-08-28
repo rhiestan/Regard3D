@@ -479,11 +479,11 @@ void Regard3DMatchingResultsDialog::updateInitialImagePairListCtrl()
 				const ImageInfo &imageInfo = imageInfoVector[imgPair.indexB_];
 				imageBFN = wxFileName(imageInfo.filename_);
 			}
-			pTInitialImagePairListCtrl_->InsertItem(i, wxString::Format(wxT("%d"), imgPair.indexA_));
+			pTInitialImagePairListCtrl_->InsertItem(i, wxString::Format(wxT("%zu"), imgPair.indexA_));
 			pTInitialImagePairListCtrl_->SetItem(i, 1, imageAFN.GetFullName());
-			pTInitialImagePairListCtrl_->SetItem(i, 2, wxString::Format(wxT("%d"), imgPair.indexB_));
+			pTInitialImagePairListCtrl_->SetItem(i, 2, wxString::Format(wxT("%zu"), imgPair.indexB_));
 			pTInitialImagePairListCtrl_->SetItem(i, 3,  imageBFN.GetFullName());
-			pTInitialImagePairListCtrl_->SetItem(i, 4, wxString::Format(wxT("%d"), imgPair.matches_));
+			pTInitialImagePairListCtrl_->SetItem(i, 4, wxString::Format(wxT("%zu"), imgPair.matches_));
 			pTInitialImagePairListCtrl_->SetItemData(i, i);	// Used in sorting
 
 			// Store image indexes in imageIDList_

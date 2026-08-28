@@ -18,6 +18,11 @@ ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 # Enable Unicode
 ADD_DEFINITIONS(-D_UNICODE -DUNICODE)
 
+# Never look packages up in the CMake user package registry
+# (HKCU\Software\Kitware\CMake\Packages): it points at build trees of unrelated
+# projects on this machine and lets them win over the ones vcpkg provides.
+SET(CMAKE_FIND_USE_PACKAGE_REGISTRY FALSE)
+
 IF(NOT DEFINED ${IS_64BITS})
 	SET(IS_64BITS 0)
 ENDIF(NOT DEFINED ${IS_64BITS})
@@ -133,8 +138,8 @@ IF(R3D_CMAKE_DEBUG_OUTPUT)
 ENDIF(R3D_CMAKE_DEBUG_OUTPUT)
 INCLUDE_DIRECTORIES(${wxWidgets_INCLUDE_DIRS})
 
-# FLANN (using FindFLANN.cmake from PCL)
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+# FLANN
+#LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 SET(FLANN_USE_STATIC TRUE)
 FIND_PACKAGE(FLANN 1.7.0 REQUIRED)
 INCLUDE_DIRECTORIES(${FLANN_INCLUDE_DIRS})
@@ -154,9 +159,17 @@ FIND_PACKAGE(OpenGL REQUIRED)
 INCLUDE_DIRECTORIES(${OPENGL_INCLUDE_DIR})
 
 # Eigen
-LIST(APPEND CMAKE_MODULE_PATH "${EIGEN3_INCLUDE_DIR}/cmake" )
-FIND_PACKAGE(Eigen3 3.0.0 REQUIRED)
-MESSAGE("Found Eigen ${EIGEN3_VERSION}")
+# Do not ask for a minimum version here: Eigen's ConfigVersion file only accepts the
+# same major version, so "3.0.0" makes CMake reject the Eigen 5.x installed by vcpkg
+# and silently fall back to any other Eigen 3.x it can find. The result is a binary
+# holding two Eigen versions - our translation units against one, the prebuilt
+# OpenMVG/Ceres libraries against the other - which corrupts every Eigen object
+# passed across that boundary.
+FIND_PACKAGE(Eigen3 CONFIG REQUIRED)
+IF(NOT EIGEN3_INCLUDE_DIR)
+	GET_TARGET_PROPERTY(EIGEN3_INCLUDE_DIR Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+ENDIF(NOT EIGEN3_INCLUDE_DIR)
+MESSAGE("Found Eigen ${Eigen3_VERSION} in ${EIGEN3_INCLUDE_DIR}")
 INCLUDE_DIRECTORIES( ${EIGEN3_INCLUDE_DIR} )
  
 #FIND_PACKAGE(MKL)
@@ -339,9 +352,10 @@ foreach(tgt ${CERES_LIBRARIES})
 endforeach()
 
 
-IF(NOT DEFINED GLOG_INCLUDE_DIRS OR GLOG_INCLUDE_DIRS EQUAL "")
-	SET(GLOG_INCLUDE_DIRS ${CERES_INCLUDE_DIR}/ceres/internal/miniglog)
-ENDIF(NOT DEFINED GLOG_INCLUDE_DIRS OR GLOG_INCLUDE_DIRS EQUAL "")
+# Note: Ceres 2.x no longer bundles miniglog, and its config package exports the
+# Ceres::ceres target instead of the old CERES_INCLUDE_DIR / GLOG_INCLUDE_DIRS
+# variables. The former fallback here expanded to a bogus "/ceres/internal/miniglog"
+# include path. glog is picked up properly further down (and transitively via Ceres).
 INCLUDE_DIRECTORIES(
 	include
 	src
@@ -351,6 +365,21 @@ INCLUDE_DIRECTORIES(
 	${EIGEN_INCLUDE_DIRS})
 
 # SuiteSparse
+#
+# SuiteSparse >= 7 (and vcpkg) ship per-component CMake config packages exporting
+# SuiteSparse::<Component> targets. The old FindSuiteSparse.cmake module in
+# src/cmake (Ceres 1.x era) and the suitesparse-metis-for-windows layout that the
+# SUITESPARSE_DIR hack below expected no longer apply, so use the config package.
+#
+# Regard3D itself only calls SuiteSparse_version() (for the About box); everything
+# else it needs is carried transitively by Ceres. So only SuiteSparseConfig is
+# requested here, which also keeps the GPL-licensed components (SPQR, UMFPACK,
+# KLU, BTF, CXSparse, LDL) out of *our* direct link line -- see the note below.
+FIND_PACKAGE(SuiteSparse_config CONFIG REQUIRED)
+SET(SuiteSparse_LIBRARIES SuiteSparse::SuiteSparseConfig)
+MESSAGE("-- Found SuiteSparse_config: ${SuiteSparse_config_VERSION}")
+
+IF(FALSE)	# Legacy module-mode discovery, kept for reference
 IF(MSVC)
 	LIST(APPEND CMAKE_MODULE_PATH "${SUITESPARSE_DIR};${SUITESPARSE_DIR}/cmake" )
 	# Hack: Remove src/cmake from CMAKE_MODULE_PATH in order to use the one provided by the suitesparse-metis-for-windows project
@@ -404,30 +433,24 @@ ELSE(MSVC)
 	ENDIF(METIS_FOUND)
 	#SET(SuiteSparse_LIBRARIES "")
 ENDIF(MSVC)
+ENDIF()	# End of legacy module-mode discovery. Delete this whole IF(FALSE) block
+		# once the Linux/macOS builds have been re-verified against the config package.
 
 IF(MSVC)
 # Glog
-FIND_PACKAGE(Glog REQUIRED)
-SET_TARGET_PROPERTIES(${GLOG_LIBRARIES} PROPERTIES MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
-message("GLOG_INCLUDE_DIRS = ${GLOG_INCLUDE_DIRS}")
-message("GLOG_LIBRARIES = ${GLOG_LIBRARIES}")
+# glog >= 0.5 ships a CMake config package exporting the glog::glog target; it does
+# not set the legacy GLOG_LIBRARIES / GLOG_INCLUDE_DIRS variables, so the old
+# module-style lookup here silently yielded an empty library list.
+FIND_PACKAGE(glog CONFIG REQUIRED)
+SET(GLOG_LIBRARIES glog::glog)
+message("GLOG_LIBRARIES = ${GLOG_LIBRARIES} (version ${glog_VERSION})")
 ENDIF(MSVC)
 
 # AssImp
-IF(WIN32 OR APPLE)
-	LIST(APPEND CMAKE_MODULE_PATH "${ASSIMP_DIR}/lib/cmake/assimp-4.0" )
-	LIST(APPEND CMAKE_PREFIX_PATH "${ASSIMP_DIR}/lib/cmake/assimp-4.0" )
-	FIND_PACKAGE(assimp REQUIRED)
-	IF(WIN32)
-		IF(MSVC)
-			SET(ASSIMP_LIBRARIES "optimized;assimp-vc140-mt.lib;debug;assimp-vc140-mtd.lib")	# Overwriting defaults
-		ELSE(MSVC)
-			SET(ASSIMP_LIBRARIES "optimized;assimp.lib;debug;assimpd.lib")	# Overwriting defaults
-		ENDIF(MSVC)
-	ENDIF(WIN32)
-ELSE(WIN32 OR APPLE)
-	pkg_check_modules(ASSIMP REQUIRED assimp)
-ENDIF(WIN32 OR APPLE)
+
+find_package(assimp CONFIG REQUIRED)
+#target_link_libraries(main PRIVATE assimp::assimp)
+
 INCLUDE_DIRECTORIES(${ASSIMP_INCLUDE_DIRS})
 LINK_DIRECTORIES(${ASSIMP_LIBRARY_DIRS})
 message("AssiMP: ${ASSIMP_LIBRARIES} ${ASSIMP_INCLUDE_DIRS}  ${ASSIMP_LIBRARY_DIRS}")
@@ -647,10 +670,6 @@ INCLUDE_DIRECTORIES(thirdparty/tinyply)
 ADD_SUBDIRECTORY(thirdparty/sqlite)
 INCLUDE_DIRECTORIES(thirdparty/sqlite)
 
-# kgraph
-ADD_SUBDIRECTORY(thirdparty/kgraph)
-INCLUDE_DIRECTORIES(thirdparty/kgraph)
-
 # EFANNA
 INCLUDE_DIRECTORIES(thirdparty/efanna)
 
@@ -733,8 +752,8 @@ IF(DEFINED OSG_PLUGINS_DIR)
 ENDIF(DEFINED OSG_PLUGINS_DIR)
 
 SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIES}
-	${Boost_LIBRARIES} AKAZE fast-akaze liop kgraph sqlite ${OpenCV_LIBRARIES}
-	OpenMVG::openMVG_sfm OpenMVG::openMVG_stlplus OpenMVG::openMVG_fast OpenMVG::minilog
+	${Boost_LIBRARIES} AKAZE fast-akaze liop sqlite ${OpenCV_LIBRARIES}
+	OpenMVG::openMVG_sfm OpenMVG::openMVG_stlplus OpenMVG::openMVG_fast
 	OpenMVG::openMVG_exif OpenMVG::openMVG_features OpenMVG::openMVG_image
 	OpenMVG::openMVG_linearProgramming OpenMVG::openMVG_lInftyComputerVision
 	OpenMVG::openMVG_geometry OpenMVG::openMVG_matching OpenMVG::openMVG_kvld
@@ -742,8 +761,8 @@ SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIE
 	OpenMVG::openMVG_numeric OpenMVG::openMVG_robust_estimation
 	OpenMVG::openMVG_system 
 	${CERES_LIBRARIES} ${GLOG_LIBRARIES} ${SuiteSparse_LIBRARIES} ${FLANN_LIBRARIES}
-	${ASSIMP_LIBRARIES} ${OPENGL_LIBRARIES}
-	optimized;minilog;debug;minilog_d tinyply cpuid
+	assimp::assimp ${OPENGL_LIBRARIES}
+	tinyply cpuid
 )
 IF(R3D_USE_BLAS)
 	SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})

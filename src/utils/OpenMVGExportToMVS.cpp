@@ -35,7 +35,7 @@
 
 //#include <opencv2/core/eigen.hpp>
 
-#include "third_party/progress/progress.hpp"
+//#include "third_party/progress/progress.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -99,7 +99,7 @@ bool OpenMVGExportToMVS::exportToOpenMVS(R3DProject::Triangulation *pTriangulati
   size_t nPoses(0);
   const uint32_t nViews((uint32_t)sfm_data.GetViews().size());
 
-  C_Progress_display my_progress_bar(nViews);
+  //C_Progress_display my_progress_bar(nViews);
 
   // OpenMVG can have not contiguous index, use a map to create the required OpenMVS contiguous ID index
   std::map<openMVG::IndexT, uint32_t> map_intrinsic, map_view;
@@ -173,7 +173,7 @@ bool OpenMVGExportToMVS::exportToOpenMVS(R3DProject::Triangulation *pTriangulati
       stlplus::file_copy(srcImage, image.name);
     }
     scene.images.push_back(image);
-    ++my_progress_bar;
+    //++my_progress_bar;
   }
 
   // define structure
@@ -242,13 +242,13 @@ bool OpenMVGExportToMVS::exportToOpenMVS(R3DProject::Triangulation *pTriangulati
   // write OpenMVS data
   if (!MVS::ARCHIVE::SerializeSave(scene, sOutFile))
   {
-	  MLOG << "Could not write scene.mvs" << std::endl;
+	  //MLOG << "Could not write scene.mvs" << std::endl;
     return false;
   }
 
-  MLOG
+  /*MLOG
     << "Scene saved to OpenMVS interface format:\n"
     << "\t" << scene.images.size() << " images (" << nPoses << " calibrated)\n"
-    << "\t" << scene.vertices.size() << " Landmarks\n";
+    << "\t" << scene.vertices.size() << " Landmarks\n";*/
   return true;
 }

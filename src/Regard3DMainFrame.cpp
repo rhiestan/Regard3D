@@ -2145,7 +2145,7 @@ void Regard3DMainFrame::updateProjectDetails()
 					}
 					else
 					{
-						params = wxString::Format(wxT("Incremental, initial pair %d/%d"), pTriangulation->initialImageIndexA_,
+						params = wxString::Format(wxT("Incremental, initial pair %zu/%zu"), pTriangulation->initialImageIndexA_,
 							pTriangulation->initialImageIndexB_);
 					}
 				}
@@ -2177,7 +2177,7 @@ void Regard3DMainFrame::updateProjectDetails()
 					}
 					else
 					{
-						params = wxString::Format(wxT("Old Incremental, initial pair %d/%d"), pTriangulation->initialImageIndexA_,
+						params = wxString::Format(wxT("Old Incremental, initial pair %zu/%zu"), pTriangulation->initialImageIndexA_,
 							pTriangulation->initialImageIndexB_);
 					}
 					if(pTriangulation->refineIntrinsics_)

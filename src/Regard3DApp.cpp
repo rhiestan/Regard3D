@@ -74,6 +74,62 @@
 //	USE_SERIALIZER_WRAPPER_LIBRARY(osgVolume)
 #endif
 
+
+#if defined(R3D_WIN32)
+#include <windows.h>
+
+/**
+ * Give this process a console of its own, hidden.
+ *
+ * OpenMVG's global SfM engine renders the graphs of its HTML report by calling
+ * std::system("neato ..."), and on Windows std::system runs the command through
+ * cmd.exe. A GUI application has no console, so every one of those calls made
+ * cmd.exe allocate one, and a console window flashed up during triangulation.
+ * With a console already present the child processes attach to ours instead of
+ * creating their own, so nothing becomes visible.
+ */
+static void allocateHiddenConsole()
+{
+	// When started from a terminal that console already belongs to us. It is the
+	// user's window, so it must be left alone - and it suppresses the flash anyway.
+	if(GetConsoleWindow() != NULL)
+		return;
+
+	if(AllocConsole() == 0)
+		return;
+
+	HWND consoleWnd = GetConsoleWindow();
+	if(consoleWnd != NULL)
+		ShowWindow(consoleWnd, SW_HIDE);
+}
+#endif
+
+/**
+ * Appends a directory to this process' search path.
+ *
+ * Appended rather than prepended on purpose: the Graphviz directory also holds
+ * its own DLLs, and PATH takes part in the DLL search, so putting it in front
+ * could let those shadow libraries loaded later on. This also matches how
+ * R3DDensificationProcess extends the path of the external tools.
+ */
+static void appendToSearchPath(const wxString &dir)
+{
+	if(dir.IsEmpty())
+		return;
+
+#if defined(R3D_WIN32)
+	const wxString separator(wxT(";"));
+#else
+	const wxString separator(wxT(":"));
+#endif
+
+	wxString path;
+	if(wxGetEnv(wxT("PATH"), &path) && !path.IsEmpty())
+		wxSetEnv(wxT("PATH"), path + separator + dir);
+	else
+		wxSetEnv(wxT("PATH"), dir);
+}
+
 Regard3DApp::Regard3DApp() : wxApp()
 {
 #if defined(__WXX11__) || defined(__WXGTK__)
@@ -105,9 +161,17 @@ bool Regard3DApp::OnInit()
 	//omp_set_num_threads(1);	// omp_get_num_procs() + 1);	// +1 to fill delays in file I/O
 #endif
 
+#if defined(R3D_WIN32)
+	allocateHiddenConsole();
+#endif
+
 	CameraDBLookup::getInstance().initialize();
 	UserCameraDB::getInstance().initialize();
 	R3DExternalPrograms::getInstance().initialize();
+
+	// OpenMVG calls "neato" by name, so the bundled Graphviz has to be
+	// reachable from this process, not just from the external tools
+	appendToSearchPath(R3DExternalPrograms::getInstance().getGraphvizPath());
 	R3DFontHandler::getInstance().initialize();
 
 	pMainFrame_ = new Regard3DMainFrame(NULL);

@@ -39,6 +39,8 @@ public:
 	const wxString &getCMPMVSPath() { return cmpmvsPath_; }
 	const wxString &getSMVSReconPath() { return smvsreconPath_; }
 	const wxString &getSMVSReconSSE41Path() { return smvsreconSSE41Path; }
+	// Directory holding the Graphviz tools, empty when they are not installed
+	const wxString &getGraphvizPath() { return graphvizPath_; }
 
 	const wxArrayString &getAllPaths() { return allPaths_; }
 
@@ -57,6 +59,7 @@ private:
 	wxString dmreconPath_, scene2psetPath_, fssreconPath_, meshcleanPath_;
 	wxString cmpmvsPath_;
 	wxString smvsreconPath_, smvsreconSSE41Path;
+	wxString graphvizPath_;
 	wxArrayString allPaths_;
 
 	static R3DExternalPrograms instance_;

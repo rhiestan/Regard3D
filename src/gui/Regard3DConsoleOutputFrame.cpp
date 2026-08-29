@@ -47,6 +47,136 @@ private:
 	wxMutex mutex_;
 };
 */
+
+#if defined(USE_STREAMBUF_CAPTURE)
+
+#include <wx/thread.h>
+
+#include <iostream>
+#include <streambuf>
+#include <string>
+
+/**
+ * Collects everything written to std::cout and std::cerr so the console window
+ * can show it.
+ *
+ * This exists to capture the output of the OpenMVG library. OpenMVG 2.x offers
+ * no way to redirect its logging: StreamMessageLogger in
+ * openMVG/system/logger.hpp writes every OPENMVG_LOG_* statement straight to
+ * std::cerr from its destructor, and logger_severity is a header static, so it
+ * cannot even be reconfigured from the outside. Since OpenMVG is linked into
+ * this executable and everything uses the same dynamic runtime, std::cerr is a
+ * single shared object, and replacing its stream buffer picks up the output of
+ * the already compiled library code without patching OpenMVG.
+ *
+ * Both streams feed one buffer, so their relative order is preserved. The text
+ * arrives on OpenMVG's worker threads and is drained by the GUI timer, hence
+ * the critical section; nothing in here touches a wxWindow.
+ */
+class Regard3DConsoleCapture
+{
+public:
+	Regard3DConsoleCapture()
+		: stdOutCapture_(*this), stdErrCapture_(*this)
+	{
+		stdOutCapture_.install(std::cout);
+		stdErrCapture_.install(std::cerr);
+	}
+
+	~Regard3DConsoleCapture()
+	{
+		stdErrCapture_.uninstall();
+		stdOutCapture_.uninstall();
+	}
+
+	// Hands over everything collected since the last call. Called by the GUI.
+	std::string getBuffer()
+	{
+		wxCriticalSectionLocker lock(bufferCS_);
+		std::string buffer;
+		buffer.swap(buffer_);
+		return buffer;
+	}
+
+private:
+	class StreamCapture: public std::streambuf
+	{
+	public:
+		StreamCapture(Regard3DConsoleCapture &owner)
+			: owner_(owner), pStream_(NULL), pOrigBuf_(NULL) { }
+
+		virtual ~StreamCapture()
+		{
+			uninstall();
+		}
+
+		void install(std::ostream &stream)
+		{
+			pStream_ = &stream;
+			pOrigBuf_ = stream.rdbuf(this);
+		}
+
+		void uninstall()
+		{
+			// The original buffer must be back in place before this object dies
+			if(pStream_ != NULL)
+			{
+				pStream_->rdbuf(pOrigBuf_);
+				pStream_ = NULL;
+				pOrigBuf_ = NULL;
+			}
+		}
+
+	protected:
+		virtual int_type overflow(int_type c)
+		{
+			if(c != traits_type::eof())
+			{
+				const char ch = static_cast<char>(c);
+				owner_.append(&ch, 1, pOrigBuf_);
+			}
+			return c;
+		}
+
+		virtual std::streamsize xsputn(const char *pStr, std::streamsize count)
+		{
+			if(count > 0)
+				owner_.append(pStr, static_cast<size_t>(count), pOrigBuf_);
+			return count;
+		}
+
+	private:
+		Regard3DConsoleCapture &owner_;
+		std::ostream *pStream_;
+		std::streambuf *pOrigBuf_;
+	};
+
+	void append(const char *pStr, size_t count, std::streambuf *pOrigBuf)
+	{
+		wxCriticalSectionLocker lock(bufferCS_);
+
+		// Pass the text on as well, so it is not swallowed when Regard3D runs
+		// from a console or with its output redirected to a file
+		if(pOrigBuf != NULL)
+			pOrigBuf->sputn(pStr, static_cast<std::streamsize>(count));
+
+		buffer_.append(pStr, count);
+
+		// The GUI drains this every 100 ms. The limit only bounds the damage
+		// should the main thread ever be blocked for a long time.
+		if(buffer_.size() > MAX_PENDING_CHARS)
+			buffer_.erase(0, buffer_.size() - MAX_PENDING_CHARS);
+	}
+
+	static const size_t MAX_PENDING_CHARS = 1024 * 1024;
+
+	wxCriticalSection bufferCS_;
+	std::string buffer_;
+	StreamCapture stdOutCapture_, stdErrCapture_;
+};
+
+#endif
+
 enum
 {
 	ID_CONSOLE_WIN_TIMER = 3500,
@@ -155,6 +285,9 @@ Regard3DConsoleOutputFrame::Regard3DConsoleOutputFrame(wxWindow* parent)
 #if defined(USE_STDOUT_REDIRECT) && defined(_WIN32)
 	pStdOutRedirect_(NULL),
 #endif
+#if defined(USE_STREAMBUF_CAPTURE)
+	pConsoleCapture_(NULL),
+#endif
 	aTimer_(this, ID_CONSOLE_WIN_TIMER)
 {
 #if defined(USE_STDOUT_REDIRECT) && defined(_WIN32)
@@ -201,6 +334,9 @@ Regard3DConsoleOutputFrame::Regard3DConsoleOutputFrame(wxWindow* parent)
 
 	//pminilog_mutex_impl_wx_ = new minilog_mutex_impl_wx();
 	//minilog::inst().set_locker(pminilog_mutex_impl_wx_);
+#if defined(USE_STREAMBUF_CAPTURE)
+	pConsoleCapture_ = new Regard3DConsoleCapture();
+#endif
 	aTimer_.Start(100);
 }
 
@@ -218,6 +354,13 @@ Regard3DConsoleOutputFrame::~Regard3DConsoleOutputFrame()
 
 	//minilog::inst().set_locker(NULL);
 	//delete pminilog_mutex_impl_wx_;
+
+#if defined(USE_STREAMBUF_CAPTURE)
+	// Restores std::cout/std::cerr before the buffers are destroyed
+	aTimer_.Stop();
+	delete pConsoleCapture_;
+	pConsoleCapture_ = NULL;
+#endif
 }
 
 void Regard3DConsoleOutputFrame::OnConsoleOutputClose( wxCloseEvent& event )
@@ -238,11 +381,17 @@ void Regard3DConsoleOutputFrame::OnTimer( wxTimerEvent &event )
 	if(nOutRead > 0)
 		pConsoleOutputTextCtrl_->AppendText(wxString(buf, *wxConvCurrent));
 #endif
-	//std::string str = minilog::inst().getbuf();
-	//if(!str.empty())
+#if defined(USE_STREAMBUF_CAPTURE)
+	if(pConsoleCapture_ != NULL)
 	{
-		//pConsoleOutputTextCtrl_->AppendText(wxString(str.c_str(), *wxConvCurrent));
+		std::string str = pConsoleCapture_->getBuffer();
+		if(!str.empty())
+		{
+			// Length is passed explicitly, the text may contain embedded zeros
+			pConsoleOutputTextCtrl_->AppendText(wxString(str.data(), *wxConvCurrent, str.size()));
+		}
 	}
+#endif
 }
 
 BEGIN_EVENT_TABLE( Regard3DConsoleOutputFrame, wxMiniFrame)	//Regard3DConsoleOutputFrameBase )

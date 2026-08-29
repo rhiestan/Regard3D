@@ -23,6 +23,7 @@
 class wxStreamToTextRedirector;
 class StdOutRedirect;
 class minilog_mutex_impl_wx;
+class Regard3DConsoleCapture;
 
 #include "Regard3DMainFrameBase.h"
 
@@ -32,6 +33,11 @@ class minilog_mutex_impl_wx;
 #endif
 // Works, but is extremely slow
 //#define USE_STREAM_TO_TEXT_REDIRECT
+
+// Capture the C++ streams by replacing their stream buffer. This is how the
+// output of the OpenMVG library is picked up: OpenMVG 2.x has no logging sink,
+// it writes every OPENMVG_LOG_* statement directly to std::cerr.
+#define USE_STREAMBUF_CAPTURE
 
 #include <wx/minifram.h>
 
@@ -56,6 +62,9 @@ private:
 	StdOutRedirect *pStdOutRedirect_;
 #endif
 	minilog_mutex_impl_wx *pminilog_mutex_impl_wx_;
+#if defined(USE_STREAMBUF_CAPTURE)
+	Regard3DConsoleCapture *pConsoleCapture_;
+#endif
 
 	wxTimer aTimer_;
 

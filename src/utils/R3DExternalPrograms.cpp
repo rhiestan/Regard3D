@@ -91,6 +91,21 @@ bool R3DExternalPrograms::initialize()
 			checkExecutable(mveFN.GetPath(wxPATH_GET_VOLUME), wxT("CMPMVS"), executableExtension, cmpmvsPath_);
 		}
 
+		// Graphviz, used by OpenMVG's global SfM engine: it renders the graphs of
+		// its HTML report by calling std::system("neato ..."), which searches PATH.
+		// Purely optional, so a missing gv directory must not fail the check below.
+		wxFileName graphvizFN(exeFN);
+		graphvizFN.AppendDir(wxT("gv"));
+		if(graphvizFN.DirExists())
+		{
+			wxString neatoPath;
+			if(checkExecutable(graphvizFN.GetPath(wxPATH_GET_VOLUME), wxT("neato"), executableExtension, neatoPath))
+			{
+				graphvizPath_ = graphvizFN.GetPath(wxPATH_GET_VOLUME);
+				allPaths_.Add(graphvizPath_);	// So the external tools find it too
+			}
+		}
+
 		if(!isOK)
 		{
 			wxMessageBox(wxT("Third-party executables not found.\nPlease put them where the executable is located."),

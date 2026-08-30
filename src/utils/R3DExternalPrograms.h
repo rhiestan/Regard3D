@@ -42,6 +42,13 @@ public:
 	// Directory holding the Graphviz tools, empty when they are not installed
 	const wxString &getGraphvizPath() { return graphvizPath_; }
 
+	// OpenMVG command line tools, empty when they are not installed
+	const wxString &getComputeFeaturesPath() { return computeFeaturesPath_; }
+	const wxString &getComputeFeaturesOpenCVPath() { return computeFeaturesOpenCVPath_; }
+	const wxString &getPairGeneratorPath() { return pairGeneratorPath_; }
+	const wxString &getComputeMatchesPath() { return computeMatchesPath_; }
+	const wxString &getGeometricFilterPath() { return geometricFilterPath_; }
+
 	const wxArrayString &getAllPaths() { return allPaths_; }
 
 	static R3DExternalPrograms &getInstance() { return instance_; }
@@ -60,6 +67,8 @@ private:
 	wxString cmpmvsPath_;
 	wxString smvsreconPath_, smvsreconSSE41Path;
 	wxString graphvizPath_;
+	wxString computeFeaturesPath_, computeFeaturesOpenCVPath_;
+	wxString pairGeneratorPath_, computeMatchesPath_, geometricFilterPath_;
 	wxArrayString allPaths_;
 
 	static R3DExternalPrograms instance_;

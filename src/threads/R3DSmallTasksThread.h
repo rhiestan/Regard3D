@@ -52,7 +52,8 @@ public:
 		STTColorizeSurface,
 		STTCombineDenseModels,
 		STTExportOldSfM_Output,
-		STTExportToMVE2
+		STTExportToMVE2,
+		STTPrepareComputeMatches
 	};
 
 	R3DSmallTasksThread();
@@ -62,6 +63,7 @@ public:
 	osg::ref_ptr<osg::Node> getLoadedModel() const { return model_; }
 	R3DProject::Densification *getDensification() const { return pDensification_; }
 	R3DProject::Surface *getSurface() const { return pSurface_; }
+	R3DProject::ComputeMatches *getComputeMatches() const { return pComputeMatches_; }
 
 	void setMainFrame(Regard3DMainFrame *pMainFrame);
 	void stopThread();
@@ -77,6 +79,7 @@ public:
 	void combineDenseModels(R3DProject::Densification *pDensification, int numberOfClusters);
 	void exportOldSfM_Output(R3DProject::Densification *pDensification);
 	void exportToMVE2(R3DProject::Densification *pDensification, R3DProject::Surface *pSurface);
+	void prepareComputeMatches(R3DProject::ComputeMatches *pComputeMatches);
 
 protected:
 	virtual wxThread::ExitCode Entry();
@@ -96,6 +99,7 @@ private:
 	R3DProject::Densification *pDensification_;
 	R3DProject::Triangulation *pTriangulation_;
 	R3DProject::Surface *pSurface_;
+	R3DProject::ComputeMatches *pComputeMatches_;
 	wxString pathname_;
 	int numberOfClusters_;
 };

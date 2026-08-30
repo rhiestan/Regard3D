@@ -431,7 +431,8 @@ int R3DProject::clonePictureSet(R3DProject::PictureSet *pPictureSet)
 
 int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 	const wxString &featureDetector, const wxString &descriptorExtractor,
-	float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm)
+	float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm,
+	int computeEngine, const R3DOpenMVGMatchingParams &openMVGParams)
 {
 	if(pPictureSet == NULL)
 		return -1;
@@ -452,6 +453,8 @@ int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 	cm.distRatio_ = keypointMatchingRatio;
 	cm.cameraModel_ = cameraModel;
 	cm.matchingAlgorithm_ = matchingAlgorithm;
+	cm.computeEngine_ = computeEngine;
+	cm.openMVGParams_ = openMVGParams;
 	cm.state_ = OSInvalid;
 	pPictureSet->computeMatches_.push_back(cm);
 
@@ -1644,9 +1647,21 @@ std::string R3DProject::PictureSet::getBasePathname()
 	return std::string("pictureset");
 }
 
+R3DOpenMVGMatchingParams::R3DOpenMVGMatchingParams()
+	: describerMethod_(0), describerPreset_(0), upright_(false), numThreads_(0),
+	pairMode_(0), contiguousCount_(5),
+	distanceRatio_(0.8), nearestMatchingMethod_(0), cacheSize_(0), preemptiveFeatureCount_(0),
+	computeFundamental_(true), computeEssential_(true), computeHomography_(true),
+	guidedMatching_(false)
+{
+}
+
 R3DProject::ComputeMatches::ComputeMatches()
 	: Object(), threshold_(0), distRatio_(0),
 	cameraModel_(3), matchingAlgorithm_(0),
+	// New nodes use the OpenMVG executables; projects written before the engine
+	// existed are put back on the built-in one when they are loaded (serialize)
+	computeEngine_(1),
 	state_(R3DProject::OSInvalid)
 {
 }
@@ -1669,6 +1684,8 @@ R3DProject::ComputeMatches &R3DProject::ComputeMatches::copy(const R3DProject::C
 	distRatio_ = o.distRatio_;
 	cameraModel_ = o.cameraModel_;
 	matchingAlgorithm_ = o.matchingAlgorithm_;
+	computeEngine_ = o.computeEngine_;
+	openMVGParams_ = o.openMVGParams_;
 	state_ = o.state_;
 	numberOfKeypoints_ = o.numberOfKeypoints_;
 	runningTime_ = o.runningTime_;
@@ -2016,6 +2033,26 @@ void R3DProject::Triangulation::serialize(Archive & ar, const unsigned int versi
 }
 BOOST_CLASS_VERSION(R3DProject::Triangulation, 3)
 
+// Serialize the OpenMVG tool parameters
+template<class Archive>
+void R3DOpenMVGMatchingParams::serialize(Archive & ar, const unsigned int WXUNUSED(version))
+{
+	ar & boost::serialization::make_nvp("describerMethod", describerMethod_);
+	ar & boost::serialization::make_nvp("describerPreset", describerPreset_);
+	ar & boost::serialization::make_nvp("upright", upright_);
+	ar & boost::serialization::make_nvp("numThreads", numThreads_);
+	ar & boost::serialization::make_nvp("pairMode", pairMode_);
+	ar & boost::serialization::make_nvp("contiguousCount", contiguousCount_);
+	ar & boost::serialization::make_nvp("distanceRatio", distanceRatio_);
+	ar & boost::serialization::make_nvp("nearestMatchingMethod", nearestMatchingMethod_);
+	ar & boost::serialization::make_nvp("cacheSize", cacheSize_);
+	ar & boost::serialization::make_nvp("preemptiveFeatureCount", preemptiveFeatureCount_);
+	ar & boost::serialization::make_nvp("computeFundamental", computeFundamental_);
+	ar & boost::serialization::make_nvp("computeEssential", computeEssential_);
+	ar & boost::serialization::make_nvp("computeHomography", computeHomography_);
+	ar & boost::serialization::make_nvp("guidedMatching", guidedMatching_);
+}
+
 // Serialize ComputeMatches class
 template<class Archive>
 void R3DProject::ComputeMatches::serialize(Archive & ar, const unsigned int version)
@@ -2032,12 +2069,24 @@ void R3DProject::ComputeMatches::serialize(Archive & ar, const unsigned int vers
 		ar & boost::serialization::make_nvp("cameraModel", cameraModel_);
 	if(version > 1)
 		ar & boost::serialization::make_nvp("matchingAlgorithm", matchingAlgorithm_);
+	if(version > 2)
+	{
+		ar & boost::serialization::make_nvp("computeEngine", computeEngine_);
+		ar & boost::serialization::make_nvp("openMVGParams", openMVGParams_);
+	}
+	else
+	{
+		// Older projects predate the choice of engine, so whatever they hold was
+		// computed by the built-in one. Only reached while loading: saving
+		// always uses the current version.
+		computeEngine_ = 0;
+	}
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("numberOfKeypoints", numberOfKeypoints_);
 	ar & boost::serialization::make_nvp("Triangulations", triangulations_);
 }
-BOOST_CLASS_VERSION(R3DProject::ComputeMatches, 2)
+BOOST_CLASS_VERSION(R3DProject::ComputeMatches, 3)
 
 // Serialize PictureSet class
 template<class Archive>

@@ -45,6 +45,8 @@
 #include "Regard3DTriangulationDialog.h"
 #include "Regard3DMatchingResultsDialog.h"
 #include "Regard3DDensificationDialog.h"
+#include "R3DComputeMatchesProcess.h"
+#include "R3DOpenMVGOptions.h"
 #include "R3DDensificationProcess.h"
 #include "Regard3DSurfaceDialog.h"
 #include "R3DSurfaceGenProcess.h"
@@ -142,6 +144,7 @@ Regard3DMainFrame::Regard3DMainFrame(wxWindow* parent)
 	isFirstTimeIdle_(true), continuousUpdate_(false),
 	aTimer_(this, ID_TIMER), pTreeListPopupMenu_(NULL),
 	pImageUpdatesDlg_(NULL), pR3DComputeMatchesThread_(NULL),
+	pComputeMatchesProcess_(NULL),
 	pR3DTriangulationThread_(NULL), pDensificationProcess_(NULL),
 	pR3DSurfaceGenProcess_(NULL), pR3DSmallTasksThread_(NULL),
 	pProgressDialog_(NULL), pStdProgressDialog_(NULL)
@@ -1248,6 +1251,22 @@ void Regard3DMainFrame::OnComputeMatchesFinished( wxCommandEvent &event )
 		delete pR3DComputeMatchesThread_;
 		pR3DComputeMatchesThread_ = NULL;
 	}
+	else if(pComputeMatchesProcess_ != NULL)
+	{
+		pComputeMatchesProcess_->readConsoleOutput();	// Consume all output
+		isOK = pComputeMatchesProcess_->getIsOK();
+		errorMessage = pComputeMatchesProcess_->getErrorMessage();
+		resultStrings = pComputeMatchesProcess_->getResultStrings();
+		pComputeMatches = pComputeMatchesProcess_->getComputeMatches();
+		delete pComputeMatchesProcess_;
+		pComputeMatchesProcess_ = NULL;
+	}
+
+	if(pComputeMatches == NULL)
+	{
+		// Nothing ran, or it was already cleaned up
+		return;
+	}
 
 	if(isOK)
 	{
@@ -1547,6 +1566,15 @@ void Regard3DMainFrame::OnSmallTaskFinished(wxCommandEvent &event)
 		}
 		endProgressDialog = false;
 	}
+	else if(type == R3DSmallTasksThread::STTPrepareComputeMatches)
+	{
+		R3DProject::ComputeMatches *pComputeMatches = pR3DSmallTasksThread_->getComputeMatches();
+		pComputeMatchesProcess_ = new R3DComputeMatchesProcess(this);
+		// Success or failure, the run reports back through
+		// OnComputeMatchesFinished, which is also where it is cleaned up
+		pComputeMatchesProcess_->runComputeMatchesProcess(pComputeMatches);
+		endProgressDialog = false;
+	}
 
 	delete pR3DSmallTasksThread_;
 	pR3DSmallTasksThread_ = NULL;
@@ -1824,6 +1852,8 @@ void Regard3DMainFrame::OnTimer( wxTimerEvent &WXUNUSED(event) )
 		pOSGGLCanvas_->Refresh();
 	}
 
+	if(pComputeMatchesProcess_ != NULL)
+		pComputeMatchesProcess_->readConsoleOutput();
 	if(pDensificationProcess_ != NULL)
 		pDensificationProcess_->readConsoleOutput();
 	if(pR3DSurfaceGenProcess_ != NULL)
@@ -2086,15 +2116,31 @@ void Regard3DMainFrame::updateProjectDetails()
 				else if(pComputeMatches->matchingAlgorithm_ == 8)
 					matchingAlgorithmString = wxT("HNSW - Precise");
 
-				if(!pComputeMatches->featureDetector_.IsEmpty())
-					params = wxString::Format(wxT("Detector(s): %s/Threshold: %3g/Dist ratio: %3g/Camera model: "),
-						pComputeMatches->featureDetector_, pComputeMatches->threshold_, pComputeMatches->distRatio_);
+				if(pComputeMatches->computeEngine_ == 1)
+				{
+					// The OpenMVG engine ignores threshold_/distRatio_ and the
+					// built-in matchers, so show what it actually used
+					const R3DOpenMVGMatchingParams &omvg = pComputeMatches->openMVGParams_;
+					params = wxString::Format(wxT("OpenMVG/Describer: %s/Preset: %s/Dist ratio: %3g/Camera model: "),
+						R3DOpenMVGOptions::describerName(omvg.describerMethod_),
+						R3DOpenMVGOptions::presetName(omvg.describerPreset_),
+						omvg.distanceRatio_);
+					params.Append(cameraModelString);
+					params.Append(wxT("/Matching method: "));
+					params.Append(R3DOpenMVGOptions::matcherName(omvg.nearestMatchingMethod_));
+				}
 				else
-					params = wxString::Format(wxT("Threshold: %3g/Dist ratio: %3g/Camera model: "),
-						pComputeMatches->threshold_, pComputeMatches->distRatio_);
-				params.Append(cameraModelString);
-				params.Append(wxT("/Matching algorithm: "));
-				params.Append(matchingAlgorithmString);
+				{
+					if(!pComputeMatches->featureDetector_.IsEmpty())
+						params = wxString::Format(wxT("Detector(s): %s/Threshold: %3g/Dist ratio: %3g/Camera model: "),
+							pComputeMatches->featureDetector_, pComputeMatches->threshold_, pComputeMatches->distRatio_);
+					else
+						params = wxString::Format(wxT("Threshold: %3g/Dist ratio: %3g/Camera model: "),
+							pComputeMatches->threshold_, pComputeMatches->distRatio_);
+					params.Append(cameraModelString);
+					params.Append(wxT("/Matching algorithm: "));
+					params.Append(matchingAlgorithmString);
+				}
 
 				if(!pComputeMatches->numberOfKeypoints_.empty())
 				{
@@ -2399,12 +2445,15 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 	if(dlg.ShowModal() == wxID_OK)
 	{
 		// Start compute matches
-		float keypointSensitivity = 0, keypointMatchingRatio = 0;
-		int keypointDetectorType = 0;
-		bool addTBMR = false;
-		int cameraModel = 3, matchingAlgorithm = 0;
+		R3DComputeMatchesDialogResults dlgResults;
+		dlg.getResults(dlgResults);
 
-		dlg.getResults(keypointSensitivity, keypointMatchingRatio, keypointDetectorType, addTBMR, cameraModel, matchingAlgorithm);
+		const float keypointSensitivity = dlgResults.keypointSensitivity_;
+		const float keypointMatchingRatio = dlgResults.keypointMatchingRatio_;
+		const int keypointDetectorType = dlgResults.keypointDetectorType_;
+		const bool addTBMR = dlgResults.addTBMR_;
+		const int cameraModel = dlgResults.cameraModel_;
+		const int matchingAlgorithm = dlgResults.matchingAlgorithm_;
 
 		Regard3DFeatures::R3DFParams params;
 		params.threshold_ = keypointSensitivity;
@@ -2419,14 +2468,24 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 		bool svgOutput = false;	// TODO: Make configurable?
 
 		wxString featureDetector, descriptorExtractor(wxT("LIOP"));
-		for(const auto &kd : params.keypointDetectorList_)
+		if(dlgResults.engine_ == 1)
 		{
-			if(!featureDetector.IsEmpty())
-				featureDetector.Append(wxT(";"));
-			featureDetector.Append( wxString(kd.c_str()) );
+			// One OpenMVG describer does both, so name it for both
+			featureDetector = R3DOpenMVGOptions::describerName(dlgResults.openMVG_.describerMethod_);
+			descriptorExtractor = featureDetector;
+		}
+		else
+		{
+			for(const auto &kd : params.keypointDetectorList_)
+			{
+				if(!featureDetector.IsEmpty())
+					featureDetector.Append(wxT(";"));
+				featureDetector.Append( wxString(kd.c_str()) );
+			}
 		}
 		int newID = project_.addComputeMatches(pPictureSet, featureDetector, descriptorExtractor,
-			keypointSensitivity, keypointMatchingRatio, cameraModel, matchingAlgorithm);
+			keypointSensitivity, keypointMatchingRatio, cameraModel, matchingAlgorithm,
+			dlgResults.engine_, dlgResults.openMVG_);
 		if(newID >= 0)
 		{
 			project_.populateTreeControl(pProjectTreeCtrl_);
@@ -2444,13 +2503,28 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 			return;
 		pComputeMatches->state_ = R3DProject::OSRunning;
 
-		if(pR3DComputeMatchesThread_ != NULL)
-			delete pR3DComputeMatchesThread_;
-		pR3DComputeMatchesThread_ = new R3DComputeMatchesThread();
-		pR3DComputeMatchesThread_->setMainFrame(this);
-		pR3DComputeMatchesThread_->setParameters(params, svgOutput, cameraModel, matchingAlgorithm);
-		pR3DComputeMatchesThread_->setComputeMatches(pComputeMatches, pPictureSet);
-		pR3DComputeMatchesThread_->startComputeMatchesThread();
+		if(dlgResults.engine_ == 1)
+		{
+			// The OpenMVG executables need the matches directory emptied and
+			// sfm_data.bin written before they start. That is slow, so it runs
+			// in a thread; R3DComputeMatchesProcess is started afterwards, from
+			// OnSmallTaskFinished, because wxExecute needs the main thread.
+			if(pR3DSmallTasksThread_ != NULL)
+				delete pR3DSmallTasksThread_;
+			pR3DSmallTasksThread_ = new R3DSmallTasksThread();
+			pR3DSmallTasksThread_->setMainFrame(this);
+			pR3DSmallTasksThread_->prepareComputeMatches(pComputeMatches);
+		}
+		else
+		{
+			if(pR3DComputeMatchesThread_ != NULL)
+				delete pR3DComputeMatchesThread_;
+			pR3DComputeMatchesThread_ = new R3DComputeMatchesThread();
+			pR3DComputeMatchesThread_->setMainFrame(this);
+			pR3DComputeMatchesThread_->setParameters(params, svgOutput, cameraModel, matchingAlgorithm);
+			pR3DComputeMatchesThread_->setComputeMatches(pComputeMatches, pPictureSet);
+			pR3DComputeMatchesThread_->startComputeMatchesThread();
+		}
 
 		pProgressDialog_ = new Regard3DProgressDialog(this, wxT("Computing matches"));
 		pProgressDialog_->Show();

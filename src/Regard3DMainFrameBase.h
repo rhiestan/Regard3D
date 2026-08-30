@@ -1,13 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////
-// C++ code generated with wxFormBuilder (version Sep  8 2010)
+// C++ code generated with wxFormBuilder (version 3.10.1-0-g8feb16b3)
 // http://www.wxformbuilder.org/
 //
-// PLEASE DO "NOT" EDIT THIS FILE!
+// PLEASE DO *NOT* EDIT THIS FILE!
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef __Regard3DMainFrameBase__
-#define __Regard3DMainFrameBase__
+#pragma once
 
+#include <wx/artprov.h>
+#include <wx/xrc/xmlres.h>
 #include <wx/string.h>
 #include <wx/bitmap.h>
 #include <wx/image.h>
@@ -49,11 +50,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DMainFrameBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DMainFrameBase : public wxFrame 
+class Regard3DMainFrameBase : public wxFrame
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnMainFrameClose( wxCloseEvent& event ){ OnMainFrameClose( event ); }
 		void _wxFB_OnMainFrameIdle( wxIdleEvent& event ){ OnMainFrameIdle( event ); }
@@ -97,8 +98,8 @@ class Regard3DMainFrameBase : public wxFrame
 		void _wxFB_OnPolygonModeRadioBox( wxCommandEvent& event ){ OnPolygonModeRadioBox( event ); }
 		void _wxFB_OnShadingModelRadioBox( wxCommandEvent& event ){ OnShadingModelRadioBox( event ); }
 		void _wxFB_OnResetViewButton( wxCommandEvent& event ){ OnResetViewButton( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -171,9 +172,9 @@ class Regard3DMainFrameBase : public wxFrame
 			ID_POLYGONMODERADIOBOX,
 			ID_SHADINGMODELRADIOBOX,
 			ID_RESETVIEWBUTTON,
-			ID_MAINSTATUSBAR,
+			ID_MAINSTATUSBAR
 		};
-		
+
 		wxMenuBar* pMainFrameMenuBar_;
 		wxMenu* pFileMenu_;
 		wxMenu* pOptionsMenu_;
@@ -275,8 +276,8 @@ class Regard3DMainFrameBase : public wxFrame
 		wxRadioBox* pShadingModelRadioBox_;
 		wxButton* pResetViewButton_;
 		wxStatusBar* pMainStatusBar_;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnMainFrameClose( wxCloseEvent& event ) = 0;
 		virtual void OnMainFrameIdle( wxIdleEvent& event ) = 0;
 		virtual void OnNewProject( wxCommandEvent& event ) = 0;
@@ -319,43 +320,44 @@ class Regard3DMainFrameBase : public wxFrame
 		virtual void OnPolygonModeRadioBox( wxCommandEvent& event ) = 0;
 		virtual void OnShadingModelRadioBox( wxCommandEvent& event ) = 0;
 		virtual void OnResetViewButton( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
-		
+
 		Regard3DMainFrameBase( wxWindow* parent, wxWindowID id = ID_REGARD3DMAINFRAME, const wxString& title = wxT("Regard 3D"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1089,709 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
+
 		~Regard3DMainFrameBase();
-		
+
 		void pMainSplitter_OnIdle( wxIdleEvent& )
 		{
 			pMainSplitter_->SetSashPosition( 250 );
 			pMainSplitter_->Disconnect( wxEVT_IDLE, wxIdleEventHandler( Regard3DMainFrameBase::pMainSplitter_OnIdle ), NULL, this );
 		}
-		
+
 		void pProjectSplitter_OnIdle( wxIdleEvent& )
 		{
 			pProjectSplitter_->SetSashPosition( 0 );
 			pProjectSplitter_->Disconnect( wxEVT_IDLE, wxIdleEventHandler( Regard3DMainFrameBase::pProjectSplitter_OnIdle ), NULL, this );
 		}
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class NewProjectDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class NewProjectDialogBase : public wxDialog 
+class NewProjectDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnUseDefaultProjectPathRadioButton( wxCommandEvent& event ){ OnUseDefaultProjectPathRadioButton( event ); }
 		void _wxFB_OnSetProjectPathRadioButton( wxCommandEvent& event ){ OnSetProjectPathRadioButton( event ); }
 		void _wxFB_OnProjectPathChanged( wxFileDirPickerEvent& event ){ OnProjectPathChanged( event ); }
 		void _wxFB_OnProjectNameText( wxCommandEvent& event ){ OnProjectNameText( event ); }
 		void _wxFB_OnOK( wxCommandEvent& event ){ OnOK( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -364,9 +366,9 @@ class NewProjectDialogBase : public wxDialog
 			ID_SETPROJECTPATHRADIOBUTTON,
 			ID_PROJECTPATHDIRPICKER,
 			ID_PROJECTNAMETEXTCTRL,
-			ID_PROJECTFILENAMETEXTCTRL,
+			ID_PROJECTFILENAMETEXTCTRL
 		};
-		
+
 		wxPanel* m_panel7;
 		wxRadioButton* pUseDefaultProjectPathRadioButton_;
 		wxRadioButton* pSetProjectPathRadioButton_;
@@ -375,77 +377,77 @@ class NewProjectDialogBase : public wxDialog
 		wxTextCtrl* pProjectNameTextCtrl_;
 		wxStaticText* m_staticText7;
 		wxTextCtrl* pProjectFilenameTextCtrl_;
-		
 		wxStdDialogButtonSizer* m_sdbSizer1;
 		wxButton* m_sdbSizer1OK;
 		wxButton* m_sdbSizer1Cancel;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnUseDefaultProjectPathRadioButton( wxCommandEvent& event ) = 0;
 		virtual void OnSetProjectPathRadioButton( wxCommandEvent& event ) = 0;
 		virtual void OnProjectPathChanged( wxFileDirPickerEvent& event ) = 0;
 		virtual void OnProjectNameText( wxCommandEvent& event ) = 0;
 		virtual void OnOK( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
-		wxString projectName_; 
-		
+		wxString projectName_;
+
 		NewProjectDialogBase( wxWindow* parent, wxWindowID id = ID_NEWPROJECTDIALOG, const wxString& title = wxT("Create new Regard3D project"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
+
 		~NewProjectDialogBase();
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DConsoleOutputFrameBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DConsoleOutputFrameBase : public wxFrame 
+class Regard3DConsoleOutputFrameBase : public wxFrame
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnConsoleOutputClose( wxCloseEvent& event ){ OnConsoleOutputClose( event ); }
 		void _wxFB_OnClearConsoleOutputButton( wxCommandEvent& event ){ OnClearConsoleOutputButton( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
 			ID_REGARD3DCONSOLEOUTPUTFRAMEBASE = 1000,
 			ID_CONSOLEOUTPUTTEXTCTRL,
-			ID_CLEARCONSOLEOUTPUTBUTTON,
+			ID_CLEARCONSOLEOUTPUTBUTTON
 		};
-		
+
 		wxPanel* m_panel7;
 		wxTextCtrl* pConsoleOutputTextCtrl_;
-		
 		wxButton* pClearConsoleOutputButton_;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnConsoleOutputClose( wxCloseEvent& event ) = 0;
 		virtual void OnClearConsoleOutputButton( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
-		
+
 		Regard3DConsoleOutputFrameBase( wxWindow* parent, wxWindowID id = ID_REGARD3DCONSOLEOUTPUTFRAMEBASE, const wxString& title = wxT("Console output"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 500,300 ), long style = wxCAPTION|wxCLOSE_BOX|wxFRAME_TOOL_WINDOW|wxMAXIMIZE_BOX|wxRESIZE_BORDER|wxSYSTEM_MENU|wxTAB_TRAVERSAL );
+
 		~Regard3DConsoleOutputFrameBase();
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DProgressDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DProgressDialogBase : public wxDialog 
+class Regard3DProgressDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnShowOutputWindowButton( wxCommandEvent& event ){ OnShowOutputWindowButton( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -454,9 +456,9 @@ class Regard3DProgressDialogBase : public wxDialog
 			ID_PROGRESSSTATUSTEXTCTRL,
 			ID_ELAPSEDTIMETEXTCTRL,
 			ID_PROGRESSGAUGE,
-			ID_SHOWOUTPUTWINDOWBUTTON,
+			ID_SHOWOUTPUTWINDOWBUTTON
 		};
-		
+
 		wxPanel* m_panel8;
 		wxStaticText* pProgressText_;
 		wxTextCtrl* pProgressStatusTextCtrl_;
@@ -464,26 +466,27 @@ class Regard3DProgressDialogBase : public wxDialog
 		wxTextCtrl* pElapsedTimeTextCtrl_;
 		wxGauge* pProgressGauge_;
 		wxButton* pShowOutputWindowButton_;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnShowOutputWindowButton( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
-		
+
 		Regard3DProgressDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DPROGRESSDIALOG, const wxString& title = wxT("Progress dialog"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 400,190 ), long style = wxCAPTION|wxSYSTEM_MENU );
+
 		~Regard3DProgressDialogBase();
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DImagePreviewDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DImagePreviewDialogBase : public wxDialog 
+class Regard3DImagePreviewDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnClose( wxCloseEvent& event ){ OnClose( event ); }
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
@@ -494,8 +497,8 @@ class Regard3DImagePreviewDialogBase : public wxDialog
 		void _wxFB_OnZoomInButton( wxCommandEvent& event ){ OnZoomInButton( event ); }
 		void _wxFB_OnZoomOutButton( wxCommandEvent& event ){ OnZoomOutButton( event ); }
 		void _wxFB_OnCloseButton( wxCommandEvent& event ){ OnCloseButton( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -509,24 +512,22 @@ class Regard3DImagePreviewDialogBase : public wxDialog
 			ID_ZOOMFACTORTEXTCTRL,
 			ID_ZOOMINBUTTON,
 			ID_ZOOMOUTBUTTON,
-			ID_CLOSEBUTTON,
+			ID_CLOSEBUTTON
 		};
-		
+
 		wxPanel* pImagePreviewDialogPanel_;
 		ImagePanel *pImagePanel_;
 		wxChoice* pKeypointTypeChoice_;
 		wxCheckBox* pShowSingleKeypointsCheckBox_;
 		wxChoice* pMatchesChoice_;
 		wxCheckBox* pEnableTrackFilterCheckBox_;
-		
 		wxStaticText* m_staticText10;
 		wxTextCtrl* pZoomFactorTextCtrl_;
 		wxButton* pZoomInButton_;
 		wxButton* pZoomOutButton_;
-		
 		wxButton* pCloseButton_;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnClose( wxCloseEvent& event ) = 0;
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnKeypointTypeChoice( wxCommandEvent& event ) = 0;
@@ -536,23 +537,24 @@ class Regard3DImagePreviewDialogBase : public wxDialog
 		virtual void OnZoomInButton( wxCommandEvent& event ) = 0;
 		virtual void OnZoomOutButton( wxCommandEvent& event ) = 0;
 		virtual void OnCloseButton( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
-		
+
 		Regard3DImagePreviewDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DIMAGEPREVIEWDIALOG, const wxString& title = wxT("Image Preview"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 800,500 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
+
 		~Regard3DImagePreviewDialogBase();
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DPictureSetDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DPictureSetDialogBase : public wxDialog 
+class Regard3DPictureSetDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnAddFilesButton( wxCommandEvent& event ){ OnAddFilesButton( event ); }
@@ -565,8 +567,8 @@ class Regard3DPictureSetDialogBase : public wxDialog
 		void _wxFB_OnImageListKeyDown( wxListEvent& event ){ OnImageListKeyDown( event ); }
 		void _wxFB_OnCancel( wxCommandEvent& event ){ OnCancel( event ); }
 		void _wxFB_OnOK( wxCommandEvent& event ){ OnOK( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -578,9 +580,9 @@ class Regard3DPictureSetDialogBase : public wxDialog
 			ID_IMAGELISTCTRL,
 			ID_PICTURESETNAMETEXTCTRL,
 			ID_IMAGEPREVIEWPANEL,
-			ID_IPPREVIEWCANVAS,
+			ID_IPPREVIEWCANVAS
 		};
-		
+
 		wxPanel* m_panel13;
 		wxPanel* m_panel10;
 		wxButton* pAddFilesButton_;
@@ -594,8 +596,8 @@ class Regard3DPictureSetDialogBase : public wxDialog
 		wxStdDialogButtonSizer* m_sdbSizer2;
 		wxButton* m_sdbSizer2OK;
 		wxButton* m_sdbSizer2Cancel;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnAddFilesButton( wxCommandEvent& event ) = 0;
 		virtual void OnRemoveSelectedFilesButton( wxCommandEvent& event ) = 0;
@@ -607,43 +609,46 @@ class Regard3DPictureSetDialogBase : public wxDialog
 		virtual void OnImageListKeyDown( wxListEvent& event ) = 0;
 		virtual void OnCancel( wxCommandEvent& event ) = 0;
 		virtual void OnOK( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
 		wxSplitterWindow* pCentralSplitter_;
-		
+
 		Regard3DPictureSetDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DPICTURESETDIALOG, const wxString& title = wxT("Picture Set"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
+
 		~Regard3DPictureSetDialogBase();
-		
+
 		void pCentralSplitter_OnIdle( wxIdleEvent& )
 		{
 			pCentralSplitter_->SetSashPosition( 0 );
 			pCentralSplitter_->Disconnect( wxEVT_IDLE, wxIdleEventHandler( Regard3DPictureSetDialogBase::pCentralSplitter_OnIdle ), NULL, this );
 		}
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DComputeMatchesDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DComputeMatchesDialogBase : public wxDialog 
+class Regard3DComputeMatchesDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnClose( wxCloseEvent& event ){ OnClose( event ); }
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnKeypointSensitivitySlider( wxScrollEvent& event ){ OnKeypointSensitivitySlider( event ); }
 		void _wxFB_OnKeypointMatchingRatioSlider( wxScrollEvent& event ){ OnKeypointMatchingRatioSlider( event ); }
 		void _wxFB_OnOKButtonClick( wxCommandEvent& event ){ OnOKButtonClick( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
 			ID_REGARD3DCOMPUTEMATCHESDIALOG = 1000,
 			ID_COMPUTEMATCHESDIALOGPANEL,
+			ID_MATCHINGENGINECHOICEBOOK,
+			ID_R3DMATCHINGPANEL,
 			ID_KEYPOINTSENSITIVITYTEXTCTRL,
 			ID_KEYPOINTSENSITIVITYSLIDER,
 			ID_KEYPOINTSENSITIVITYVALTEXTCTRL,
@@ -653,10 +658,27 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 			ID_KEYPOINTDETECTORRADIOBOX,
 			ID_ADDTBMRDETECTORCHECKBOX,
 			ID_MATCHINGALGORITHMCHOICE,
-			ID_CAMERAMODELCHOICE,
+			ID_OPENMVGMATCHINGPANEL,
+			ID_OMVGDESCRIBERMETHODCHOICE,
+			ID_OMVGDESCRIBERPRESETCHOICE,
+			ID_OMVGNUMTHREADSTEXTCTRL,
+			ID_OMVGUPRIGHTCHECKBOX,
+			ID_OMVGPAIRMODECHOICE,
+			ID_OMVGCONTIGUOUSCOUNTTEXTCTRL,
+			ID_OMVGDISTANCERATIOTEXTCTRL,
+			ID_OMVGNEARESTMATCHINGMETHODCHOICE,
+			ID_OMVGCACHESIZETEXTCTRL,
+			ID_OMVGPREEMPTIVETEXTCTRL,
+			ID_OMVGFUNDAMENTALCHECKBOX,
+			ID_OMVGESSENTIALCHECKBOX,
+			ID_OMVGHOMOGRAPHYCHECKBOX,
+			ID_OMVGGUIDEDMATCHINGCHECKBOX,
+			ID_CAMERAMODELCHOICE
 		};
-		
+
 		wxPanel* pComputeMatchesDialogPanel_;
+		wxChoicebook* pMatchingEngineChoicebook_;
+		wxPanel* pR3DMatchingPanel_;
 		wxStaticText* m_staticText1;
 		wxTextCtrl* pKeypointSensitivityTextCtrl_;
 		wxSlider* pKeypointSensitivitySlider_;
@@ -668,42 +690,68 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		wxRadioBox* pKeypointDetectorRadioBox_;
 		wxCheckBox* pAddTBMRDetectorCheckBox_;
 		wxChoice* pMatchingAlgorithmChoice_;
+		wxPanel* pOpenMVGMatchingPanel_;
+		wxStaticText* m_staticTextOMVG1;
+		wxChoice* pOMVGDescriberMethodChoice_;
+		wxStaticText* m_staticTextOMVG2;
+		wxChoice* pOMVGDescriberPresetChoice_;
+		wxStaticText* m_staticTextOMVG3;
+		wxTextCtrl* pOMVGNumThreadsTextCtrl_;
+		wxStaticText* m_staticTextOMVG4;
+		wxCheckBox* pOMVGUprightCheckBox_;
+		wxStaticText* m_staticTextOMVG5;
+		wxChoice* pOMVGPairModeChoice_;
+		wxStaticText* m_staticTextOMVG6;
+		wxTextCtrl* pOMVGContiguousCountTextCtrl_;
+		wxStaticText* m_staticTextOMVG7;
+		wxTextCtrl* pOMVGDistanceRatioTextCtrl_;
+		wxStaticText* m_staticTextOMVG8;
+		wxChoice* pOMVGNearestMatchingMethodChoice_;
+		wxStaticText* m_staticTextOMVG9;
+		wxTextCtrl* pOMVGCacheSizeTextCtrl_;
+		wxStaticText* m_staticTextOMVG10;
+		wxTextCtrl* pOMVGPreemptiveTextCtrl_;
+		wxCheckBox* pOMVGFundamentalCheckBox_;
+		wxCheckBox* pOMVGEssentialCheckBox_;
+		wxCheckBox* pOMVGHomographyCheckBox_;
+		wxCheckBox* pOMVGGuidedMatchingCheckBox_;
 		wxChoice* pCameraModelChoice_;
 		wxStdDialogButtonSizer* m_sdbSizer3;
 		wxButton* m_sdbSizer3OK;
 		wxButton* m_sdbSizer3Cancel;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnClose( wxCloseEvent& event ) = 0;
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnKeypointSensitivitySlider( wxScrollEvent& event ) = 0;
 		virtual void OnKeypointMatchingRatioSlider( wxScrollEvent& event ) = 0;
 		virtual void OnOKButtonClick( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
-		
+
 		Regard3DComputeMatchesDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DCOMPUTEMATCHESDIALOG, const wxString& title = wxT("Compute Matches"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
+
 		~Regard3DComputeMatchesDialogBase();
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DTriangulationDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DTriangulationDialogBase : public wxDialog 
+class Regard3DTriangulationDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnTInitialImagePairColClick( wxListEvent& event ){ OnTInitialImagePairColClick( event ); }
 		void _wxFB_OnTInitialImagePairItemDeselected( wxListEvent& event ){ OnTInitialImagePairItemDeselected( event ); }
 		void _wxFB_OnTInitialImagePairItemSelected( wxListEvent& event ){ OnTInitialImagePairItemSelected( event ); }
 		void _wxFB_OnTPreviewWithMatchesCheckBox( wxCommandEvent& event ){ OnTPreviewWithMatchesCheckBox( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -725,9 +773,9 @@ class Regard3DTriangulationDialogBase : public wxDialog
 			ID_TGLOBALROTAVGMETHODRATIOBOX,
 			ID_TGLOBALTRANSLAVGMETHODRADIOBOX,
 			ID_TREFINECAMERAINTRINSICSCHECKBOX,
-			ID_USEGPSCHECKBOX,
+			ID_USEGPSCHECKBOX
 		};
-		
+
 		wxPanel* pTriangulationPanel_;
 		wxChoicebook* pTriangulationChoicebook_;
 		wxPanel* pIncrementalSFMPanel_;
@@ -739,49 +787,47 @@ class Regard3DTriangulationDialogBase : public wxDialog
 		wxPanel* pIncrementalMethodBoxRightPanel_;
 		PreviewCanvas *pPreviewCanvas_;
 		wxCheckBox* pTPreviewWithMatchesCheckBox_;
-		
 		wxPanel* pGlobalSFMPanel_;
 		wxStaticBoxSizer* pTGlobalMethodBoxSizer_;
 		wxRadioBox* pTGlobalRotAvgMethodRatioBox_;
 		wxRadioBox* pTGlobalTranslAvgMethodRadioBox_;
-		
 		wxCheckBox* pTRefineCameraIntrinsicsCheckBox_;
 		wxCheckBox* pUseGPSCheckBox_;
-		
 		wxStdDialogButtonSizer* m_sdbSizer4;
 		wxButton* m_sdbSizer4OK;
 		wxButton* m_sdbSizer4Cancel;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnTInitialImagePairColClick( wxListEvent& event ) = 0;
 		virtual void OnTInitialImagePairItemDeselected( wxListEvent& event ) = 0;
 		virtual void OnTInitialImagePairItemSelected( wxListEvent& event ) = 0;
 		virtual void OnTPreviewWithMatchesCheckBox( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
 		wxSplitterWindow* pIncrementalMethodBoxSplitter_;
-		
+
 		Regard3DTriangulationDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DTRIANGULATIONDIALOG, const wxString& title = wxT("Triangulation"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
+
 		~Regard3DTriangulationDialogBase();
-		
+
 		void pIncrementalMethodBoxSplitter_OnIdle( wxIdleEvent& )
 		{
 			pIncrementalMethodBoxSplitter_->SetSashPosition( 0 );
 			pIncrementalMethodBoxSplitter_->Disconnect( wxEVT_IDLE, wxIdleEventHandler( Regard3DTriangulationDialogBase::pIncrementalMethodBoxSplitter_OnIdle ), NULL, this );
 		}
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DMatchingResultsDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DMatchingResultsDialogBase : public wxDialog 
+class Regard3DMatchingResultsDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnIPImageListColClick( wxListEvent& event ){ OnIPImageListColClick( event ); }
@@ -796,8 +842,8 @@ class Regard3DMatchingResultsDialogBase : public wxDialog
 		void _wxFB_OnTInitialImagePairItemSelected( wxListEvent& event ){ OnTInitialImagePairItemSelected( event ); }
 		void _wxFB_OnTPreviewWithMatchesCheckBox( wxCommandEvent& event ){ OnTPreviewWithMatchesCheckBox( event ); }
 		void _wxFB_OnTOpenPreviewWindow( wxCommandEvent& event ){ OnTOpenPreviewWindow( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -820,9 +866,9 @@ class Regard3DMatchingResultsDialogBase : public wxDialog
 			ID_MATCHINGPREVIEWPANEL,
 			ID_TPREVIEWCANVAS,
 			ID_TPREVIEWWITHMATCHESCHECKBOX,
-			ID_TOPENPREVIEWWINDOW,
+			ID_TOPENPREVIEWWINDOW
 		};
-		
+
 		wxPanel* pMatchingResultsPanel_;
 		wxPanel* pKeypointsPanel_;
 		wxPanel* pImageListPanel_;
@@ -830,24 +876,20 @@ class Regard3DMatchingResultsDialogBase : public wxDialog
 		wxPanel* pKeypointPreviewPanel_;
 		PreviewCanvas *pIPPreviewCanvas_;
 		wxCheckBox* pIPPreviewWithKeypointsCheckBox_;
-		
 		wxButton* pIPOpenPreviewWindow_;
 		wxPanel* pMatchesPanel_;
 		wxPanel* pMatchingListPanel_;
-		
 		wxStaticText* m_staticText20;
 		wxChoice* pMatchesChoice_;
-		
 		wxListCtrl* pTInitialImagePairListCtrl_;
 		wxPanel* pMatchingPreviewPanel_;
 		PreviewCanvas *pTPreviewCanvas_;
 		wxCheckBox* pTPreviewWithMatchesCheckBox_;
-		
 		wxButton* pTOpenPreviewWindow_;
 		wxStdDialogButtonSizer* m_sdbSizer5;
 		wxButton* m_sdbSizer5OK;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnIPImageListColClick( wxListEvent& event ) = 0;
 		virtual void OnIPImageListItemDeselected( wxListEvent& event ) = 0;
@@ -861,44 +903,45 @@ class Regard3DMatchingResultsDialogBase : public wxDialog
 		virtual void OnTInitialImagePairItemSelected( wxListEvent& event ) = 0;
 		virtual void OnTPreviewWithMatchesCheckBox( wxCommandEvent& event ) = 0;
 		virtual void OnTOpenPreviewWindow( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
 		wxSplitterWindow* pHorizontalSplitter_;
 		wxSplitterWindow* pUpperVerticalSplitter_;
 		wxSplitterWindow* pLowerVerticalSplitter_;
-		
+
 		Regard3DMatchingResultsDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DMATCHINGRESULTSDIALOG, const wxString& title = wxT("Matching results"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE|wxMAXIMIZE_BOX|wxRESIZE_BORDER );
+
 		~Regard3DMatchingResultsDialogBase();
-		
+
 		void pHorizontalSplitter_OnIdle( wxIdleEvent& )
 		{
 			pHorizontalSplitter_->SetSashPosition( 0 );
 			pHorizontalSplitter_->Disconnect( wxEVT_IDLE, wxIdleEventHandler( Regard3DMatchingResultsDialogBase::pHorizontalSplitter_OnIdle ), NULL, this );
 		}
-		
+
 		void pUpperVerticalSplitter_OnIdle( wxIdleEvent& )
 		{
 			pUpperVerticalSplitter_->SetSashPosition( 0 );
 			pUpperVerticalSplitter_->Disconnect( wxEVT_IDLE, wxIdleEventHandler( Regard3DMatchingResultsDialogBase::pUpperVerticalSplitter_OnIdle ), NULL, this );
 		}
-		
+
 		void pLowerVerticalSplitter_OnIdle( wxIdleEvent& )
 		{
 			pLowerVerticalSplitter_->SetSashPosition( 0 );
 			pLowerVerticalSplitter_->Disconnect( wxEVT_IDLE, wxIdleEventHandler( Regard3DMatchingResultsDialogBase::pLowerVerticalSplitter_OnIdle ), NULL, this );
 		}
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DDensificationDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DDensificationDialogBase : public wxDialog 
+class Regard3DDensificationDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnUseCMVSCheckBox( wxCommandEvent& event ){ OnUseCMVSCheckBox( event ); }
@@ -912,8 +955,8 @@ class Regard3DDensificationDialogBase : public wxDialog
 		void _wxFB_OnSMVSInputScaleSliderScroll( wxScrollEvent& event ){ OnSMVSInputScaleSliderScroll( event ); }
 		void _wxFB_OnSMVSOutputScaleSliderScroll( wxScrollEvent& event ){ OnSMVSOutputScaleSliderScroll( event ); }
 		void _wxFB_OnSMVSSurfaceSmoothingFactorSliderScroll( wxScrollEvent& event ){ OnSMVSSurfaceSmoothingFactorSliderScroll( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -950,9 +993,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 			ID_SMVSSHADINGOPTCHECKBOX,
 			ID_SMVSSEMIGLOBALMATCIHINGCHECKBOX,
 			ID_SMVSSURFACESMOOTHINGFACTORTEXTCTRL,
-			ID_SMVSSURFACESMOOTHINGFACTORSLIDER,
+			ID_SMVSSURFACESMOOTHINGFACTORSLIDER
 		};
-		
+
 		wxPanel* pDensificationPanel_;
 		wxChoicebook* pDensificationMethodChoicebook_;
 		wxPanel* pPMVSParamsPanel_;
@@ -994,19 +1037,16 @@ class Regard3DDensificationDialogBase : public wxDialog
 		wxSlider* pSMVSOutputScaleSlider_;
 		wxStaticText* m_staticText59;
 		wxCheckBox* pSMVSShadingOptCheckBox_;
-		
 		wxStaticText* m_staticText60;
 		wxCheckBox* pSMVSSemiGlobalMatcihingCheckBox_;
-		
 		wxStaticText* m_staticText61;
 		wxTextCtrl* pSMVSSurfaceSmoothingFactorTextCtrl_;
 		wxSlider* pSMVSSurfaceSmoothingFactorSlider_;
-		
 		wxStdDialogButtonSizer* pStdDialogButtonSizer_;
 		wxButton* pStdDialogButtonSizer_OK;
 		wxButton* pStdDialogButtonSizer_Cancel;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnUseCMVSCheckBox( wxCommandEvent& event ) = 0;
 		virtual void OnPMVSLevelSliderScroll( wxScrollEvent& event ) = 0;
@@ -1019,24 +1059,25 @@ class Regard3DDensificationDialogBase : public wxDialog
 		virtual void OnSMVSInputScaleSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnSMVSOutputScaleSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnSMVSSurfaceSmoothingFactorSliderScroll( wxScrollEvent& event ) = 0;
-		
-	
+
+
 	public:
-		wxString maxImage_; 
-		
+		wxString maxImage_;
+
 		Regard3DDensificationDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DDENSIFICATIONDIALOG, const wxString& title = wxT("Densification"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
+
 		~Regard3DDensificationDialogBase();
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DSurfaceDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DSurfaceDialogBase : public wxDialog 
+class Regard3DSurfaceDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnSurfaceGenerationMethodRadioBox( wxCommandEvent& event ){ OnSurfaceGenerationMethodRadioBox( event ); }
@@ -1050,8 +1091,8 @@ class Regard3DSurfaceDialogBase : public wxDialog
 		void _wxFB_OnFSSRMinComponentSizeSliderScroll( wxScrollEvent& event ){ OnFSSRMinComponentSizeSliderScroll( event ); }
 		void _wxFB_OnColorizationMethodRadioBox( wxCommandEvent& event ){ OnColorizationMethodRadioBox( event ); }
 		void _wxFB_OnColVertNumberOfNeighboursSliderScroll( wxScrollEvent& event ){ OnColVertNumberOfNeighboursSliderScroll( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -1084,9 +1125,9 @@ class Regard3DSurfaceDialogBase : public wxDialog
 			ID_TEXTOUTLIERREMOVALCHOICE,
 			ID_TEXTGEOMVISTESTCHECKBOX,
 			ID_TEXTGLOBALSEAMLEVCHECKBOX,
-			ID_TEXTLOCALSEAMLEVCHECKBOX,
+			ID_TEXTLOCALSEAMLEVCHECKBOX
 		};
-		
+
 		wxPanel* pSurfacePanel_;
 		wxRadioBox* pSurfaceGenerationMethodRadioBox_;
 		wxStaticText* m_staticText39;
@@ -1128,12 +1169,11 @@ class Regard3DSurfaceDialogBase : public wxDialog
 		wxCheckBox* pTextGlobalSeamLevCheckBox_;
 		wxStaticText* m_staticText45;
 		wxCheckBox* pTextLocalSeamLevCheckBox_;
-		
 		wxStdDialogButtonSizer* m_sdbSizer7;
 		wxButton* m_sdbSizer7OK;
 		wxButton* m_sdbSizer7Cancel;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnSurfaceGenerationMethodRadioBox( wxCommandEvent& event ) = 0;
 		virtual void OnPoissonDepthSliderScroll( wxScrollEvent& event ) = 0;
@@ -1146,27 +1186,28 @@ class Regard3DSurfaceDialogBase : public wxDialog
 		virtual void OnFSSRMinComponentSizeSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnColorizationMethodRadioBox( wxCommandEvent& event ) = 0;
 		virtual void OnColVertNumberOfNeighboursSliderScroll( wxScrollEvent& event ) = 0;
-		
-	
+
+
 	public:
-		
+
 		Regard3DSurfaceDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DSURFACEDIALOG, const wxString& title = wxT("Surface generation"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
+
 		~Regard3DSurfaceDialogBase();
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DPropertiesDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DPropertiesDialogBase : public wxDialog 
+class Regard3DPropertiesDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -1175,44 +1216,44 @@ class Regard3DPropertiesDialogBase : public wxDialog
 			ID_DEFAULTPROJECTPATHDIRPICKER,
 			ID_USERCAMERADBLOCATIONDIRPICKER,
 			ID_MOUSEBUTTONRADIOBOX,
-			ID_MOUSEWHEELRADIOBOX,
+			ID_MOUSEWHEELRADIOBOX
 		};
-		
+
 		wxPanel* pPopertiesPanel_;
-		
 		wxStdDialogButtonSizer* m_sdbSizer8;
 		wxButton* m_sdbSizer8OK;
 		wxButton* m_sdbSizer8Cancel;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
-		
-	
+
+
 	public:
 		wxDirPickerCtrl* pDefaultProjectPathDirPicker_;
 		wxDirPickerCtrl* pUserCameraDBLocationDirPicker_;
 		wxRadioBox* pMouseButtonRadioBox_;
 		wxRadioBox* pMouseWheelRadioBox_;
-		
+
 		Regard3DPropertiesDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DPROPERTIESDIALOG, const wxString& title = wxT("Regard 3D Properties"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( -1,-1 ), long style = wxDEFAULT_DIALOG_STYLE );
+
 		~Regard3DPropertiesDialogBase();
-	
+
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Class Regard3DUserCameraDBDialogBase
 ///////////////////////////////////////////////////////////////////////////////
-class Regard3DUserCameraDBDialogBase : public wxDialog 
+class Regard3DUserCameraDBDialogBase : public wxDialog
 {
 	DECLARE_EVENT_TABLE()
 	private:
-		
+
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
 		void _wxFB_OnDeleteSelectedEntryButtonClicked( wxCommandEvent& event ){ OnDeleteSelectedEntryButtonClicked( event ); }
 		void _wxFB_OnDeleteAllEntriesButtonClicked( wxCommandEvent& event ){ OnDeleteAllEntriesButtonClicked( event ); }
-		
-	
+
+
 	protected:
 		enum
 		{
@@ -1220,30 +1261,27 @@ class Regard3DUserCameraDBDialogBase : public wxDialog
 			ID_USERCAMERADBPANEL,
 			ID_USERCAMERADBLISTCTRL,
 			ID_DELETESELECTEDITEMBUTTON,
-			ID_DELETEDBBUTTON,
+			ID_DELETEDBBUTTON
 		};
-		
+
 		wxPanel* pUserCameraDBPanel_;
-		
 		wxButton* pDeleteSelectedItemButton_;
-		
 		wxButton* pDeleteDBButton_;
-		
 		wxStdDialogButtonSizer* m_sdbSizer9;
 		wxButton* m_sdbSizer9OK;
-		
-		// Virtual event handlers, overide them in your derived class
+
+		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
 		virtual void OnDeleteSelectedEntryButtonClicked( wxCommandEvent& event ) = 0;
 		virtual void OnDeleteAllEntriesButtonClicked( wxCommandEvent& event ) = 0;
-		
-	
+
+
 	public:
 		wxListCtrl* pUserCameraDBListCtrl_;
-		
+
 		Regard3DUserCameraDBDialogBase( wxWindow* parent, wxWindowID id = ID_REGARD3DUSERCAMERADBDIALOGBASE, const wxString& title = wxT("User-defined camera DB"), const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = wxDEFAULT_DIALOG_STYLE );
+
 		~Regard3DUserCameraDBDialogBase();
-	
+
 };
 
-#endif //__Regard3DMainFrameBase__

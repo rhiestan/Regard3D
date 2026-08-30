@@ -24,6 +24,7 @@ class ViewerOptionsPanel;
 class ConvertModelToOSG;
 class Regard3DDropTarget;
 class R3DComputeMatchesThread;
+class R3DComputeMatchesProcess;
 class R3DTriangulationThread;
 class Regard3DConsoleOutputFrame;
 class Regard3DProgressDialog;
@@ -225,6 +226,9 @@ private:
 	R3DImageUpdatesInterface *pImageUpdatesDlg_;
 
 	R3DComputeMatchesThread *pR3DComputeMatchesThread_;
+	// The OpenMVG engine runs the executables instead; exactly one of the two
+	// is non-NULL while matches are being computed
+	R3DComputeMatchesProcess *pComputeMatchesProcess_;
 	R3DTriangulationThread *pR3DTriangulationThread_;
 	R3DDensificationProcess *pDensificationProcess_;
 	R3DSurfaceGenProcess *pR3DSurfaceGenProcess_;

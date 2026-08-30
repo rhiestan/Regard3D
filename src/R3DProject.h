@@ -36,6 +36,45 @@ class wxTreeCtrl;
  *
  * This class contains all paths required to do work.
  */
+/**
+ * Parameters for the OpenMVG command line tools.
+ *
+ * One member per option of openMVG_main_ComputeFeatures, _PairGenerator,
+ * _ComputeMatches and _GeometricFilter, so the dialog maps 1:1 onto them.
+ * The choice_ members hold the index of the corresponding wxChoice, the
+ * matching strings live in Regard3DComputeMatchesDialog.
+ */
+struct R3DOpenMVGMatchingParams
+{
+	R3DOpenMVGMatchingParams();
+
+	friend class boost::serialization::access;
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version);
+
+	// openMVG_main_ComputeFeatures
+	int describerMethod_;			// SIFT, SIFT_ANATOMY, AKAZE_FLOAT, AKAZE_MLDB, AKAZE_OPENCV, SIFT_OPENCV
+	int describerPreset_;			// NORMAL, HIGH, ULTRA
+	bool upright_;
+	int numThreads_;				// 0: let OpenMVG decide
+
+	// openMVG_main_PairGenerator
+	int pairMode_;					// 0: exhaustive, 1: contiguous
+	int contiguousCount_;
+
+	// openMVG_main_ComputeMatches
+	double distanceRatio_;
+	int nearestMatchingMethod_;		// AUTO, BRUTEFORCEL2, ...
+	int cacheSize_;					// 0: keep all regions in memory
+	int preemptiveFeatureCount_;	// 0: no pre-emptive matching
+
+	// openMVG_main_GeometricFilter, one run per selected model
+	bool computeFundamental_;
+	bool computeEssential_;
+	bool computeHomography_;
+	bool guidedMatching_;
+};
+
 struct R3DProjectPaths
 {
 	wxString absoluteProjectPath_;
@@ -292,6 +331,10 @@ public:
 		wxString featureDetector_, descriptorExtractor_;
 		float threshold_, distRatio_;
 		int cameraModel_, matchingAlgorithm_;
+		// Which engine computed this: 0 the built-in one, 1 the OpenMVG
+		// executables. Same numbering as the pages of the dialog's choicebook.
+		int computeEngine_;
+		R3DOpenMVGMatchingParams openMVGParams_;
 		R3DObjectState state_;
 		std::vector<int> numberOfKeypoints_;
 		wxString runningTime_;
@@ -360,7 +403,8 @@ public:
 	int clonePictureSet(PictureSet *pPictureSet);
 	int addComputeMatches(R3DProject::PictureSet *pPictureSet,
 		const wxString &featureDetector, const wxString &descriptorExtractor,
-		float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm);
+		float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm,
+		int computeEngine = 1, const R3DOpenMVGMatchingParams &openMVGParams = R3DOpenMVGMatchingParams());
 	int addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
 		R3DTriangulationAlgorithm algorithm, int rotAveraging, int transAveraging, bool refineIntrinsics, bool useGPSInfo, R3DTriangulationInitialization triInitialization);
 	int addDensification(R3DProject::Triangulation *pTriangulation);

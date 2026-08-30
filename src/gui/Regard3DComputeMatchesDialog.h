@@ -20,6 +20,38 @@
 #define REGARD3DCOMPUTEMATCHESDIALOG_H
 
 #include "Regard3DMainFrameBase.h"
+#include "R3DProject.h"
+
+/**
+ * Everything the Compute Matches dialog collects.
+ *
+ * engine_ is the index of the selected choicebook page and decides which half
+ * of this is meaningful: 0 the built-in engine, 1 the OpenMVG executables.
+ * The camera model is shared, it feeds R3DProject::writeSfmData either way.
+ */
+struct R3DComputeMatchesDialogResults
+{
+	// The OpenMVG executables are the default; the dialog falls back to the
+	// built-in engine when they are not installed
+	R3DComputeMatchesDialogResults()
+		: engine_(1), keypointSensitivity_(0.0007f), keypointMatchingRatio_(0.6f),
+		keypointDetectorType_(0), addTBMR_(false), matchingAlgorithm_(0), cameraModel_(3) { }
+
+	int engine_;
+
+	// Built-in engine
+	float keypointSensitivity_;
+	float keypointMatchingRatio_;
+	int keypointDetectorType_;
+	bool addTBMR_;
+	int matchingAlgorithm_;
+
+	// Shared
+	int cameraModel_;
+
+	// OpenMVG engine
+	R3DOpenMVGMatchingParams openMVG_;
+};
 
 class Regard3DComputeMatchesDialog: public Regard3DComputeMatchesDialogBase
 {
@@ -29,10 +61,7 @@ public:
 
 	void setMaxPixelCount(long long maxPixelCount);
 
-	void getResults(float &keypointSensitivity,
-		float &keypointMatchingRatio,
-		int &keypointDetectorType,
-		bool &addTBMR, int &cameraModel, int &matchingAlgorithm);
+	void getResults(R3DComputeMatchesDialogResults &results);
 
 protected:
 	virtual void OnClose( wxCloseEvent& event );
@@ -44,6 +73,15 @@ protected:
 	void updateICKeypointSensitivityText();
 	void updateICKeypointMatchingRatioText();
 
+	bool checkOpenMVGExecutables();
+	void setOpenMVGToolTips();
+	void initializeOpenMVGPage();
+	bool readOpenMVGPage();
+	void updateOpenMVGDescriberDependencies();
+	void updateOpenMVGPairModeDependencies();
+	bool readNumericField(wxTextCtrl *pTextCtrl, const wxString &name,
+		double minValue, double maxValue, double &value);
+
 private:
 	float keypointSensitivity_;
 	float keypointMatchingRatio_;
@@ -52,6 +90,7 @@ private:
 	bool addTBMR_;
 	int cameraModel_;
 	int matchingAlgorithm_;
+	R3DComputeMatchesDialogResults results_;
 
 	DECLARE_EVENT_TABLE()
 };

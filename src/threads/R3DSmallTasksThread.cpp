@@ -32,6 +32,7 @@ R3DSmallTasksThread::R3DSmallTasksThread() :
 	pMainFrame_(NULL), type_(R3DSmallTasksThread::STTLoadModel),
 	pRegard3DModelViewHelper_(NULL),
 	pDensification_(NULL), pTriangulation_(NULL), pSurface_(NULL),
+	pComputeMatches_(NULL),
 	numberOfClusters_(0)
 {
 }
@@ -157,6 +158,23 @@ void R3DSmallTasksThread::exportToMVE2(R3DProject::Densification *pDensification
 	this->Run();
 }
 
+/**
+ * Gets everything ready for R3DComputeMatchesProcess.
+ *
+ * Emptying the matches directory and importing the images can take a while,
+ * and the process itself has to be started from the main thread, so the two
+ * are split: this runs here, the executables are launched from
+ * Regard3DMainFrame::OnSmallTaskFinished.
+ */
+void R3DSmallTasksThread::prepareComputeMatches(R3DProject::ComputeMatches *pComputeMatches)
+{
+	type_ = R3DSmallTasksThread::STTPrepareComputeMatches;
+	pComputeMatches_ = pComputeMatches;
+
+	this->Create();
+	this->Run();
+}
+
 wxThread::ExitCode R3DSmallTasksThread::Entry()
 {
 	if(type_ == STTLoadModel)
@@ -218,6 +236,26 @@ wxThread::ExitCode R3DSmallTasksThread::Entry()
 			{
 				OpenMVGHelper::exportToMVE2Format(sfm_data, wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc));
 			}
+		}
+	}
+	else if(type_ == STTPrepareComputeMatches)
+	{
+		R3DProject *pProject = R3DProject::getInstance();
+		R3DProjectPaths paths;
+		if(pProject->getProjectPathsCM(paths, pComputeMatches_))
+		{
+			// Creates the directories and removes whatever an earlier run left
+			// behind, so no stale .feat or matches file is picked up
+			pProject->prepareComputeMatches(paths, pComputeMatches_->threshold_,
+				pComputeMatches_->distRatio_);
+
+			if(pMainFrame_ != NULL)
+				pMainFrame_->sendUpdateProgressBarEvent(0.1f, wxT("Importing images"));
+			pProject->importAllImages(paths);
+
+			// The OpenMVG executables read the scene from this file; the library
+			// engine writes it too, inside R3DComputeMatches::computeMatches
+			pProject->writeSfmData(paths, pComputeMatches_->cameraModel_);
 		}
 	}
 

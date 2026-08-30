@@ -128,6 +128,86 @@ namespace R3DOpenMVGOptions
 			index = 0;
 		return kMatchers[index].name_;
 	}
+
+	// ---------------------------------------------------- openMVG_main_SfM ---
+
+	// --sfm_engine, indexed by R3DProject::R3DTriangulationAlgorithm
+	// (R3DTA_Incremental1, R3DTA_Incremental2, R3DTA_Global)
+	const wxChar * const kSfMEngines[] = {
+		wxT("INCREMENTAL"), wxT("INCREMENTALV2"), wxT("GLOBAL") };
+	const size_t kSfMEngineCount = WXSIZEOF(kSfMEngines);
+
+	// --sfm_initializer, indexed by R3DProject::R3DTriangulationInitialization.
+	// Only INCREMENTALV2 reads it; the built-in engine has the first two only.
+	const wxChar * const kSceneInitializers[] = {
+		wxT("MAX_PAIR"), wxT("STELLAR"), wxT("AUTO_PAIR"), wxT("EXISTING_POSE") };
+	const size_t kSceneInitializerCount = WXSIZEOF(kSceneInitializers);
+
+	// --refine_intrinsic_config. NONE is not in the list: the dialog's
+	// "Refine camera intrinsics" checkbox is what turns the refinement off.
+	const wxChar * const kIntrinsicRefinements[] = {
+		wxT("ADJUST_ALL"),
+		wxT("ADJUST_FOCAL_LENGTH"),
+		wxT("ADJUST_PRINCIPAL_POINT"),
+		wxT("ADJUST_DISTORTION"),
+		wxT("ADJUST_FOCAL_LENGTH|ADJUST_PRINCIPAL_POINT"),
+		wxT("ADJUST_FOCAL_LENGTH|ADJUST_DISTORTION"),
+		wxT("ADJUST_PRINCIPAL_POINT|ADJUST_DISTORTION") };
+	const size_t kIntrinsicRefinementCount = WXSIZEOF(kIntrinsicRefinements);
+
+	// --refine_extrinsic_config
+	const wxChar * const kExtrinsicRefinements[] = {
+		wxT("ADJUST_ALL"), wxT("NONE") };
+	const size_t kExtrinsicRefinementCount = WXSIZEOF(kExtrinsicRefinements);
+
+	// --triangulation_method and --resection_method are passed as numbers;
+	// these are openMVG's ETriangulationMethod and resection::SolverType, whose
+	// values are the indices of the entries the dialog shows.
+	const int kTriangulationMethodCount = 4;	// 3 = INVERSE_DEPTH_WEIGHTED_MIDPOINT, the default
+	const int kResectionMethodCount = 5;		// 3 = P3P_NORDBERG_ECCV18, the default
+
+	// -M, the filtered matches file the reconstruction is built from
+	const wxChar * const kMatchesFiles[] = {
+		wxT(""),					// automatic: chosen from the SfM engine
+		wxT("matches.f.txt"),
+		wxT("matches.e.txt"),
+		wxT("matches.h.txt") };
+	const size_t kMatchesFileCount = WXSIZEOF(kMatchesFiles);
+
+	inline const wxChar *sfmEngineName(int algorithm)
+	{
+		if(algorithm < 0 || algorithm >= static_cast<int>(kSfMEngineCount))
+			algorithm = 0;
+		return kSfMEngines[algorithm];
+	}
+
+	inline const wxChar *sceneInitializerName(int index)
+	{
+		if(index < 0 || index >= static_cast<int>(kSceneInitializerCount))
+			index = 0;
+		return kSceneInitializers[index];
+	}
+
+	inline const wxChar *intrinsicRefinementName(int index)
+	{
+		if(index < 0 || index >= static_cast<int>(kIntrinsicRefinementCount))
+			index = 0;
+		return kIntrinsicRefinements[index];
+	}
+
+	inline const wxChar *extrinsicRefinementName(int index)
+	{
+		if(index < 0 || index >= static_cast<int>(kExtrinsicRefinementCount))
+			index = 0;
+		return kExtrinsicRefinements[index];
+	}
+
+	inline const wxChar *matchesFileName(int index)
+	{
+		if(index < 0 || index >= static_cast<int>(kMatchesFileCount))
+			index = 0;
+		return kMatchesFiles[index];
+	}
 }
 
 #endif

@@ -630,13 +630,15 @@ ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 SET(ALL_SRC ${ALL_SRC} Regard3DApp.cpp Regard3DMainFrame.cpp Regard3DMainFrameBase.cpp
 	Regard3DDropTarget.cpp R3DComputeMatches.cpp Regard3DFeatures.cpp R3DProject.cpp
-	Regard3DModelViewHelper.cpp R3DComputeMatchesProcess.cpp R3DDensificationProcess.cpp
+	Regard3DModelViewHelper.cpp R3DComputeMatchesProcess.cpp R3DTriangulationProcess.cpp
+	R3DDensificationProcess.cpp
 	R3DSurfaceGenProcess.cpp
 	R3DModelOperations.cpp )
 
 SET(ALL_HEADERS ${ALL_HEADERS} Regard3DApp.h Regard3DMainFrame.h Regard3DMainFrameBase.h
 	CommonIncludes.h Regard3DDropTarget.h R3DComputeMatches.h Regard3DFeatures.h R3DProject.h
-	Regard3DModelViewHelper.h R3DComputeMatchesProcess.h R3DDensificationProcess.h
+	Regard3DModelViewHelper.h R3DComputeMatchesProcess.h R3DTriangulationProcess.h
+	R3DDensificationProcess.h
 	R3DSurfaceGenProcess.h R3DOpenMVGOptions.h
 	R3DModelOperations.h )
 

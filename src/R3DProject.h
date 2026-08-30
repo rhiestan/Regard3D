@@ -75,6 +75,32 @@ struct R3DOpenMVGMatchingParams
 	bool guidedMatching_;
 };
 
+/**
+ * The openMVG_main_SfM options that Regard3D has no equivalent for.
+ *
+ * The SfM engine, the scene initializer, the initial image pair and the two
+ * averaging methods are not in here: the triangulation dialog already had
+ * controls for those and they mean the same thing for both engines.
+ *
+ * All members are indices into the tables in R3DOpenMVGOptions.h, except the
+ * camera model, which is openMVG's EINTRINSIC value.
+ */
+struct R3DOpenMVGTriangulationParams
+{
+	R3DOpenMVGTriangulationParams();
+
+	friend class boost::serialization::access;
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version);
+
+	int intrinsicRefinement_;	// Only used when refineIntrinsics_ is set
+	int extrinsicRefinement_;
+	int triangulationMethod_;	// openMVG ETriangulationMethod
+	int resectionMethod_;		// openMVG resection::SolverType
+	int cameraModel_;			// For views with unknown intrinsics only
+	int matchesFile_;			// 0: pick from the SfM engine
+};
+
 struct R3DProjectPaths
 {
 	wxString absoluteProjectPath_;
@@ -273,7 +299,8 @@ public:
 	{
 		R3DTI_MaxPair = 0,
 		R3DTI_Stellar,
-		R3DTI_Auto			// For the future
+		R3DTI_Auto,			// openMVG_main_SfM only
+		R3DTI_ExistingPose	// openMVG_main_SfM only
 	};
 
 	/**
@@ -302,6 +329,10 @@ public:
 		bool refineIntrinsics_;
 		int rotAveraging_, transAveraging_;
 		bool useGPSInfo_;
+		// Which engine computed this: 0 the built-in one, 1 openMVG_main_SfM.
+		// Same numbering as pTriEngineRadioBox_ in the dialog.
+		int computeEngine_;
+		R3DOpenMVGTriangulationParams openMVGParams_;
 		R3DObjectState state_;
 		wxString resultCameras_, resultNumberOfTracks_;
 		wxString resultResidualErrors_, runningTime_;
@@ -406,7 +437,8 @@ public:
 		float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm,
 		int computeEngine = 1, const R3DOpenMVGMatchingParams &openMVGParams = R3DOpenMVGMatchingParams());
 	int addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
-		R3DTriangulationAlgorithm algorithm, int rotAveraging, int transAveraging, bool refineIntrinsics, bool useGPSInfo, R3DTriangulationInitialization triInitialization);
+		R3DTriangulationAlgorithm algorithm, int rotAveraging, int transAveraging, bool refineIntrinsics, bool useGPSInfo, R3DTriangulationInitialization triInitialization,
+		int computeEngine = 1, const R3DOpenMVGTriangulationParams &openMVGParams = R3DOpenMVGTriangulationParams());
 	int addDensification(R3DProject::Triangulation *pTriangulation);
 	int addSurface(R3DProject::Densification *pDensification);
 	void removePictureSet(PictureSet *pPictureSet);

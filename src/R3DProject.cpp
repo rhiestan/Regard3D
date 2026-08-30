@@ -462,7 +462,8 @@ int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 }
 
 int R3DProject::addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
-	R3DTriangulationAlgorithm algorithm, int rotAveraging, int transAveraging, bool refineIntrinsics, bool useGPSInfo, R3DTriangulationInitialization triInitialization)
+	R3DTriangulationAlgorithm algorithm, int rotAveraging, int transAveraging, bool refineIntrinsics, bool useGPSInfo, R3DTriangulationInitialization triInitialization,
+	int computeEngine, const R3DOpenMVGTriangulationParams &openMVGParams)
 {
 	if(pComputeMatches == NULL)
 		return -1;
@@ -488,6 +489,8 @@ int R3DProject::addTriangulation(R3DProject::ComputeMatches *pComputeMatches, si
 	tri.transAveraging_ = transAveraging;
 	tri.refineIntrinsics_ = refineIntrinsics;
 	tri.useGPSInfo_ = useGPSInfo;
+	tri.computeEngine_ = computeEngine;
+	tri.openMVGParams_ = openMVGParams;
 	tri.state_ = OSInvalid;
 	pComputeMatches->triangulations_.push_back(tri);
 
@@ -1656,6 +1659,14 @@ R3DOpenMVGMatchingParams::R3DOpenMVGMatchingParams()
 {
 }
 
+R3DOpenMVGTriangulationParams::R3DOpenMVGTriangulationParams()
+	: intrinsicRefinement_(0), extrinsicRefinement_(0),
+	// openMVG's own defaults: INVERSE_DEPTH_WEIGHTED_MIDPOINT and P3P_NORDBERG_ECCV18
+	triangulationMethod_(3), resectionMethod_(3),
+	cameraModel_(3), matchesFile_(0)
+{
+}
+
 R3DProject::ComputeMatches::ComputeMatches()
 	: Object(), threshold_(0), distRatio_(0),
 	cameraModel_(3), matchingAlgorithm_(0),
@@ -1708,6 +1719,9 @@ R3DProject::Triangulation::Triangulation()
 	global_(false), globalMSTBasedRot_(false),
 	refineIntrinsics_(true), rotAveraging_(2), transAveraging_(1),
 	useGPSInfo_(false),
+	// New nodes run openMVG_main_SfM; projects written before the engine
+	// existed are put back on the built-in one when they are loaded (serialize)
+	computeEngine_(1),
 	state_(R3DProject::OSInvalid)
 {
 }
@@ -1736,6 +1750,8 @@ R3DProject::Triangulation &R3DProject::Triangulation::copy(const R3DProject::Tri
 	rotAveraging_ = o.rotAveraging_;
 	transAveraging_ = o.transAveraging_;
 	useGPSInfo_ = o.useGPSInfo_;
+	computeEngine_ = o.computeEngine_;
+	openMVGParams_ = o.openMVGParams_;
 	resultCameras_ = o.resultCameras_;
 	resultNumberOfTracks_ = o.resultNumberOfTracks_;
 	resultResidualErrors_ = o.resultResidualErrors_;
@@ -2024,6 +2040,16 @@ void R3DProject::Triangulation::serialize(Archive & ar, const unsigned int versi
 			triInitialization_ = R3DTriangulationInitialization::R3DTI_MaxPair;
 		}
 	}
+	if(version > 3)
+	{
+		ar & boost::serialization::make_nvp("computeEngine", computeEngine_);
+		ar & boost::serialization::make_nvp("openMVGParams", openMVGParams_);
+	}
+	else if(Archive::is_loading::value)
+	{
+		// Predates the choice of engine, so it was the built-in one
+		computeEngine_ = 0;
+	}
 	ar & boost::serialization::make_nvp("resultCameras", resultCameras_);
 	ar & boost::serialization::make_nvp("resultNumberOfTracks", resultNumberOfTracks_);
 	ar & boost::serialization::make_nvp("resultResidualErrors", resultResidualErrors_);
@@ -2031,7 +2057,7 @@ void R3DProject::Triangulation::serialize(Archive & ar, const unsigned int versi
 	ar & boost::serialization::make_nvp("orientation", orientation_);
 	ar & boost::serialization::make_nvp("Densifications", densifications_);
 }
-BOOST_CLASS_VERSION(R3DProject::Triangulation, 3)
+BOOST_CLASS_VERSION(R3DProject::Triangulation, 4)
 
 // Serialize the OpenMVG tool parameters
 template<class Archive>
@@ -2051,6 +2077,17 @@ void R3DOpenMVGMatchingParams::serialize(Archive & ar, const unsigned int WXUNUS
 	ar & boost::serialization::make_nvp("computeEssential", computeEssential_);
 	ar & boost::serialization::make_nvp("computeHomography", computeHomography_);
 	ar & boost::serialization::make_nvp("guidedMatching", guidedMatching_);
+}
+
+template<class Archive>
+void R3DOpenMVGTriangulationParams::serialize(Archive & ar, const unsigned int WXUNUSED(version))
+{
+	ar & boost::serialization::make_nvp("intrinsicRefinement", intrinsicRefinement_);
+	ar & boost::serialization::make_nvp("extrinsicRefinement", extrinsicRefinement_);
+	ar & boost::serialization::make_nvp("triangulationMethod", triangulationMethod_);
+	ar & boost::serialization::make_nvp("resectionMethod", resectionMethod_);
+	ar & boost::serialization::make_nvp("cameraModel", cameraModel_);
+	ar & boost::serialization::make_nvp("matchesFile", matchesFile_);
 }
 
 // Serialize ComputeMatches class

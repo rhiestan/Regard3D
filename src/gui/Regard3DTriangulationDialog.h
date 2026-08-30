@@ -24,6 +24,35 @@
 #include "PreviewGeneratorThread.h"
 #include "R3DProject.h"
 
+/**
+ * Everything the triangulation dialog collects.
+ *
+ * engine_ decides who does the work: 0 the built-in library, 1
+ * openMVG_main_SfM. Everything above openMVG_ applies to both, because the
+ * three pages of the method choicebook are the three OpenMVG SfM engines.
+ */
+struct R3DTriangulationDialogResults
+{
+	R3DTriangulationDialogResults()
+		: engine_(1), algorithm_(R3DProject::R3DTA_Incremental2),
+		initialImageID1_(0), initialImageID2_(0),
+		rotAveraging_(2), transAveraging_(1),
+		refineIntrinsics_(true), useGPSInfo_(false),
+		triInitialization_(R3DProject::R3DTI_MaxPair) { }
+
+	int engine_;
+
+	R3DProject::R3DTriangulationAlgorithm algorithm_;
+	size_t initialImageID1_, initialImageID2_;
+	int rotAveraging_, transAveraging_;
+	bool refineIntrinsics_;
+	bool useGPSInfo_;
+	R3DProject::R3DTriangulationInitialization triInitialization_;
+
+	// openMVG_main_SfM only
+	R3DOpenMVGTriangulationParams openMVG_;
+};
+
 class Regard3DTriangulationDialog: public Regard3DTriangulationDialogBase, public R3DImageUpdatesInterface
 {
 public:
@@ -35,9 +64,7 @@ public:
 
 	bool isTriangulationPossible();
 
-	void getResults(R3DProject::R3DTriangulationAlgorithm &algorithm, size_t &initialImageID1, size_t &initialImageID2,
-		int &rotAveraging, int &transAveraging,
-		bool &refineIntrinsics, bool &useGPSInfo, R3DProject::R3DTriangulationInitialization &triInitilization);
+	void getResults(R3DTriangulationDialogResults &results);
 
 	virtual void OnPreviewFinished();
 	virtual void OnNewImageInfos();
@@ -63,6 +90,12 @@ protected:
 	void updateTriangulationMethodChoice();
 	void checkForPreviewImage();
 
+	bool isOpenMVGSfMPossible(wxString &reason);
+	void setOpenMVGToolTips();
+	void initializeOpenMVGOptions();
+	void readOpenMVGOptions();
+	void updateEngineDependencies();
+
 private:
 	wxTimer aTimer_;
 	PreviewGeneratorThread *pPreviewGeneratorThread_;
@@ -73,6 +106,8 @@ private:
 	PreviewInfo previewInfoMatches_;
 
 	bool isGlobalSfmAvailable_, initialImagePairListIsEmpty_;
+	bool isOpenMVGSfMAvailable_;
+	R3DTriangulationDialogResults results_;
 
 	std::vector< std::pair<size_t, size_t> > imageIDList_;
 	int ipSortColumn_, ipSortDirections_[5];

@@ -48,6 +48,7 @@ public:
 	const wxString &getPairGeneratorPath() { return pairGeneratorPath_; }
 	const wxString &getComputeMatchesPath() { return computeMatchesPath_; }
 	const wxString &getGeometricFilterPath() { return geometricFilterPath_; }
+	const wxString &getSfMPath() { return sfmPath_; }
 
 	const wxArrayString &getAllPaths() { return allPaths_; }
 
@@ -69,6 +70,7 @@ private:
 	wxString graphvizPath_;
 	wxString computeFeaturesPath_, computeFeaturesOpenCVPath_;
 	wxString pairGeneratorPath_, computeMatchesPath_, geometricFilterPath_;
+	wxString sfmPath_;
 	wxArrayString allPaths_;
 
 	static R3DExternalPrograms instance_;

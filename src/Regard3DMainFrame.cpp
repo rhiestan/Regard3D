@@ -46,6 +46,7 @@
 #include "Regard3DMatchingResultsDialog.h"
 #include "Regard3DDensificationDialog.h"
 #include "R3DComputeMatchesProcess.h"
+#include "R3DTriangulationProcess.h"
 #include "R3DOpenMVGOptions.h"
 #include "R3DDensificationProcess.h"
 #include "Regard3DSurfaceDialog.h"
@@ -111,6 +112,7 @@ enum
 	ID_UPDATE_PROGRESS_BAR,
 	ID_COMPUTE_MATCHES_FINISHED,
 	ID_TRIANGULATION_FINISHED,
+	ID_TRIANGULATION_PROCESS_FINISHED,
 	ID_DENSIFICATION_FINISHED,
 	ID_SURFACE_GEN_FINISHED,
 	ID_SMALL_TASK_FINISHED,
@@ -145,7 +147,8 @@ Regard3DMainFrame::Regard3DMainFrame(wxWindow* parent)
 	aTimer_(this, ID_TIMER), pTreeListPopupMenu_(NULL),
 	pImageUpdatesDlg_(NULL), pR3DComputeMatchesThread_(NULL),
 	pComputeMatchesProcess_(NULL),
-	pR3DTriangulationThread_(NULL), pDensificationProcess_(NULL),
+	pR3DTriangulationThread_(NULL), pTriangulationProcess_(NULL),
+	pDensificationProcess_(NULL),
 	pR3DSurfaceGenProcess_(NULL), pR3DSmallTasksThread_(NULL),
 	pProgressDialog_(NULL), pStdProgressDialog_(NULL)
 {
@@ -310,6 +313,17 @@ void Regard3DMainFrame::sendTriangulationFinishedEvent()
 	wxQueueEvent(this, newEvent);
 #else
 	wxCommandEvent newEvent(myCustomEventType, ID_TRIANGULATION_FINISHED);
+	AddPendingEvent(newEvent);
+#endif
+}
+
+void Regard3DMainFrame::sendTriangulationProcessFinishedEvent()
+{
+#if wxCHECK_VERSION(2, 9, 0)
+	wxCommandEvent* newEvent = new wxCommandEvent(myCustomEventType, ID_TRIANGULATION_PROCESS_FINISHED);
+	wxQueueEvent(this, newEvent);
+#else
+	wxCommandEvent newEvent(myCustomEventType, ID_TRIANGULATION_PROCESS_FINISHED);
 	AddPendingEvent(newEvent);
 #endif
 }
@@ -1290,6 +1304,37 @@ void Regard3DMainFrame::OnComputeMatchesFinished( wxCommandEvent &event )
 	}
 }
 
+/**
+ * openMVG_main_SfM has terminated.
+ *
+ * What it wrote still has to be colorized and measured, which is library work,
+ * so the triangulation thread finishes the job and both engines end up in
+ * OnTriangulationFinished.
+ */
+void Regard3DMainFrame::OnTriangulationProcessFinished( wxCommandEvent &event )
+{
+	if(pTriangulationProcess_ == NULL)
+		return;
+
+	pTriangulationProcess_->readConsoleOutput();	// Consume all output
+
+	const bool isOK = pTriangulationProcess_->getIsOK();
+	const wxString errorMessage(pTriangulationProcess_->getErrorMessage());
+	const wxTimeSpan runTime(pTriangulationProcess_->getRunTime());
+	R3DProject::Triangulation *pTriangulation = pTriangulationProcess_->getTriangulation();
+
+	delete pTriangulationProcess_;
+	pTriangulationProcess_ = NULL;
+
+	if(pR3DTriangulationThread_ != NULL)
+		delete pR3DTriangulationThread_;
+	pR3DTriangulationThread_ = new R3DTriangulationThread();
+	pR3DTriangulationThread_->setMainFrame(this);
+	pR3DTriangulationThread_->setTriangulation(&project_, pTriangulation);
+	pR3DTriangulationThread_->setExternalResult(isOK, errorMessage, runTime);
+	pR3DTriangulationThread_->startTriangulationThread();
+}
+
 void Regard3DMainFrame::OnTriangulationFinished( wxCommandEvent &event )
 {
 	bool isOK = true;
@@ -1337,7 +1382,9 @@ void Regard3DMainFrame::OnTriangulationFinished( wxCommandEvent &event )
 				wxT("Show triangulated points"), wxICON_ERROR | wxOK, this);
 		}
 		updateProjectDetails();
-		wxFileName htmlReport(paths.absoluteOutPath_, wxT("Reconstruction_Report.html"));
+		// Both engines write this name; the old one without the SfM prefix
+		// was openMVG 0.x and left the report button pointing at nothing
+		wxFileName htmlReport(paths.absoluteOutPath_, wxT("SfMReconstruction_Report.html"));
 		htmlReportFilename_ = htmlReport.GetFullPath();
 	}
 	else
@@ -1854,6 +1901,8 @@ void Regard3DMainFrame::OnTimer( wxTimerEvent &WXUNUSED(event) )
 
 	if(pComputeMatchesProcess_ != NULL)
 		pComputeMatchesProcess_->readConsoleOutput();
+	if(pTriangulationProcess_ != NULL)
+		pTriangulationProcess_->readConsoleOutput();
 	if(pDensificationProcess_ != NULL)
 		pDensificationProcess_->readConsoleOutput();
 	if(pR3DSurfaceGenProcess_ != NULL)
@@ -2220,6 +2269,8 @@ void Regard3DMainFrame::updateProjectDetails()
 							params.Append(wxT("stellar initilization"));
 						else if(pTriangulation->triInitialization_ == R3DProject::R3DTriangulationInitialization::R3DTI_Auto)
 							params.Append(wxT("auto initilization"));
+						else if(pTriangulation->triInitialization_ == R3DProject::R3DTriangulationInitialization::R3DTI_ExistingPose)
+							params.Append(wxT("existing poses"));
 					}
 					else
 					{
@@ -2230,6 +2281,24 @@ void Regard3DMainFrame::updateProjectDetails()
 						params.Append(wxT(", intrinsic camera parameters refined"));
 					else
 						params.Append(wxT(", intrinsic camera parameters kept constant"));
+
+					if(pTriangulation->computeEngine_ == 1)
+					{
+						// Say which engine ran, and the options only it has
+						const R3DOpenMVGTriangulationParams &omvg = pTriangulation->openMVGParams_;
+						params.Prepend(wxT("OpenMVG: "));
+						if(pTriangulation->refineIntrinsics_)
+						{
+							params.Append(wxT(" ("));
+							params.Append(R3DOpenMVGOptions::intrinsicRefinementName(omvg.intrinsicRefinement_));
+							params.Append(wxT(")"));
+						}
+						params.Append(wxT(", extrinsics: "));
+						params.Append(R3DOpenMVGOptions::extrinsicRefinementName(omvg.extrinsicRefinement_));
+						if(pTriangulation->algorithm_ != R3DProject::R3DTriangulationAlgorithm::R3DTA_Global)
+							params.Append(wxString::Format(wxT(", triangulation method %d, resection method %d"),
+								omvg.triangulationMethod_, omvg.resectionMethod_));
+					}
 				}
 				resultsCameras = pTriangulation->resultCameras_;
 				resultNumberOfTracks = pTriangulation->resultNumberOfTracks_;
@@ -2590,12 +2659,17 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 	if(retVal == wxID_OK)
 	{
-		R3DProject::R3DTriangulationAlgorithm algorithm;
-		bool refineIntrinsics = true, useGPSInfo = false;
-		size_t initialPairA = 0, initialPairB = 0;
-		int rotAveraging = 2, transAveraging = 1;
-		R3DProject::R3DTriangulationInitialization triInitilization;
-		dlg.getResults(algorithm, initialPairA, initialPairB, rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization);
+		R3DTriangulationDialogResults dlgResults;
+		dlg.getResults(dlgResults);
+
+		const R3DProject::R3DTriangulationAlgorithm algorithm = dlgResults.algorithm_;
+		const bool refineIntrinsics = dlgResults.refineIntrinsics_;
+		const bool useGPSInfo = dlgResults.useGPSInfo_;
+		const size_t initialPairA = dlgResults.initialImageID1_;
+		const size_t initialPairB = dlgResults.initialImageID2_;
+		const int rotAveraging = dlgResults.rotAveraging_;
+		const int transAveraging = dlgResults.transAveraging_;
+		const R3DProject::R3DTriangulationInitialization triInitilization = dlgResults.triInitialization_;
 
 		if(pR3DTriangulationThread_ != NULL)
 			delete pR3DTriangulationThread_;
@@ -2605,7 +2679,8 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 
 		R3DProject::Triangulation *pTriangulation = NULL;
 		int newID = project_.addTriangulation(pComputeMatches, initialPairA, initialPairB,
-			algorithm, rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization);
+			algorithm, rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization,
+			dlgResults.engine_, dlgResults.openMVG_);
 		if(newID >= 0)
 		{
 			project_.populateTreeControl(pProjectTreeCtrl_);
@@ -2627,12 +2702,22 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 		clear3DModel();
 		setProjectTreeItemBold(-1);
 
-		pR3DTriangulationThread_ = new R3DTriangulationThread();
-		pR3DTriangulationThread_->setMainFrame(this);
-		pR3DTriangulationThread_->setParameters(algorithm, initialPairA, initialPairB,
-			rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization);
-		pR3DTriangulationThread_->setTriangulation(&project_, pTriangulation);
-		pR3DTriangulationThread_->startTriangulationThread();
+		if(dlgResults.engine_ == 1)
+		{
+			// openMVG_main_SfM does the reconstruction; the thread takes over
+			// afterwards, in OnTriangulationProcessFinished
+			pTriangulationProcess_ = new R3DTriangulationProcess(this);
+			pTriangulationProcess_->runTriangulationProcess(pTriangulation);
+		}
+		else
+		{
+			pR3DTriangulationThread_ = new R3DTriangulationThread();
+			pR3DTriangulationThread_->setMainFrame(this);
+			pR3DTriangulationThread_->setParameters(algorithm, initialPairA, initialPairB,
+				rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization);
+			pR3DTriangulationThread_->setTriangulation(&project_, pTriangulation);
+			pR3DTriangulationThread_->startTriangulationThread();
+		}
 	}
 }
 
@@ -3123,6 +3208,7 @@ BEGIN_EVENT_TABLE( Regard3DMainFrame, Regard3DMainFrameBase )
 	EVT_COMMAND(ID_UPDATE_PROGRESS_BAR, myCustomEventType, Regard3DMainFrame::OnUpdateProgressBar)
 	EVT_COMMAND(ID_COMPUTE_MATCHES_FINISHED, myCustomEventType, Regard3DMainFrame::OnComputeMatchesFinished)
 	EVT_COMMAND(ID_TRIANGULATION_FINISHED, myCustomEventType, Regard3DMainFrame::OnTriangulationFinished)
+	EVT_COMMAND(ID_TRIANGULATION_PROCESS_FINISHED, myCustomEventType, Regard3DMainFrame::OnTriangulationProcessFinished)
 	EVT_COMMAND(ID_DENSIFICATION_FINISHED, myCustomEventType, Regard3DMainFrame::OnDensificationFinished)
 	EVT_COMMAND(ID_SURFACE_GEN_FINISHED, myCustomEventType, Regard3DMainFrame::OnSurfaceGenFinished)
 	EVT_COMMAND(ID_SMALL_TASK_FINISHED, myCustomEventType, Regard3DMainFrame::OnSmallTaskFinished)

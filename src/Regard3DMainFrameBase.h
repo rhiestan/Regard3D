@@ -757,6 +757,7 @@ class Regard3DTriangulationDialogBase : public wxDialog
 		{
 			ID_REGARD3DTRIANGULATIONDIALOG = 1000,
 			ID_TRIANGULATIONPANEL,
+			ID_TRIENGINERADIOBOX,
 			ID_TRIANGULATIONCHOICEBOOK,
 			ID_INCREMENTALSFMPANEL,
 			ID_INCRSFMINITRADIOBOX,
@@ -772,11 +773,18 @@ class Regard3DTriangulationDialogBase : public wxDialog
 			ID_TGLOBALMETHODBOXSIZER,
 			ID_TGLOBALROTAVGMETHODRATIOBOX,
 			ID_TGLOBALTRANSLAVGMETHODRADIOBOX,
+			ID_OMVGINTRINSICREFINEMENTCHOICE,
+			ID_OMVGEXTRINSICREFINEMENTCHOICE,
+			ID_OMVGTRIANGULATIONMETHODCHOICE,
+			ID_OMVGRESECTIONMETHODCHOICE,
+			ID_OMVGSFMCAMERAMODELCHOICE,
+			ID_OMVGMATCHESFILECHOICE,
 			ID_TREFINECAMERAINTRINSICSCHECKBOX,
 			ID_USEGPSCHECKBOX
 		};
 
 		wxPanel* pTriangulationPanel_;
+		wxRadioBox* pTriEngineRadioBox_;
 		wxChoicebook* pTriangulationChoicebook_;
 		wxPanel* pIncrementalSFMPanel_;
 		wxRadioBox* pIncrSFMInitRadioBox_;
@@ -791,6 +799,18 @@ class Regard3DTriangulationDialogBase : public wxDialog
 		wxStaticBoxSizer* pTGlobalMethodBoxSizer_;
 		wxRadioBox* pTGlobalRotAvgMethodRatioBox_;
 		wxRadioBox* pTGlobalTranslAvgMethodRadioBox_;
+		wxStaticText* m_staticTextOMVGTri1;
+		wxChoice* pOMVGIntrinsicRefinementChoice_;
+		wxStaticText* m_staticTextOMVGTri2;
+		wxChoice* pOMVGExtrinsicRefinementChoice_;
+		wxStaticText* m_staticTextOMVGTri3;
+		wxChoice* pOMVGTriangulationMethodChoice_;
+		wxStaticText* m_staticTextOMVGTri4;
+		wxChoice* pOMVGResectionMethodChoice_;
+		wxStaticText* m_staticTextOMVGTri5;
+		wxChoice* pOMVGSfMCameraModelChoice_;
+		wxStaticText* m_staticTextOMVGTri6;
+		wxChoice* pOMVGMatchesFileChoice_;
 		wxCheckBox* pTRefineCameraIntrinsicsCheckBox_;
 		wxCheckBox* pUseGPSCheckBox_;
 		wxStdDialogButtonSizer* m_sdbSizer4;

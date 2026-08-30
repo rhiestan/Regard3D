@@ -58,7 +58,7 @@ R3DTriangulationThread::R3DTriangulationThread() : wxThread(wxTHREAD_JOINABLE),
 	rotAveraging_(2), transAveraging_(1),
 	refineIntrinsics_(true), useGPSInfo_(false),
 	triInitialization_(R3DProject::R3DTriangulationInitialization::R3DTI_MaxPair),
-	isOK_(true)
+	isOK_(true), finishExternalOnly_(false)
 {
 }
 
@@ -107,10 +107,64 @@ void R3DTriangulationThread::stopTriangulationThread()
 	wxThread::ExitCode exitCode = this->Wait();
 }
 
+void R3DTriangulationThread::setExternalResult(bool isOK, const wxString &errorMessage,
+	wxTimeSpan runTime)
+{
+	finishExternalOnly_ = true;
+	isOK_ = isOK;
+	errorMessage_ = errorMessage;
+	externalRunTime_ = runTime;
+}
+
+/**
+ * Colorizes what openMVG_main_SfM reconstructed and collects the statistics.
+ */
+void R3DTriangulationThread::finishExternalTriangulation()
+{
+	if(!isOK_)
+		return;			// The executable failed, nothing was written
+
+	const std::string sOutDir(paths_.relativeOutPath_);
+
+	updateProgressBar(0.8f, wxT("Colorize tracks"));
+
+	openMVG::sfm::SfM_Data sfm_data;
+	if(!openMVG::sfm::Load(sfm_data, paths_.relativeTriSfmDataFilename_,
+		openMVG::sfm::ESfM_Data(openMVG::sfm::ALL)))
+	{
+		isOK_ = false;
+		errorMessage_ = wxT("Could not read the reconstruction openMVG_main_SfM wrote.");
+		return;
+	}
+
+	std::vector<openMVG::Vec3> vec_3dPoints, vec_tracksColor, vec_camPosition;
+	OpenMVGHelper::ColorizeTracks(sfm_data, vec_3dPoints, vec_tracksColor);
+	OpenMVGHelper::GetCameraPositions(sfm_data, vec_camPosition);
+
+	updateProgressBar(0.9f, wxT("Exporting model"));
+
+	if(!openMVG::plyHelper::exportToPly(vec_3dPoints, vec_camPosition,
+		stlplus::create_filespec(sOutDir, "FinalColorized", ".ply"), &vec_tracksColor))
+	{
+		isOK_ = false;
+		errorMessage_ = wxT("Error while writing model file.");
+		return;
+	}
+
+	prepareResultStrings(sfm_data, sfm_data.GetViews().size(), externalRunTime_);
+}
+
 wxThread::ExitCode R3DTriangulationThread::Entry()
 {
 	R3DProject *pProject = R3DProject::getInstance();
 	wxASSERT(pProject != NULL);
+
+	if(finishExternalOnly_)
+	{
+		finishExternalTriangulation();
+		sendFinishedEvent();
+		return 0;
+	}
 
 	isOK_ = true;
 

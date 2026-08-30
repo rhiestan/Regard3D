@@ -104,6 +104,7 @@ bool R3DExternalPrograms::initialize()
 			checkExecutable(openMVGPath, wxT("openMVG_main_PairGenerator"), executableExtension, pairGeneratorPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_ComputeMatches"), executableExtension, computeMatchesPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_GeometricFilter"), executableExtension, geometricFilterPath_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_SfM"), executableExtension, sfmPath_);
 		}
 
 		// Graphviz, used by OpenMVG's global SfM engine: it renders the graphs of

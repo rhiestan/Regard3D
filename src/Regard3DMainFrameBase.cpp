@@ -1317,12 +1317,18 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	wxBoxSizer* bSizer55;
 	bSizer55 = new wxBoxSizer( wxVERTICAL );
 
+	wxString pTriEngineRadioBox_Choices[] = { wxT("Regard3D (built-in)"), wxT("OpenMVG (external programs)") };
+	int pTriEngineRadioBox_NChoices = sizeof( pTriEngineRadioBox_Choices ) / sizeof( wxString );
+	pTriEngineRadioBox_ = new wxRadioBox( sbSizer4->GetStaticBox(), ID_TRIENGINERADIOBOX, wxT("Triangulation engine"), wxDefaultPosition, wxDefaultSize, pTriEngineRadioBox_NChoices, pTriEngineRadioBox_Choices, 2, wxRA_SPECIFY_COLS );
+	pTriEngineRadioBox_->SetSelection( 1 );
+	bSizer55->Add( pTriEngineRadioBox_, 0, wxEXPAND | wxALL, 3 );
+
 	pTriangulationChoicebook_ = new wxChoicebook( sbSizer4->GetStaticBox(), ID_TRIANGULATIONCHOICEBOOK, wxDefaultPosition, wxDefaultSize, wxCHB_DEFAULT );
 	pIncrementalSFMPanel_ = new wxPanel( pTriangulationChoicebook_, ID_INCREMENTALSFMPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
 	wxBoxSizer* bSizer61;
 	bSizer61 = new wxBoxSizer( wxVERTICAL );
 
-	wxString pIncrSFMInitRadioBox_Choices[] = { wxT("Use image pair with highest matches"), wxT("Stellar initialization") };
+	wxString pIncrSFMInitRadioBox_Choices[] = { wxT("Use image pair with highest matches"), wxT("Stellar initialization"), wxT("Automatic pair selection"), wxT("Use existing camera poses") };
 	int pIncrSFMInitRadioBox_NChoices = sizeof( pIncrSFMInitRadioBox_Choices ) / sizeof( wxString );
 	pIncrSFMInitRadioBox_ = new wxRadioBox( pIncrementalSFMPanel_, ID_INCRSFMINITRADIOBOX, wxT("Scene initializer"), wxDefaultPosition, wxDefaultSize, pIncrSFMInitRadioBox_NChoices, pIncrSFMInitRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
 	pIncrSFMInitRadioBox_->SetSelection( 0 );
@@ -1418,6 +1424,81 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	bSizer63->Fit( pGlobalSFMPanel_ );
 	pTriangulationChoicebook_->AddPage( pGlobalSFMPanel_, wxT("Global Structure from Motion"), false );
 	bSizer55->Add( pTriangulationChoicebook_, 1, wxEXPAND | wxALL, 3 );
+
+	wxStaticBoxSizer* sbSizerOMVGSfM_;
+	sbSizerOMVGSfM_ = new wxStaticBoxSizer( new wxStaticBox( sbSizer4->GetStaticBox(), wxID_ANY, wxT("OpenMVG options (openMVG_main_SfM)") ), wxVERTICAL );
+
+	wxFlexGridSizer* fgSizerOMVGSfM;
+	fgSizerOMVGSfM = new wxFlexGridSizer( 6, 2, 0, 0 );
+	fgSizerOMVGSfM->AddGrowableCol( 1 );
+	fgSizerOMVGSfM->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizerOMVGSfM->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_staticTextOMVGTri1 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Intrinsics to refine:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri1->Wrap( -1 );
+	fgSizerOMVGSfM->Add( m_staticTextOMVGTri1, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGIntrinsicRefinementChoice_Choices[] = { wxT("All"), wxT("Focal length"), wxT("Principal point"), wxT("Distortion"), wxT("Focal length + principal point"), wxT("Focal length + distortion"), wxT("Principal point + distortion") };
+	int pOMVGIntrinsicRefinementChoice_NChoices = sizeof( pOMVGIntrinsicRefinementChoice_Choices ) / sizeof( wxString );
+	pOMVGIntrinsicRefinementChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGINTRINSICREFINEMENTCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGIntrinsicRefinementChoice_NChoices, pOMVGIntrinsicRefinementChoice_Choices, 0 );
+	pOMVGIntrinsicRefinementChoice_->SetSelection( 0 );
+	fgSizerOMVGSfM->Add( pOMVGIntrinsicRefinementChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri2 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Extrinsics to refine:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri2->Wrap( -1 );
+	fgSizerOMVGSfM->Add( m_staticTextOMVGTri2, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGExtrinsicRefinementChoice_Choices[] = { wxT("All"), wxT("None") };
+	int pOMVGExtrinsicRefinementChoice_NChoices = sizeof( pOMVGExtrinsicRefinementChoice_Choices ) / sizeof( wxString );
+	pOMVGExtrinsicRefinementChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGEXTRINSICREFINEMENTCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGExtrinsicRefinementChoice_NChoices, pOMVGExtrinsicRefinementChoice_Choices, 0 );
+	pOMVGExtrinsicRefinementChoice_->SetSelection( 0 );
+	fgSizerOMVGSfM->Add( pOMVGExtrinsicRefinementChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri3 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Triangulation method:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri3->Wrap( -1 );
+	fgSizerOMVGSfM->Add( m_staticTextOMVGTri3, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGTriangulationMethodChoice_Choices[] = { wxT("Direct linear transform"), wxT("L1 angular"), wxT("L-infinity angular"), wxT("Inverse depth weighted midpoint") };
+	int pOMVGTriangulationMethodChoice_NChoices = sizeof( pOMVGTriangulationMethodChoice_Choices ) / sizeof( wxString );
+	pOMVGTriangulationMethodChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGTRIANGULATIONMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGTriangulationMethodChoice_NChoices, pOMVGTriangulationMethodChoice_Choices, 0 );
+	pOMVGTriangulationMethodChoice_->SetSelection( 3 );
+	fgSizerOMVGSfM->Add( pOMVGTriangulationMethodChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri4 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Resection method:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri4->Wrap( -1 );
+	fgSizerOMVGSfM->Add( m_staticTextOMVGTri4, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGResectionMethodChoice_Choices[] = { wxT("Direct linear transform (6 points)"), wxT("P3P Ke CVPR17"), wxT("P3P Kneip CVPR11"), wxT("P3P Nordberg ECCV18"), wxT("UP2P Kukelova ACCV10 (upright camera)") };
+	int pOMVGResectionMethodChoice_NChoices = sizeof( pOMVGResectionMethodChoice_Choices ) / sizeof( wxString );
+	pOMVGResectionMethodChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGRESECTIONMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGResectionMethodChoice_NChoices, pOMVGResectionMethodChoice_Choices, 0 );
+	pOMVGResectionMethodChoice_->SetSelection( 3 );
+	fgSizerOMVGSfM->Add( pOMVGResectionMethodChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri5 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Camera model for unknown intrinsics:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri5->Wrap( -1 );
+	fgSizerOMVGSfM->Add( m_staticTextOMVGTri5, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGSfMCameraModelChoice_Choices[] = { wxT("Pinhole"), wxT("Pinhole radial 1"), wxT("Pinhole radial 3"), wxT("Pinhole brown 2"), wxT("Pinhole Fisheye") };
+	int pOMVGSfMCameraModelChoice_NChoices = sizeof( pOMVGSfMCameraModelChoice_Choices ) / sizeof( wxString );
+	pOMVGSfMCameraModelChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGSFMCAMERAMODELCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGSfMCameraModelChoice_NChoices, pOMVGSfMCameraModelChoice_Choices, 0 );
+	pOMVGSfMCameraModelChoice_->SetSelection( 2 );
+	fgSizerOMVGSfM->Add( pOMVGSfMCameraModelChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri6 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Matches to use:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri6->Wrap( -1 );
+	fgSizerOMVGSfM->Add( m_staticTextOMVGTri6, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGMatchesFileChoice_Choices[] = { wxT("Automatic (from the method)"), wxT("Fundamental (matches.f.txt)"), wxT("Essential (matches.e.txt)"), wxT("Homography (matches.h.txt)") };
+	int pOMVGMatchesFileChoice_NChoices = sizeof( pOMVGMatchesFileChoice_Choices ) / sizeof( wxString );
+	pOMVGMatchesFileChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGMATCHESFILECHOICE, wxDefaultPosition, wxDefaultSize, pOMVGMatchesFileChoice_NChoices, pOMVGMatchesFileChoice_Choices, 0 );
+	pOMVGMatchesFileChoice_->SetSelection( 0 );
+	fgSizerOMVGSfM->Add( pOMVGMatchesFileChoice_, 0, wxEXPAND | wxALL, 3 );
+
+
+	sbSizerOMVGSfM_->Add( fgSizerOMVGSfM, 1, wxEXPAND | wxALL, 3 );
+
+
+	bSizer55->Add( sbSizerOMVGSfM_, 0, wxEXPAND | wxALL, 3 );
 
 	wxBoxSizer* bSizer60;
 	bSizer60 = new wxBoxSizer( wxVERTICAL );

@@ -26,6 +26,7 @@ class Regard3DDropTarget;
 class R3DComputeMatchesThread;
 class R3DComputeMatchesProcess;
 class R3DTriangulationThread;
+class R3DTriangulationProcess;
 class Regard3DConsoleOutputFrame;
 class Regard3DProgressDialog;
 class Regard3DModelViewHelper;
@@ -70,6 +71,7 @@ public:
 
 	void sendComputeMatchesFinishedEvent();
 	void sendTriangulationFinishedEvent();
+	void sendTriangulationProcessFinishedEvent();
 	void sendDensificationFinishedEvent();
 	void sendSurfaceGenFinishedEvent();
 	void sendSmallTaskFinishedEvent();
@@ -128,6 +130,7 @@ protected:
 	virtual void OnUpdateProgressBar( wxCommandEvent &event );
 	virtual void OnComputeMatchesFinished( wxCommandEvent &event );
 	virtual void OnTriangulationFinished( wxCommandEvent &event );
+	virtual void OnTriangulationProcessFinished( wxCommandEvent &event );
 	virtual void OnDensificationFinished( wxCommandEvent &event );
 	virtual void OnSurfaceGenFinished( wxCommandEvent &event );
 	virtual void OnSmallTaskFinished( wxCommandEvent &event );
@@ -230,6 +233,8 @@ private:
 	// is non-NULL while matches are being computed
 	R3DComputeMatchesProcess *pComputeMatchesProcess_;
 	R3DTriangulationThread *pR3DTriangulationThread_;
+	// Runs openMVG_main_SfM; the thread above then colorizes what it wrote
+	R3DTriangulationProcess *pTriangulationProcess_;
 	R3DDensificationProcess *pDensificationProcess_;
 	R3DSurfaceGenProcess *pR3DSurfaceGenProcess_;
 	R3DSmallTasksThread *pR3DSmallTasksThread_;

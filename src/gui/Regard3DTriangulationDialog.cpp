@@ -23,6 +23,8 @@
 #include "OpenMVGHelper.h"
 #include "ImageInfo.h"
 #include "Regard3DSettings.h"
+#include "R3DOpenMVGOptions.h"
+#include "R3DExternalPrograms.h"
 
 enum
 {
@@ -37,6 +39,7 @@ Regard3DTriangulationDialog::Regard3DTriangulationDialog(wxWindow* pParent)
    pPreviewGeneratorThread_(NULL),
    pProject_(NULL), pComputeMatches_(NULL), pPictureSet_(NULL),
    isGlobalSfmAvailable_(false), initialImagePairListIsEmpty_(false),
+   isOpenMVGSfMAvailable_(false),
    ipSortColumn_(0)
 {
    for (int i = 0; i < 5; i++)
@@ -126,10 +129,11 @@ bool Regard3DTriangulationDialog::isTriangulationPossible()
    return (isIncrementalTriPossible || isGlobalTriPossible);
 }
 
-void Regard3DTriangulationDialog::getResults(R3DProject::R3DTriangulationAlgorithm& algorithm, size_t& initialImageID1, size_t& initialImageID2,
-   int& rotAveraging, int& transAveraging,
-   bool& refineIntrinsics, bool& useGPSInfo, R3DProject::R3DTriangulationInitialization& triInitilization)
+void Regard3DTriangulationDialog::getResults(R3DTriangulationDialogResults& results)
 {
+   R3DProject::R3DTriangulationAlgorithm algorithm;
+   size_t initialImageID1 = 0, initialImageID2 = 0;
+
    if (pTriangulationChoicebook_->GetSelection() == 0)
    {
       algorithm = R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental2;
@@ -160,17 +164,137 @@ void Regard3DTriangulationDialog::getResults(R3DProject::R3DTriangulationAlgorit
       }
    }
 
-   rotAveraging = pTGlobalRotAvgMethodRatioBox_->GetSelection() + 1;
-   transAveraging = pTGlobalTranslAvgMethodRadioBox_->GetSelection() + 1;
-   refineIntrinsics = pTRefineCameraIntrinsicsCheckBox_->GetValue();
+   results_.engine_ = pTriEngineRadioBox_->GetSelection();
+   results_.algorithm_ = algorithm;
+   results_.initialImageID1_ = initialImageID1;
+   results_.initialImageID2_ = initialImageID2;
+   results_.rotAveraging_ = pTGlobalRotAvgMethodRatioBox_->GetSelection() + 1;
+   results_.transAveraging_ = pTGlobalTranslAvgMethodRadioBox_->GetSelection() + 1;
+   results_.refineIntrinsics_ = pTRefineCameraIntrinsicsCheckBox_->GetValue();
 
-   useGPSInfo = false;
+   results_.useGPSInfo_ = false;
    if (pUseGPSCheckBox_->IsEnabled())
-      useGPSInfo = pUseGPSCheckBox_->GetValue();
+      results_.useGPSInfo_ = pUseGPSCheckBox_->GetValue();
 
-   triInitilization = (pIncrSFMInitRadioBox_->GetSelection() == 0
-      ? R3DProject::R3DTriangulationInitialization::R3DTI_MaxPair
-      : R3DProject::R3DTriangulationInitialization::R3DTI_Stellar);
+   // The last two initializers only exist in openMVG_main_SfM; the radio box
+   // disables them for the built-in engine, so the value is always legal here
+   results_.triInitialization_ = static_cast<R3DProject::R3DTriangulationInitialization>(
+      pIncrSFMInitRadioBox_->GetSelection());
+
+   readOpenMVGOptions();
+
+   results = results_;
+}
+
+/**
+ * Whether openMVG_main_SfM could run on this compute matches node.
+ *
+ * It reads the features through image_describer.json, which only the OpenMVG
+ * feature executables write, so a node computed by the built-in engine cannot
+ * be reconstructed by the external one.
+ */
+bool Regard3DTriangulationDialog::isOpenMVGSfMPossible(wxString& reason)
+{
+   if (R3DExternalPrograms::getInstance().getSfMPath().IsEmpty())
+   {
+      reason = wxT("openMVG_main_SfM was not found. Please put it into the ")
+         wxT("\"openmvg\" directory next to Regard3D.");
+      return false;
+   }
+
+   wxFileName describerFN(paths_.absoluteMatchesPath_, wxT("image_describer.json"));
+   if (!describerFN.FileExists())
+   {
+      reason = wxT("These matches were computed by the built-in engine, which ")
+         wxT("writes no image_describer.json. Compute the matches with the ")
+         wxT("OpenMVG engine to be able to use openMVG_main_SfM.");
+      return false;
+   }
+
+   return true;
+}
+
+void Regard3DTriangulationDialog::setOpenMVGToolTips()
+{
+   pTriEngineRadioBox_->SetToolTip(
+      wxT("Who does the reconstruction. The three methods above mean the same\n")
+      wxT("either way: they are openMVG_main_SfM's INCREMENTALV2, INCREMENTAL\n")
+      wxT("and GLOBAL engines."));
+   pOMVGIntrinsicRefinementChoice_->SetToolTip(
+      wxT("Which camera intrinsics bundle adjustment may change.\n")
+      wxT("Restrict this when the calibration is known and should be kept.\n")
+      wxT("Clear \"Refine camera intrinsics\" to hold all of them fixed."));
+   pOMVGExtrinsicRefinementChoice_->SetToolTip(
+      wxT("Which camera poses bundle adjustment may change.\n")
+      wxT("None keeps the poses as the initializer produced them."));
+   pOMVGTriangulationMethodChoice_->SetToolTip(
+      wxT("How a 3D point is computed from its observations.\n")
+      wxT("Inverse depth weighted midpoint is OpenMVG's default and the most\n")
+      wxT("robust one; direct linear transform is the classic, cheaper method."));
+   pOMVGResectionMethodChoice_->SetToolTip(
+      wxT("How the pose of a newly added image is estimated.\n")
+      wxT("P3P Nordberg is OpenMVG's default. The 6 point transform ignores the\n")
+      wxT("known intrinsics, and UP2P assumes an upright camera."));
+   pOMVGSfMCameraModelChoice_->SetToolTip(
+      wxT("The camera model given to views whose intrinsics are unknown.\n")
+      wxT("Regard3D writes intrinsics for every view when it creates the scene,\n")
+      wxT("so this rarely applies."));
+   pOMVGMatchesFileChoice_->SetToolTip(
+      wxT("Which filtered matches the reconstruction is built from.\n")
+      wxT("Automatic uses matches.e.txt for the global method and matches.f.txt\n")
+      wxT("for the incremental ones, which is what each of them expects."));
+}
+
+void Regard3DTriangulationDialog::initializeOpenMVGOptions()
+{
+   const R3DOpenMVGTriangulationParams& p = results_.openMVG_;
+
+   pOMVGIntrinsicRefinementChoice_->SetSelection(p.intrinsicRefinement_);
+   pOMVGExtrinsicRefinementChoice_->SetSelection(p.extrinsicRefinement_);
+   pOMVGTriangulationMethodChoice_->SetSelection(p.triangulationMethod_);
+   pOMVGResectionMethodChoice_->SetSelection(p.resectionMethod_);
+   pOMVGSfMCameraModelChoice_->SetSelection(p.cameraModel_ - 1);
+   pOMVGMatchesFileChoice_->SetSelection(p.matchesFile_);
+}
+
+void Regard3DTriangulationDialog::readOpenMVGOptions()
+{
+   R3DOpenMVGTriangulationParams p;
+
+   p.intrinsicRefinement_ = pOMVGIntrinsicRefinementChoice_->GetCurrentSelection();
+   p.extrinsicRefinement_ = pOMVGExtrinsicRefinementChoice_->GetCurrentSelection();
+   p.triangulationMethod_ = pOMVGTriangulationMethodChoice_->GetCurrentSelection();
+   p.resectionMethod_ = pOMVGResectionMethodChoice_->GetCurrentSelection();
+   p.cameraModel_ = pOMVGSfMCameraModelChoice_->GetCurrentSelection() + 1;
+   p.matchesFile_ = pOMVGMatchesFileChoice_->GetCurrentSelection();
+
+   results_.openMVG_ = p;
+}
+
+/**
+ * Enables only what the selected engine and method actually use.
+ */
+void Regard3DTriangulationDialog::updateEngineDependencies()
+{
+   const bool openMVG = (pTriEngineRadioBox_->GetSelection() == 1);
+   const int page = pTriangulationChoicebook_->GetSelection();
+   // Page 0 is INCREMENTALV2, page 1 INCREMENTAL, page 2 GLOBAL
+   const bool incremental = (page == 0 || page == 1);
+
+   // AUTO_PAIR and EXISTING_POSE exist in openMVG_main_SfM only
+   pIncrSFMInitRadioBox_->Enable(2, openMVG);
+   pIncrSFMInitRadioBox_->Enable(3, openMVG);
+   if (!openMVG && pIncrSFMInitRadioBox_->GetSelection() > 1)
+      pIncrSFMInitRadioBox_->SetSelection(0);
+
+   pOMVGIntrinsicRefinementChoice_->Enable(openMVG
+      && pTRefineCameraIntrinsicsCheckBox_->GetValue());
+   pOMVGExtrinsicRefinementChoice_->Enable(openMVG);
+   // -t, -r and -c are read by the incremental engines only
+   pOMVGTriangulationMethodChoice_->Enable(openMVG && incremental);
+   pOMVGResectionMethodChoice_->Enable(openMVG && incremental);
+   pOMVGSfMCameraModelChoice_->Enable(openMVG && incremental);
+   pOMVGMatchesFileChoice_->Enable(openMVG);
 }
 
 void Regard3DTriangulationDialog::OnPreviewFinished()
@@ -193,6 +317,29 @@ void Regard3DTriangulationDialog::OnInitDialog(wxInitDialogEvent& event)
 {
    updateInitialImagePairListCtrl();
    updateTriangulationMethodChoice();
+
+   wxString reason;
+   isOpenMVGSfMAvailable_ = isOpenMVGSfMPossible(reason);
+   if (!isOpenMVGSfMAvailable_)
+   {
+      // Say why, rather than offering a choice that cannot be taken
+      pTriEngineRadioBox_->Enable(1, false);
+      pTriEngineRadioBox_->SetItemToolTip(1, reason);
+      results_.engine_ = 0;
+   }
+   pTriEngineRadioBox_->SetSelection(results_.engine_);
+
+   setOpenMVGToolTips();
+   initializeOpenMVGOptions();
+
+   pTriEngineRadioBox_->Bind(wxEVT_RADIOBOX,
+      [this](wxCommandEvent &) { updateEngineDependencies(); });
+   pTriangulationChoicebook_->Bind(wxEVT_CHOICEBOOK_PAGE_CHANGED,
+      [this](wxBookCtrlEvent &event) { event.Skip(); updateEngineDependencies(); });
+   pTRefineCameraIntrinsicsCheckBox_->Bind(wxEVT_CHECKBOX,
+      [this](wxCommandEvent &) { updateEngineDependencies(); });
+
+   updateEngineDependencies();
 
    Regard3DSettings::getInstance().loadTriangulationLayoutFromConfig(this);
    aTimer_.Start(50);

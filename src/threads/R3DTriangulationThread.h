@@ -47,6 +47,18 @@ public:
 		bool refineIntrinsics, bool useGPSInfo,
 		R3DProject::R3DTriangulationInitialization triInitialization);
 	void setTriangulation(R3DProject *pProject, R3DProject::Triangulation *pTriangulation);
+
+	/**
+	 * Switches the thread to finishing what openMVG_main_SfM produced.
+	 *
+	 * The executable writes sfm_data.bin, the .ply of points and poses and the
+	 * HTML report, but not the colorized model Regard3D displays, and the
+	 * statistics still have to be read back out of the scene. Doing that here
+	 * means both engines end in the same OnTriangulationFinished.
+	 *
+	 * isOK false carries a failure of the executable through unchanged.
+	 */
+	void setExternalResult(bool isOK, const wxString &errorMessage, wxTimeSpan runTime);
 	R3DProject::Triangulation *getTriangulation() const { return pTriangulation_; }
 
 	// Starting/stopping the triangulation thread
@@ -68,6 +80,7 @@ protected:
 		size_t numImages, wxTimeSpan runTime);
 #endif
 
+	void finishExternalTriangulation();
 	void updateProgressBar(float progress, const wxString &str);
 	void sendFinishedEvent();
 
@@ -80,6 +93,10 @@ private:
 	bool refineIntrinsics_;
 	bool useGPSInfo_;
 	R3DProject::R3DTriangulationInitialization triInitialization_;
+
+	// Set by setExternalResult: openMVG_main_SfM has already run
+	bool finishExternalOnly_;
+	wxTimeSpan externalRunTime_;
 
 	R3DProject *pProject_;
 	R3DProject::Triangulation *pTriangulation_;

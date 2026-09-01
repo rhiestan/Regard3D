@@ -214,39 +214,15 @@ bool Regard3DTriangulationDialog::isOpenMVGSfMPossible(wxString& reason)
    return true;
 }
 
-void Regard3DTriangulationDialog::setOpenMVGToolTips()
+/**
+ * The tooltips a wxRadioBox entry needs, which the .fbp cannot express.
+ *
+ * wxFormBuilder gives a control one tooltip; saying why a single greyed out
+ * entry is greyed out takes SetItemToolTip. Every other tooltip of this dialog
+ * is a property in Regard3dMainFrameBase.fbp.
+ */
+void Regard3DTriangulationDialog::setItemToolTips()
 {
-   pTriEngineRadioBox_->SetToolTip(
-      wxT("Who does the reconstruction. The three methods above mean the same\n")
-      wxT("either way: they are openMVG_main_SfM's INCREMENTALV2, INCREMENTAL\n")
-      wxT("and GLOBAL engines."));
-   pOMVGIntrinsicRefinementChoice_->SetToolTip(
-      wxT("Which camera intrinsics bundle adjustment may change.\n")
-      wxT("Restrict this when the calibration is known and should be kept.\n")
-      wxT("Clear \"Refine camera intrinsics\" to hold all of them fixed."));
-   pOMVGExtrinsicRefinementChoice_->SetToolTip(
-      wxT("Which camera poses bundle adjustment may change.\n")
-      wxT("None keeps the poses as the initializer produced them.\n")
-      wxT("Only the incremental method above reads this; the old incremental\n")
-      wxT("and the global one always adjust the poses."));
-   pOMVGTriangulationMethodChoice_->SetToolTip(
-      wxT("How a 3D point is computed from its observations.\n")
-      wxT("Inverse depth weighted midpoint is OpenMVG's default and the most\n")
-      wxT("robust one; direct linear transform is the classic, cheaper method."));
-   pOMVGResectionMethodChoice_->SetToolTip(
-      wxT("How the pose of a newly added image is estimated.\n")
-      wxT("P3P Nordberg is OpenMVG's default. The 6 point transform ignores the\n")
-      wxT("known intrinsics, and UP2P assumes an upright camera."));
-   pOMVGSfMCameraModelChoice_->SetToolTip(
-      wxT("The camera model given to views whose intrinsics are unknown.\n")
-      wxT("Regard3D writes intrinsics for every view when it creates the scene,\n")
-      wxT("so this rarely applies."));
-   pOMVGMatchesFileChoice_->SetToolTip(
-      wxT("Which filtered matches the reconstruction is built from.\n")
-      wxT("Automatic uses matches.e.txt for the global method and matches.f.txt\n")
-      wxT("for the incremental ones, which is what each of them expects."));
-
-   // Say why the two greyed out initializers are greyed out
    pIncrSFMInitRadioBox_->SetItemToolTip(2,
       wxT("Not available: openMVG has not implemented this initializer,\n")
       wxT("openMVG_main_SfM stops with \"Not yet implemented\"."));
@@ -286,7 +262,6 @@ void Regard3DTriangulationDialog::readOpenMVGOptions()
  */
 void Regard3DTriangulationDialog::updateEngineDependencies()
 {
-   const bool openMVG = (pTriEngineRadioBox_->GetSelection() == 1);
    const int page = pTriangulationChoicebook_->GetSelection();
    // Page 0 is INCREMENTALV2, page 1 INCREMENTAL, page 2 GLOBAL
    const bool incremental = (page == 0 || page == 1);
@@ -301,17 +276,17 @@ void Regard3DTriangulationDialog::updateEngineDependencies()
    if (pIncrSFMInitRadioBox_->GetSelection() > 1)
       pIncrSFMInitRadioBox_->SetSelection(0);
 
-   // Both engines refine through the same openMVG bundle adjustment, so
-   // these two are not tied to the external one. The extrinsics option is
-   // read by the newer incremental engine alone (sequential_SfM2.cpp).
+   // None of these belongs to one engine: both reconstruct with the same
+   // openMVG code, so what decides is the method. The extrinsics option is
+   // read by the newer incremental engine alone (sequential_SfM2.cpp); the
+   // triangulation and resection methods and the camera model by the two
+   // incremental ones; the global engine takes none of the three.
    pOMVGIntrinsicRefinementChoice_->Enable(pTRefineCameraIntrinsicsCheckBox_->GetValue());
    pOMVGExtrinsicRefinementChoice_->Enable(page == 0);
-   // -t and -r are read by the incremental engines of openMVG_main_SfM only
-   pOMVGTriangulationMethodChoice_->Enable(openMVG && incremental);
-   pOMVGResectionMethodChoice_->Enable(openMVG && incremental);
-   // The camera model is used by the incremental engines, either engine
+   pOMVGTriangulationMethodChoice_->Enable(incremental);
+   pOMVGResectionMethodChoice_->Enable(incremental);
    pOMVGSfMCameraModelChoice_->Enable(incremental);
-   pOMVGMatchesFileChoice_->Enable(openMVG);
+   pOMVGMatchesFileChoice_->Enable(true);
 }
 
 void Regard3DTriangulationDialog::OnPreviewFinished()
@@ -346,7 +321,7 @@ void Regard3DTriangulationDialog::OnInitDialog(wxInitDialogEvent& event)
    }
    pTriEngineRadioBox_->SetSelection(results_.engine_);
 
-   setOpenMVGToolTips();
+   setItemToolTips();
    initializeOpenMVGOptions();
 
    pTriEngineRadioBox_->Bind(wxEVT_RADIOBOX,

@@ -91,7 +91,7 @@ protected:
 	void checkForPreviewImage();
 
 	bool isOpenMVGSfMPossible(wxString &reason);
-	void setOpenMVGToolTips();
+	void setItemToolTips();
 	void initializeOpenMVGOptions();
 	void readOpenMVGOptions();
 	void updateEngineDependencies();

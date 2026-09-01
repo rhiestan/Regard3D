@@ -74,7 +74,6 @@ protected:
 	void updateICKeypointMatchingRatioText();
 
 	bool checkOpenMVGExecutables();
-	void setOpenMVGToolTips();
 	void initializeOpenMVGPage();
 	bool readOpenMVGPage();
 	void updateOpenMVGDescriberDependencies();

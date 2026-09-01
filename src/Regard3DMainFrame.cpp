@@ -2350,19 +2350,19 @@ void Regard3DMainFrame::updateProjectDetails()
 						params.Append(R3DOpenMVGOptions::extrinsicRefinementName(omvg.extrinsicRefinement_));
 					}
 
-					// ...and only the incremental ones the camera model
+					// ...and only the incremental ones the camera model and
+					// the two methods
 					if(pTriangulation->algorithm_ != R3DProject::R3DTriangulationAlgorithm::R3DTA_Global)
-						params.Append(wxString::Format(wxT(", unknown intrinsics as camera model %d"),
-							omvg.cameraModel_));
+						params.Append(wxString::Format(
+							wxT(", unknown intrinsics as camera model %d, triangulation method %d, resection method %d"),
+							omvg.cameraModel_, omvg.triangulationMethod_, omvg.resectionMethod_));
+
+					const wxString matchesFile(R3DOpenMVGOptions::matchesFileName(omvg.matchesFile_));
+					params.Append(wxT(", matches: "));
+					params.Append(matchesFile.IsEmpty() ? wxString(wxT("automatic")) : matchesFile);
 
 					if(pTriangulation->computeEngine_ == 1)
-					{
-						// Say which engine ran, and the options only it has
-						params.Prepend(wxT("OpenMVG: "));
-						if(pTriangulation->algorithm_ != R3DProject::R3DTriangulationAlgorithm::R3DTA_Global)
-							params.Append(wxString::Format(wxT(", triangulation method %d, resection method %d"),
-								omvg.triangulationMethod_, omvg.resectionMethod_));
-					}
+						params.Prepend(wxT("OpenMVG: "));		// Say which engine ran
 				}
 				resultsCameras = pTriangulation->resultCameras_;
 				resultNumberOfTracks = pTriangulation->resultNumberOfTracks_;

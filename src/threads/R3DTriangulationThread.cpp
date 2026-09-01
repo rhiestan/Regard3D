@@ -72,6 +72,42 @@ namespace
 			std::string(name.mb_str()));
 	}
 
+	// -t and -r of openMVG_main_SfM. The dialog stores openMVG's own enum
+	// values, the very numbers the executable is given on its command line.
+	openMVG::ETriangulationMethod triangulationMethod(
+		const R3DOpenMVGTriangulationParams &params)
+	{
+		const openMVG::ETriangulationMethod method =
+			static_cast<openMVG::ETriangulationMethod>(params.triangulationMethod_);
+
+		return (openMVG::isValid(method) ? method : openMVG::ETriangulationMethod::DEFAULT);
+	}
+
+	openMVG::resection::SolverType resectionMethod(
+		const R3DOpenMVGTriangulationParams &params)
+	{
+		// This enum has no isValid of its own, and openMVG_main_SfM casts the
+		// number without looking, so check the range here
+		if(params.resectionMethod_ < static_cast<int>(openMVG::resection::SolverType::DLT_6POINTS)
+			|| params.resectionMethod_ > static_cast<int>(openMVG::resection::SolverType::UP2P_KUKELOVA_ACCV10))
+			return openMVG::resection::SolverType::DEFAULT;
+
+		return static_cast<openMVG::resection::SolverType>(params.resectionMethod_);
+	}
+
+	// -M: which filtered matches the reconstruction is built from. Empty is
+	// the dialog's "automatic", which is the file the method expects.
+	std::string matchesFileName(const R3DOpenMVGTriangulationParams &params,
+		R3DProject::R3DTriangulationAlgorithm algorithm)
+	{
+		const wxString name(R3DOpenMVGOptions::matchesFileName(params.matchesFile_));
+		if(!name.IsEmpty())
+			return std::string(name.mb_str());
+
+		return (algorithm == R3DProject::R3DTriangulationAlgorithm::R3DTA_Global
+			? "matches.e.txt" : "matches.f.txt");
+	}
+
 	// -c of openMVG_main_SfM: the model given to views whose intrinsics are
 	// not known. The dialog stores openMVG's own EINTRINSIC value, so a
 	// project written by a newer build cannot mean anything unexpected here.
@@ -329,7 +365,8 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 			if(feats_provider->load(sfm_data, sMatchesDir, regions_type))
 			{
 				std::shared_ptr<openMVG::sfm::Matches_Provider> matches_provider = std::make_shared<openMVG::sfm::Matches_Provider>();
-				if(matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir, "matches.e.txt")))
+				if(matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir,
+					matchesFileName(openMVGParams_, algorithm_))))
 				{
 					if(!stlplus::folder_exists(sOutDir))
 						stlplus::folder_create(sOutDir);
@@ -516,7 +553,8 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 			if(feats_provider->load(sfm_data, sMatchesDir, regions_type))
 			{
 				std::shared_ptr<openMVG::sfm::Matches_Provider> matches_provider = std::make_shared<openMVG::sfm::Matches_Provider>();
-				if(matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir, "matches.f.txt")))
+				if(matches_provider->load(sfm_data, stlplus::create_filespec(sMatchesDir,
+					matchesFileName(openMVGParams_, algorithm_))))
 				{
 					if(!stlplus::folder_exists(sOutDir))
 						stlplus::folder_create(sOutDir);
@@ -539,6 +577,8 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 						sfmEngine.Set_Use_Motion_Prior(useGPSInfo_);
 
 						sfmEngine.SetUnknownCameraType(i_User_camera_model);
+						sfmEngine.SetTriangulationMethod(triangulationMethod(openMVGParams_));
+						sfmEngine.SetResectionMethod(resectionMethod(openMVGParams_));
 
 						// Handle Initial pair parameter
 						Pair initialPairIndex(initialPairA_, initialPairB_);
@@ -624,6 +664,8 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 						sfmEngine.Set_Extrinsics_Refinement_Type(
 							extrinsicRefinementType(openMVGParams_));
 						sfmEngine.SetUnknownCameraType(EINTRINSIC(i_User_camera_model));
+						sfmEngine.SetTriangulationMethod(triangulationMethod(openMVGParams_));
+						sfmEngine.SetResectionMethod(resectionMethod(openMVGParams_));
 						sfmEngine.Set_Use_Motion_Prior(useGPSInfo_);
 
 						if (sfmEngine.Process())

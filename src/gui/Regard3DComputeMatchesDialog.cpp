@@ -296,71 +296,11 @@ bool Regard3DComputeMatchesDialog::checkOpenMVGExecutables()
  * These live here rather than in the .fbp so that they stay next to the code
  * that enables and disables the same controls.
  */
-void Regard3DComputeMatchesDialog::setOpenMVGToolTips()
-{
-	pOMVGDescriberMethodChoice_->SetToolTip(
-		wxT("Which feature detector and descriptor is used.\n")
-		wxT("SIFT is the reference choice, AKAZE_FLOAT often spreads its features more evenly.\n")
-		wxT("AKAZE_MLDB produces binary descriptors and therefore needs a Hamming matcher.\n")
-		wxT("The two OPENCV entries need the separate openMVG_main_ComputeFeatures_OpenCV executable."));
-	pOMVGDescriberPresetChoice_->SetToolTip(
-		wxT("How many features to extract per image. HIGH and ULTRA lower the detection\n")
-		wxT("threshold and give more features, at the cost of time and memory.\n")
-		wxT("Start with NORMAL and raise it if too few images are reconstructed."));
-	pOMVGUprightCheckBox_->SetToolTip(
-		wxT("Fix the feature orientation to \"up\" instead of estimating it per feature.\n")
-		wxT("Only for image sets that share the same up direction. There it is faster and\n")
-		wxT("the descriptors are more distinctive, but rotated images will no longer match."));
-	pOMVGNumThreadsTextCtrl_->SetToolTip(
-		wxT("How many images are described in parallel. 0 lets OpenMVG use all cores."));
-
-	pOMVGPairModeChoice_->SetToolTip(
-		wxT("Which image pairs are tried.\n")
-		wxT("Exhaustive tries every pair, the safe choice for an unordered set of photos.\n")
-		wxT("Contiguous only matches each image with the following ones, which is much\n")
-		wxT("faster for a video or a sequence that was shot in order."));
-	pOMVGContiguousCountTextCtrl_->SetToolTip(
-		wxT("How many following images each image is matched against, in contiguous mode.\n")
-		wxT("5 matches image 0 with 1 to 5, image 1 with 2 to 6, and so on."));
-
-	pOMVGDistanceRatioTextCtrl_->SetToolTip(
-		wxT("Lowe's ratio test: a match is kept only if the best descriptor distance is\n")
-		wxT("below this fraction of the second best. Lower means fewer but more reliable\n")
-		wxT("matches. 0.8 is the OpenMVG default, try 0.6 to 0.7 for repetitive scenes."));
-	pOMVGNearestMatchingMethodChoice_->SetToolTip(
-		wxT("The algorithm that searches for the nearest descriptors.\n")
-		wxT("AUTO picks one from the descriptor type and is a good default.\n")
-		wxT("The list only offers what the selected describer allows: L2 methods for scalar\n")
-		wxT("descriptors, Hamming methods for the binary ones."));
-	pOMVGCacheSizeTextCtrl_->SetToolTip(
-		wxT("How many images' features may be held in memory at once.\n")
-		wxT("0 loads them all, which is the fastest. Set a limit if a large image set\n")
-		wxT("exhausts the available memory."));
-	pOMVGPreemptiveTextCtrl_->SetToolTip(
-		wxT("Match on only the first N features per image and drop pairs that get too few\n")
-		wxT("matches. This finds the promising pairs quickly, but the matches that are kept\n")
-		wxT("come from the reduced feature set as well, so leave it at 0 unless a very\n")
-		wxT("large image set is otherwise too slow."));
-
-	pOMVGFundamentalCheckBox_->SetToolTip(
-		wxT("Filter the putative matches with a robustly estimated fundamental matrix and\n")
-		wxT("write matches.f.txt. The incremental triangulation methods need this file."));
-	pOMVGEssentialCheckBox_->SetToolTip(
-		wxT("Filter the putative matches with a robustly estimated essential matrix and\n")
-		wxT("write matches.e.txt. The global triangulation method needs this file."));
-	pOMVGHomographyCheckBox_->SetToolTip(
-		wxT("Filter the putative matches with a robustly estimated homography and write\n")
-		wxT("matches.h.txt. Useful for planar scenes; no triangulation method reads it."));
-	pOMVGGuidedMatchingCheckBox_->SetToolTip(
-		wxT("Once a model has been estimated, look for further matches that agree with it.\n")
-		wxT("Recovers matches the ratio test threw away, at the cost of a slower filtering step."));
-}
 
 void Regard3DComputeMatchesDialog::initializeOpenMVGPage()
 {
 	const R3DOpenMVGMatchingParams &p = results_.openMVG_;
 
-	setOpenMVGToolTips();
 
 	setChoiceSelection(pOMVGDescriberMethodChoice_, p.describerMethod_);
 	setChoiceSelection(pOMVGDescriberPresetChoice_, p.describerPreset_);

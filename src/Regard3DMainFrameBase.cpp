@@ -1116,6 +1116,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	int pOMVGDescriberMethodChoice_NChoices = sizeof( pOMVGDescriberMethodChoice_Choices ) / sizeof( wxString );
 	pOMVGDescriberMethodChoice_ = new wxChoice( sbSizerOMVGFeatures->GetStaticBox(), ID_OMVGDESCRIBERMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGDescriberMethodChoice_NChoices, pOMVGDescriberMethodChoice_Choices, 0 );
 	pOMVGDescriberMethodChoice_->SetSelection( 0 );
+	pOMVGDescriberMethodChoice_->SetToolTip( wxT("Which feature detector and descriptor is used. SIFT is the reference choice, AKAZE_FLOAT often spreads its features more evenly. AKAZE_MLDB produces binary descriptors and therefore needs a Hamming matcher. The two OPENCV entries need the separate openMVG_main_ComputeFeatures_OpenCV executable.") );
+
 	fgSizerOMVGFeatures->Add( pOMVGDescriberMethodChoice_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVG2 = new wxStaticText( sbSizerOMVGFeatures->GetStaticBox(), wxID_ANY, wxT("Describer preset:"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1126,6 +1128,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	int pOMVGDescriberPresetChoice_NChoices = sizeof( pOMVGDescriberPresetChoice_Choices ) / sizeof( wxString );
 	pOMVGDescriberPresetChoice_ = new wxChoice( sbSizerOMVGFeatures->GetStaticBox(), ID_OMVGDESCRIBERPRESETCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGDescriberPresetChoice_NChoices, pOMVGDescriberPresetChoice_Choices, 0 );
 	pOMVGDescriberPresetChoice_->SetSelection( 0 );
+	pOMVGDescriberPresetChoice_->SetToolTip( wxT("How many features to extract per image. HIGH and ULTRA lower the detection threshold and give more features, at the cost of time and memory. Start with NORMAL and raise it if too few images are reconstructed.") );
+
 	fgSizerOMVGFeatures->Add( pOMVGDescriberPresetChoice_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVG3 = new wxStaticText( sbSizerOMVGFeatures->GetStaticBox(), wxID_ANY, wxT("Threads (0 = all cores):"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1133,6 +1137,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	fgSizerOMVGFeatures->Add( m_staticTextOMVG3, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	pOMVGNumThreadsTextCtrl_ = new wxTextCtrl( sbSizerOMVGFeatures->GetStaticBox(), ID_OMVGNUMTHREADSTEXTCTRL, wxT("0"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGNumThreadsTextCtrl_->SetToolTip( wxT("How many images are described in parallel. 0 lets OpenMVG use all cores.") );
+
 	fgSizerOMVGFeatures->Add( pOMVGNumThreadsTextCtrl_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVG4 = new wxStaticText( sbSizerOMVGFeatures->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
@@ -1140,6 +1146,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	fgSizerOMVGFeatures->Add( m_staticTextOMVG4, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	pOMVGUprightCheckBox_ = new wxCheckBox( sbSizerOMVGFeatures->GetStaticBox(), ID_OMVGUPRIGHTCHECKBOX, wxT("Upright features"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGUprightCheckBox_->SetToolTip( wxT("Fix the feature orientation to \"up\" instead of estimating it per feature. Only for image sets that share the same up direction. There it is faster and the descriptors are more distinctive, but rotated images will no longer match.") );
+
 	fgSizerOMVGFeatures->Add( pOMVGUprightCheckBox_, 0, wxEXPAND | wxALL, 3 );
 
 
@@ -1165,6 +1173,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	int pOMVGPairModeChoice_NChoices = sizeof( pOMVGPairModeChoice_Choices ) / sizeof( wxString );
 	pOMVGPairModeChoice_ = new wxChoice( sbSizerOMVGPairs->GetStaticBox(), ID_OMVGPAIRMODECHOICE, wxDefaultPosition, wxDefaultSize, pOMVGPairModeChoice_NChoices, pOMVGPairModeChoice_Choices, 0 );
 	pOMVGPairModeChoice_->SetSelection( 0 );
+	pOMVGPairModeChoice_->SetToolTip( wxT("Which image pairs are tried. Exhaustive tries every pair, the safe choice for an unordered set of photos. Contiguous only matches each image with the following ones, which is much faster for a video or a sequence that was shot in order.") );
+
 	fgSizerOMVGPairs->Add( pOMVGPairModeChoice_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVG6 = new wxStaticText( sbSizerOMVGPairs->GetStaticBox(), wxID_ANY, wxT("Contiguous count:"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1172,6 +1182,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	fgSizerOMVGPairs->Add( m_staticTextOMVG6, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	pOMVGContiguousCountTextCtrl_ = new wxTextCtrl( sbSizerOMVGPairs->GetStaticBox(), ID_OMVGCONTIGUOUSCOUNTTEXTCTRL, wxT("5"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGContiguousCountTextCtrl_->SetToolTip( wxT("How many following images each image is matched against, in contiguous mode. 5 matches image 0 with 1 to 5, image 1 with 2 to 6, and so on.") );
+
 	fgSizerOMVGPairs->Add( pOMVGContiguousCountTextCtrl_, 0, wxEXPAND | wxALL, 3 );
 
 
@@ -1194,6 +1206,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	fgSizerOMVGMatching->Add( m_staticTextOMVG7, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	pOMVGDistanceRatioTextCtrl_ = new wxTextCtrl( sbSizerOMVGMatching->GetStaticBox(), ID_OMVGDISTANCERATIOTEXTCTRL, wxT("0.8"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGDistanceRatioTextCtrl_->SetToolTip( wxT("Lowe's ratio test: a match is kept only if the best descriptor distance is below this fraction of the second best. Lower means fewer but more reliable matches. 0.8 is the OpenMVG default, try 0.6 to 0.7 for repetitive scenes.") );
+
 	fgSizerOMVGMatching->Add( pOMVGDistanceRatioTextCtrl_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVG8 = new wxStaticText( sbSizerOMVGMatching->GetStaticBox(), wxID_ANY, wxT("Nearest matching method:"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1204,6 +1218,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	int pOMVGNearestMatchingMethodChoice_NChoices = sizeof( pOMVGNearestMatchingMethodChoice_Choices ) / sizeof( wxString );
 	pOMVGNearestMatchingMethodChoice_ = new wxChoice( sbSizerOMVGMatching->GetStaticBox(), ID_OMVGNEARESTMATCHINGMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGNearestMatchingMethodChoice_NChoices, pOMVGNearestMatchingMethodChoice_Choices, 0 );
 	pOMVGNearestMatchingMethodChoice_->SetSelection( 0 );
+	pOMVGNearestMatchingMethodChoice_->SetToolTip( wxT("The algorithm that searches for the nearest descriptors. AUTO picks one from the descriptor type and is a good default. The list only offers what the selected describer allows: L2 methods for scalar descriptors, Hamming methods for the binary ones.") );
+
 	fgSizerOMVGMatching->Add( pOMVGNearestMatchingMethodChoice_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVG9 = new wxStaticText( sbSizerOMVGMatching->GetStaticBox(), wxID_ANY, wxT("Region cache size (0 = load all):"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1211,6 +1227,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	fgSizerOMVGMatching->Add( m_staticTextOMVG9, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	pOMVGCacheSizeTextCtrl_ = new wxTextCtrl( sbSizerOMVGMatching->GetStaticBox(), ID_OMVGCACHESIZETEXTCTRL, wxT("0"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGCacheSizeTextCtrl_->SetToolTip( wxT("How many images' features may be held in memory at once. 0 loads them all, which is the fastest. Set a limit if a large image set exhausts the available memory.") );
+
 	fgSizerOMVGMatching->Add( pOMVGCacheSizeTextCtrl_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVG10 = new wxStaticText( sbSizerOMVGMatching->GetStaticBox(), wxID_ANY, wxT("Pre-emptive feature count (0 = off):"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1218,6 +1236,8 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	fgSizerOMVGMatching->Add( m_staticTextOMVG10, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	pOMVGPreemptiveTextCtrl_ = new wxTextCtrl( sbSizerOMVGMatching->GetStaticBox(), ID_OMVGPREEMPTIVETEXTCTRL, wxT("0"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGPreemptiveTextCtrl_->SetToolTip( wxT("Match on only the first N features per image and drop pairs that get too few matches. This finds the promising pairs quickly, but the matches that are kept come from the reduced feature set as well, so leave it at 0 unless a very large image set is otherwise too slow.") );
+
 	fgSizerOMVGMatching->Add( pOMVGPreemptiveTextCtrl_, 0, wxEXPAND | wxALL, 3 );
 
 
@@ -1234,17 +1254,25 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 
 	pOMVGFundamentalCheckBox_ = new wxCheckBox( sbSizerOMVGFilter->GetStaticBox(), ID_OMVGFUNDAMENTALCHECKBOX, wxT("Fundamental matrix (matches.f.txt)"), wxDefaultPosition, wxDefaultSize, 0 );
 	pOMVGFundamentalCheckBox_->SetValue(true);
+	pOMVGFundamentalCheckBox_->SetToolTip( wxT("Filter the putative matches with a robustly estimated fundamental matrix and write matches.f.txt. The incremental triangulation methods need this file.") );
+
 	bSizerOMVGFilter->Add( pOMVGFundamentalCheckBox_, 0, wxALL, 3 );
 
 	pOMVGEssentialCheckBox_ = new wxCheckBox( sbSizerOMVGFilter->GetStaticBox(), ID_OMVGESSENTIALCHECKBOX, wxT("Essential matrix (matches.e.txt)"), wxDefaultPosition, wxDefaultSize, 0 );
 	pOMVGEssentialCheckBox_->SetValue(true);
+	pOMVGEssentialCheckBox_->SetToolTip( wxT("Filter the putative matches with a robustly estimated essential matrix and write matches.e.txt. The global triangulation method needs this file.") );
+
 	bSizerOMVGFilter->Add( pOMVGEssentialCheckBox_, 0, wxALL, 3 );
 
 	pOMVGHomographyCheckBox_ = new wxCheckBox( sbSizerOMVGFilter->GetStaticBox(), ID_OMVGHOMOGRAPHYCHECKBOX, wxT("Homography matrix (matches.h.txt)"), wxDefaultPosition, wxDefaultSize, 0 );
 	pOMVGHomographyCheckBox_->SetValue(true);
+	pOMVGHomographyCheckBox_->SetToolTip( wxT("Filter the putative matches with a robustly estimated homography and write matches.h.txt. Useful for planar scenes; no triangulation method reads it.") );
+
 	bSizerOMVGFilter->Add( pOMVGHomographyCheckBox_, 0, wxALL, 3 );
 
 	pOMVGGuidedMatchingCheckBox_ = new wxCheckBox( sbSizerOMVGFilter->GetStaticBox(), ID_OMVGGUIDEDMATCHINGCHECKBOX, wxT("Guided matching"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGGuidedMatchingCheckBox_->SetToolTip( wxT("Once a model has been estimated, look for further matches that agree with it. Recovers matches the ratio test threw away, at the cost of a slower filtering step.") );
+
 	bSizerOMVGFilter->Add( pOMVGGuidedMatchingCheckBox_, 0, wxALL, 3 );
 
 
@@ -1328,6 +1356,8 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	int pTriEngineRadioBox_NChoices = sizeof( pTriEngineRadioBox_Choices ) / sizeof( wxString );
 	pTriEngineRadioBox_ = new wxRadioBox( sbSizer4->GetStaticBox(), ID_TRIENGINERADIOBOX, wxT("Triangulation engine"), wxDefaultPosition, wxDefaultSize, pTriEngineRadioBox_NChoices, pTriEngineRadioBox_Choices, 2, wxRA_SPECIFY_COLS );
 	pTriEngineRadioBox_->SetSelection( 1 );
+	pTriEngineRadioBox_->SetToolTip( wxT("Who does the reconstruction. The three methods above mean the same either way: they are openMVG_main_SfM's INCREMENTALV2, INCREMENTAL and GLOBAL engines.") );
+
 	bSizer55->Add( pTriEngineRadioBox_, 0, wxEXPAND | wxALL, 3 );
 
 	pTriangulationChoicebook_ = new wxChoicebook( sbSizer4->GetStaticBox(), ID_TRIANGULATIONCHOICEBOOK, wxDefaultPosition, wxDefaultSize, wxCHB_DEFAULT );
@@ -1449,6 +1479,8 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	int pOMVGIntrinsicRefinementChoice_NChoices = sizeof( pOMVGIntrinsicRefinementChoice_Choices ) / sizeof( wxString );
 	pOMVGIntrinsicRefinementChoice_ = new wxChoice( sbSizerCameraParams_->GetStaticBox(), ID_OMVGINTRINSICREFINEMENTCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGIntrinsicRefinementChoice_NChoices, pOMVGIntrinsicRefinementChoice_Choices, 0 );
 	pOMVGIntrinsicRefinementChoice_->SetSelection( 0 );
+	pOMVGIntrinsicRefinementChoice_->SetToolTip( wxT("Which camera intrinsics bundle adjustment may change. Restrict this when the calibration is known and should be kept. Clear \"Refine camera intrinsics\" to hold all of them fixed.") );
+
 	fgSizerCameraParams->Add( pOMVGIntrinsicRefinementChoice_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVGTri2 = new wxStaticText( sbSizerCameraParams_->GetStaticBox(), wxID_ANY, wxT("Extrinsics to refine:"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1459,6 +1491,8 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	int pOMVGExtrinsicRefinementChoice_NChoices = sizeof( pOMVGExtrinsicRefinementChoice_Choices ) / sizeof( wxString );
 	pOMVGExtrinsicRefinementChoice_ = new wxChoice( sbSizerCameraParams_->GetStaticBox(), ID_OMVGEXTRINSICREFINEMENTCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGExtrinsicRefinementChoice_NChoices, pOMVGExtrinsicRefinementChoice_Choices, 0 );
 	pOMVGExtrinsicRefinementChoice_->SetSelection( 0 );
+	pOMVGExtrinsicRefinementChoice_->SetToolTip( wxT("Which camera poses bundle adjustment may change. None keeps the poses as the initializer produced them. Only the incremental method above reads this; the old incremental and the global one always adjust the poses.") );
+
 	fgSizerCameraParams->Add( pOMVGExtrinsicRefinementChoice_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVGTri5 = new wxStaticText( sbSizerCameraParams_->GetStaticBox(), wxID_ANY, wxT("Camera model for unknown intrinsics:"), wxDefaultPosition, wxDefaultSize, 0 );
@@ -1469,6 +1503,8 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	int pOMVGSfMCameraModelChoice_NChoices = sizeof( pOMVGSfMCameraModelChoice_Choices ) / sizeof( wxString );
 	pOMVGSfMCameraModelChoice_ = new wxChoice( sbSizerCameraParams_->GetStaticBox(), ID_OMVGSFMCAMERAMODELCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGSfMCameraModelChoice_NChoices, pOMVGSfMCameraModelChoice_Choices, 0 );
 	pOMVGSfMCameraModelChoice_->SetSelection( 2 );
+	pOMVGSfMCameraModelChoice_->SetToolTip( wxT("The camera model given to views whose intrinsics are unknown. Regard3D writes intrinsics for every view when it creates the scene, so this rarely applies.") );
+
 	fgSizerCameraParams->Add( pOMVGSfMCameraModelChoice_, 0, wxEXPAND | wxALL, 3 );
 
 
@@ -1477,50 +1513,56 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 
 	bSizer55->Add( sbSizerCameraParams_, 0, wxEXPAND | wxALL, 3 );
 
-	wxStaticBoxSizer* sbSizerOMVGSfM_;
-	sbSizerOMVGSfM_ = new wxStaticBoxSizer( new wxStaticBox( sbSizer4->GetStaticBox(), wxID_ANY, wxT("OpenMVG options (openMVG_main_SfM)") ), wxVERTICAL );
+	wxStaticBoxSizer* sbSizerReconstruction_;
+	sbSizerReconstruction_ = new wxStaticBoxSizer( new wxStaticBox( sbSizer4->GetStaticBox(), wxID_ANY, wxT("Reconstruction options") ), wxVERTICAL );
 
-	wxFlexGridSizer* fgSizerOMVGSfM;
-	fgSizerOMVGSfM = new wxFlexGridSizer( 3, 2, 0, 0 );
-	fgSizerOMVGSfM->AddGrowableCol( 1 );
-	fgSizerOMVGSfM->SetFlexibleDirection( wxHORIZONTAL );
-	fgSizerOMVGSfM->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+	wxFlexGridSizer* fgSizerReconstruction;
+	fgSizerReconstruction = new wxFlexGridSizer( 3, 2, 0, 0 );
+	fgSizerReconstruction->AddGrowableCol( 1 );
+	fgSizerReconstruction->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizerReconstruction->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
-	m_staticTextOMVGTri3 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Triangulation method:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri3 = new wxStaticText( sbSizerReconstruction_->GetStaticBox(), wxID_ANY, wxT("Triangulation method:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextOMVGTri3->Wrap( -1 );
-	fgSizerOMVGSfM->Add( m_staticTextOMVGTri3, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+	fgSizerReconstruction->Add( m_staticTextOMVGTri3, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	wxString pOMVGTriangulationMethodChoice_Choices[] = { wxT("Direct linear transform"), wxT("L1 angular"), wxT("L-infinity angular"), wxT("Inverse depth weighted midpoint") };
 	int pOMVGTriangulationMethodChoice_NChoices = sizeof( pOMVGTriangulationMethodChoice_Choices ) / sizeof( wxString );
-	pOMVGTriangulationMethodChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGTRIANGULATIONMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGTriangulationMethodChoice_NChoices, pOMVGTriangulationMethodChoice_Choices, 0 );
+	pOMVGTriangulationMethodChoice_ = new wxChoice( sbSizerReconstruction_->GetStaticBox(), ID_OMVGTRIANGULATIONMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGTriangulationMethodChoice_NChoices, pOMVGTriangulationMethodChoice_Choices, 0 );
 	pOMVGTriangulationMethodChoice_->SetSelection( 3 );
-	fgSizerOMVGSfM->Add( pOMVGTriangulationMethodChoice_, 0, wxEXPAND | wxALL, 3 );
+	pOMVGTriangulationMethodChoice_->SetToolTip( wxT("How a 3D point is computed from its observations. Inverse depth weighted midpoint is OpenMVG's default and the most robust one; direct linear transform is the classic, cheaper method.") );
 
-	m_staticTextOMVGTri4 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Resection method:"), wxDefaultPosition, wxDefaultSize, 0 );
+	fgSizerReconstruction->Add( pOMVGTriangulationMethodChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri4 = new wxStaticText( sbSizerReconstruction_->GetStaticBox(), wxID_ANY, wxT("Resection method:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextOMVGTri4->Wrap( -1 );
-	fgSizerOMVGSfM->Add( m_staticTextOMVGTri4, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+	fgSizerReconstruction->Add( m_staticTextOMVGTri4, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	wxString pOMVGResectionMethodChoice_Choices[] = { wxT("Direct linear transform (6 points)"), wxT("P3P Ke CVPR17"), wxT("P3P Kneip CVPR11"), wxT("P3P Nordberg ECCV18"), wxT("UP2P Kukelova ACCV10 (upright camera)") };
 	int pOMVGResectionMethodChoice_NChoices = sizeof( pOMVGResectionMethodChoice_Choices ) / sizeof( wxString );
-	pOMVGResectionMethodChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGRESECTIONMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGResectionMethodChoice_NChoices, pOMVGResectionMethodChoice_Choices, 0 );
+	pOMVGResectionMethodChoice_ = new wxChoice( sbSizerReconstruction_->GetStaticBox(), ID_OMVGRESECTIONMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGResectionMethodChoice_NChoices, pOMVGResectionMethodChoice_Choices, 0 );
 	pOMVGResectionMethodChoice_->SetSelection( 3 );
-	fgSizerOMVGSfM->Add( pOMVGResectionMethodChoice_, 0, wxEXPAND | wxALL, 3 );
+	pOMVGResectionMethodChoice_->SetToolTip( wxT("How the pose of a newly added image is estimated. P3P Nordberg is OpenMVG's default. The 6 point transform ignores the known intrinsics, and UP2P assumes an upright camera.") );
 
-	m_staticTextOMVGTri6 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Matches to use:"), wxDefaultPosition, wxDefaultSize, 0 );
+	fgSizerReconstruction->Add( pOMVGResectionMethodChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri6 = new wxStaticText( sbSizerReconstruction_->GetStaticBox(), wxID_ANY, wxT("Matches to use:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextOMVGTri6->Wrap( -1 );
-	fgSizerOMVGSfM->Add( m_staticTextOMVGTri6, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+	fgSizerReconstruction->Add( m_staticTextOMVGTri6, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	wxString pOMVGMatchesFileChoice_Choices[] = { wxT("Automatic (from the method)"), wxT("Fundamental (matches.f.txt)"), wxT("Essential (matches.e.txt)"), wxT("Homography (matches.h.txt)") };
 	int pOMVGMatchesFileChoice_NChoices = sizeof( pOMVGMatchesFileChoice_Choices ) / sizeof( wxString );
-	pOMVGMatchesFileChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGMATCHESFILECHOICE, wxDefaultPosition, wxDefaultSize, pOMVGMatchesFileChoice_NChoices, pOMVGMatchesFileChoice_Choices, 0 );
+	pOMVGMatchesFileChoice_ = new wxChoice( sbSizerReconstruction_->GetStaticBox(), ID_OMVGMATCHESFILECHOICE, wxDefaultPosition, wxDefaultSize, pOMVGMatchesFileChoice_NChoices, pOMVGMatchesFileChoice_Choices, 0 );
 	pOMVGMatchesFileChoice_->SetSelection( 0 );
-	fgSizerOMVGSfM->Add( pOMVGMatchesFileChoice_, 0, wxEXPAND | wxALL, 3 );
+	pOMVGMatchesFileChoice_->SetToolTip( wxT("Which filtered matches the reconstruction is built from. Automatic uses matches.e.txt for the global method and matches.f.txt for the incremental ones, which is what each of them expects.") );
+
+	fgSizerReconstruction->Add( pOMVGMatchesFileChoice_, 0, wxEXPAND | wxALL, 3 );
 
 
-	sbSizerOMVGSfM_->Add( fgSizerOMVGSfM, 1, wxEXPAND | wxALL, 3 );
+	sbSizerReconstruction_->Add( fgSizerReconstruction, 1, wxEXPAND | wxALL, 3 );
 
 
-	bSizer55->Add( sbSizerOMVGSfM_, 0, wxEXPAND | wxALL, 3 );
+	bSizer55->Add( sbSizerReconstruction_, 0, wxEXPAND | wxALL, 3 );
 
 	wxBoxSizer* bSizer60;
 	bSizer60 = new wxBoxSizer( wxVERTICAL );

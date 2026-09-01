@@ -10419,7 +10419,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Which feature detector and descriptor is used. SIFT is the reference choice, AKAZE_FLOAT often spreads its features more evenly. AKAZE_MLDB produces binary descriptors and therefore needs a Hamming matcher. The two OPENCV entries need the separate openMVG_main_ComputeFeatures_OpenCV executable.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -10544,7 +10544,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">How many features to extract per image. HIGH and ULTRA lower the detection threshold and give more features, at the cost of time and memory. Start with NORMAL and raise it if too few images are reconstructed.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -10668,7 +10668,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">How many images are described in parallel. 0 lets OpenMVG use all cores.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -10794,7 +10794,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Fix the feature orientation to &quot;up&quot; instead of estimating it per feature. Only for image sets that share the same up direction. There it is faster and the descriptors are more distinctive, but rotated images will no longer match.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -10951,7 +10951,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Which image pairs are tried. Exhaustive tries every pair, the safe choice for an unordered set of photos. Contiguous only matches each image with the following ones, which is much faster for a video or a sequence that was shot in order.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11075,7 +11075,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">How many following images each image is matched against, in contiguous mode. 5 matches image 0 with 1 to 5, image 1 with 2 to 6, and so on.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11232,7 +11232,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Lowe's ratio test: a match is kept only if the best descriptor distance is below this fraction of the second best. Lower means fewer but more reliable matches. 0.8 is the OpenMVG default, try 0.6 to 0.7 for repetitive scenes.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11358,7 +11358,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">The algorithm that searches for the nearest descriptors. AUTO picks one from the descriptor type and is a good default. The list only offers what the selected describer allows: L2 methods for scalar descriptors, Hamming methods for the binary ones.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11482,7 +11482,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">How many images' features may be held in memory at once. 0 loads them all, which is the fastest. Set a limit if a large image set exhausts the available memory.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11607,7 +11607,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Match on only the first N features per image and drop pairs that get too few matches. This finds the promising pairs quickly, but the matches that are kept come from the reduced feature set as well, so leave it at 0 unless a very large image set is otherwise too slow.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11697,7 +11697,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Filter the putative matches with a robustly estimated fundamental matrix and write matches.f.txt. The incremental triangulation methods need this file.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11761,7 +11761,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Filter the putative matches with a robustly estimated essential matrix and write matches.e.txt. The global triangulation method needs this file.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11825,7 +11825,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Filter the putative matches with a robustly estimated homography and write matches.h.txt. Useful for planar scenes; no triangulation method reads it.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11889,7 +11889,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip"></property>
+                                                                        <property name="tooltip">Once a model has been estimated, look for further matches that agree with it. Recovers matches the ratio test threw away, at the cost of a slower filtering step.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -12180,7 +12180,7 @@
                                                     <property name="style">wxRA_SPECIFY_COLS</property>
                                                     <property name="subclass"></property>
                                                     <property name="toolbar_pane">0</property>
-                                                    <property name="tooltip"></property>
+                                                    <property name="tooltip">Who does the reconstruction. The three methods above mean the same either way: they are openMVG_main_SfM's INCREMENTALV2, INCREMENTAL and GLOBAL engines.</property>
                                                     <property name="validator_data_type"></property>
                                                     <property name="validator_style">wxFILTER_NONE</property>
                                                     <property name="validator_type">wxDefaultValidator</property>
@@ -13199,7 +13199,7 @@
                                                                     <property name="style"></property>
                                                                     <property name="subclass"></property>
                                                                     <property name="toolbar_pane">0</property>
-                                                                    <property name="tooltip"></property>
+                                                                    <property name="tooltip">Which camera intrinsics bundle adjustment may change. Restrict this when the calibration is known and should be kept. Clear &quot;Refine camera intrinsics&quot; to hold all of them fixed.</property>
                                                                     <property name="validator_data_type"></property>
                                                                     <property name="validator_style">wxFILTER_NONE</property>
                                                                     <property name="validator_type">wxDefaultValidator</property>
@@ -13324,7 +13324,7 @@
                                                                     <property name="style"></property>
                                                                     <property name="subclass"></property>
                                                                     <property name="toolbar_pane">0</property>
-                                                                    <property name="tooltip"></property>
+                                                                    <property name="tooltip">Which camera poses bundle adjustment may change. None keeps the poses as the initializer produced them. Only the incremental method above reads this; the old incremental and the global one always adjust the poses.</property>
                                                                     <property name="validator_data_type"></property>
                                                                     <property name="validator_style">wxFILTER_NONE</property>
                                                                     <property name="validator_type">wxDefaultValidator</property>
@@ -13449,7 +13449,7 @@
                                                                     <property name="style"></property>
                                                                     <property name="subclass"></property>
                                                                     <property name="toolbar_pane">0</property>
-                                                                    <property name="tooltip"></property>
+                                                                    <property name="tooltip">The camera model given to views whose intrinsics are unknown. Regard3D writes intrinsics for every view when it creates the scene, so this rarely applies.</property>
                                                                     <property name="validator_data_type"></property>
                                                                     <property name="validator_style">wxFILTER_NONE</property>
                                                                     <property name="validator_type">wxDefaultValidator</property>
@@ -13469,9 +13469,9 @@
                                                 <property name="proportion">0</property>
                                                 <object class="wxStaticBoxSizer" expanded="1">
                                                     <property name="id">wxID_ANY</property>
-                                                    <property name="label">OpenMVG options (openMVG_main_SfM)</property>
+                                                    <property name="label">Reconstruction options</property>
                                                     <property name="minimum_size"></property>
-                                                    <property name="name">sbSizerOMVGSfM_</property>
+                                                    <property name="name">sbSizerReconstruction_</property>
                                                     <property name="orient">wxVERTICAL</property>
                                                     <property name="parent">1</property>
                                                     <property name="permission">none</property>
@@ -13486,7 +13486,7 @@
                                                             <property name="growablerows"></property>
                                                             <property name="hgap">0</property>
                                                             <property name="minimum_size"></property>
-                                                            <property name="name">fgSizerOMVGSfM</property>
+                                                            <property name="name">fgSizerReconstruction</property>
                                                             <property name="non_flexible_grow_mode">wxFLEX_GROWMODE_SPECIFIED</property>
                                                             <property name="permission">none</property>
                                                             <property name="rows">3</property>
@@ -13606,7 +13606,7 @@
                                                                     <property name="style"></property>
                                                                     <property name="subclass"></property>
                                                                     <property name="toolbar_pane">0</property>
-                                                                    <property name="tooltip"></property>
+                                                                    <property name="tooltip">How a 3D point is computed from its observations. Inverse depth weighted midpoint is OpenMVG's default and the most robust one; direct linear transform is the classic, cheaper method.</property>
                                                                     <property name="validator_data_type"></property>
                                                                     <property name="validator_style">wxFILTER_NONE</property>
                                                                     <property name="validator_type">wxDefaultValidator</property>
@@ -13731,7 +13731,7 @@
                                                                     <property name="style"></property>
                                                                     <property name="subclass"></property>
                                                                     <property name="toolbar_pane">0</property>
-                                                                    <property name="tooltip"></property>
+                                                                    <property name="tooltip">How the pose of a newly added image is estimated. P3P Nordberg is OpenMVG's default. The 6 point transform ignores the known intrinsics, and UP2P assumes an upright camera.</property>
                                                                     <property name="validator_data_type"></property>
                                                                     <property name="validator_style">wxFILTER_NONE</property>
                                                                     <property name="validator_type">wxDefaultValidator</property>
@@ -13856,7 +13856,7 @@
                                                                     <property name="style"></property>
                                                                     <property name="subclass"></property>
                                                                     <property name="toolbar_pane">0</property>
-                                                                    <property name="tooltip"></property>
+                                                                    <property name="tooltip">Which filtered matches the reconstruction is built from. Automatic uses matches.e.txt for the global method and matches.f.txt for the incremental ones, which is what each of them expects.</property>
                                                                     <property name="validator_data_type"></property>
                                                                     <property name="validator_style">wxFILTER_NONE</property>
                                                                     <property name="validator_type">wxDefaultValidator</property>

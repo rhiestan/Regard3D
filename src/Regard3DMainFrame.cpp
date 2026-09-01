@@ -1213,14 +1213,6 @@ void Regard3DMainFrame::OnTempDevToolClicked( wxCommandEvent& event )
 	project_.getProjectPathsTri(paths, pTriangulation);
 
 
-	wxString outDir(paths.relativeMVESceneDir_.c_str(), *wxConvCurrent);
-	outDir.Append(wxT("2"));
-	openMVG::sfm::SfM_Data sfm_data;
-	if(openMVG::sfm::Load(sfm_data, paths.relativeTriSfmDataFilename_, openMVG::sfm::ESfM_Data(openMVG::sfm::ALL)))
-	{
-		bool isOK = OpenMVGHelper::exportToMVE2Format(sfm_data, outDir);
-	}
-
 /*	wxArrayString strings;
 	strings.Add(wxT("str1"));
 	strings.Add(wxT("str2"));
@@ -1619,13 +1611,6 @@ void Regard3DMainFrame::OnSmallTaskFinished(wxCommandEvent &event)
 		pOSGGLCanvas_->Refresh();
 		endProgressDialog = true;
 	}
-	else if(type == R3DSmallTasksThread::STTExportToPMVS)
-	{
-		R3DProject::Densification *pDensification = pR3DSmallTasksThread_->getDensification();
-		pDensificationProcess_ = new R3DDensificationProcess(this);
-		pDensificationProcess_->runDensificationProcess(pDensification);
-		endProgressDialog = false;
-	}
 	else if(type == R3DSmallTasksThread::STTExportToMeshLab
 		|| type == R3DSmallTasksThread::STTExportToExternalMVS
 		|| type == R3DSmallTasksThread::STTExportToPointCloud
@@ -1652,24 +1637,6 @@ void Regard3DMainFrame::OnSmallTaskFinished(wxCommandEvent &event)
 		R3DProject::Densification *pDensification = pR3DSmallTasksThread_->getDensification();
 		pDensificationProcess_ = new R3DDensificationProcess(this);
 		pDensificationProcess_->runDensificationProcess(pDensification);
-		endProgressDialog = false;
-	}
-	else if(type == R3DSmallTasksThread::STTExportToMVE2)
-	{
-		// Decide whether we are in densification or surface generation mode
-		R3DProject::Densification *pDensification = pR3DSmallTasksThread_->getDensification();
-		R3DProject::Surface *pSurface = pR3DSmallTasksThread_->getSurface();
-
-		if(pDensification != NULL)
-		{
-			pDensificationProcess_ = new R3DDensificationProcess(this);
-			pDensificationProcess_->runDensificationProcess(pDensification);
-		}
-		else if(pSurface != NULL)
-		{
-			pR3DSurfaceGenProcess_ = new R3DSurfaceGenProcess(this);
-			pR3DSurfaceGenProcess_->runSurfaceGenProcess(pSurface);
-		}
 		endProgressDialog = false;
 	}
 	else if(type == R3DSmallTasksThread::STTPrepareComputeMatches)
@@ -2860,27 +2827,17 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 
 		if(pDensification->densificationType_ == R3DProject::DTCMVSPMVS)
 		{
-			pProgressDialog_->Pulse(wxT("Exporting project to PMVS"));
-
-			if(pR3DSmallTasksThread_ != NULL)
-				delete pR3DSmallTasksThread_;
-
-			pR3DSmallTasksThread_ = new R3DSmallTasksThread();
-			pR3DSmallTasksThread_->setMainFrame(this);
-			pR3DSmallTasksThread_->exportToPMVS(pDensification);
-
-			// The actual densification process will be started in OnSmallTaskFinished
+			// The export is the first command of the densification queue,
+			// openMVG_main_openMVG2PMVS does it
+			pDensificationProcess_ = new R3DDensificationProcess(this);
+			pDensificationProcess_->runDensificationProcess(pDensification);
 		}
 		else
 		{
-			pProgressDialog_->Pulse(wxT("Exporting project to MVE"));
-
-			if(pR3DSmallTasksThread_ != NULL)
-				delete pR3DSmallTasksThread_;
-
-			pR3DSmallTasksThread_ = new R3DSmallTasksThread();
-			pR3DSmallTasksThread_->setMainFrame(this);
-			pR3DSmallTasksThread_->exportToMVE2(pDensification, NULL);
+			// The export is the first command of the densification queue,
+			// openMVG_main_openMVG2MVE2 does it
+			pDensificationProcess_ = new R3DDensificationProcess(this);
+			pDensificationProcess_->runDensificationProcess(pDensification);
 
 /*			pDensificationProcess_ = new R3DDensificationProcess(this);
 			pDensificationProcess_->runDensificationProcess(pDensification);*/
@@ -2988,7 +2945,8 @@ void Regard3DMainFrame::createSurface(R3DProject::Densification *pDensification)
 
 		pR3DSmallTasksThread_ = new R3DSmallTasksThread();
 		pR3DSmallTasksThread_->setMainFrame(this);
-		pR3DSmallTasksThread_->exportToMVE2(NULL, pSurface);
+		pR3DSurfaceGenProcess_ = new R3DSurfaceGenProcess(this);
+		pR3DSurfaceGenProcess_->runSurfaceGenProcess(pSurface);
 	}
 }
 

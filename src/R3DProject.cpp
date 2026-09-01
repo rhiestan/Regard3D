@@ -920,7 +920,9 @@ bool R3DProject::getProjectPathsTri(R3DProjectPaths &paths, R3DProject::Triangul
 	paths.relativeSfmOutPath_ = std::string(outPathSfMFN.GetPath(wxPATH_GET_VOLUME).mb_str(wxConvLibc));
 
 	wxFileName outPathMVESceneDirFN(outPathFN);
-	outPathMVESceneDirFN.AppendDir(wxT("MVE2_SCENE_DIR"));
+	// The name openMVG_main_openMVG2MVE2 gives the directory it creates
+	// below its -o, which is why the out path is what it is passed
+	outPathMVESceneDirFN.AppendDir(wxT("MVE"));
 	paths.relativeMVESceneDir_  = std::string(outPathMVESceneDirFN.GetPath(wxPATH_GET_VOLUME).mb_str(wxConvLibc));
 
 	return true;

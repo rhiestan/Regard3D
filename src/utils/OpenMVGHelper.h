@@ -61,8 +61,6 @@ public:
 	static bool hasMatchesSfM_DataFile(const R3DProjectPaths &paths);
 	static bool hasTriSfM_DataFile(const R3DProjectPaths &paths);
 
-	static bool exportToPMVS(R3DProject::Densification *pDensification);
-
 	static bool exportToMeshLab(R3DProject::Densification *pDensification, const wxString &pathname);
 
 	static bool exportToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
@@ -79,9 +77,6 @@ public:
 
 	static void exportOldSfM_output(const R3DProjectPaths &paths);
 
-	static bool exportToMVE2Format(const openMVG::sfm::SfM_Data & sfm_data, const wxString &sOutDirectory);
-
-	static bool exportToMVSTexturing(const openMVG::sfm::SfM_Data & sfm_data, const wxString &sOutDirectory);
 
 #endif
 
@@ -89,28 +84,6 @@ private:
 	OpenMVGHelper() { }
 	~OpenMVGHelper() { }
 
-	// For triangulations created with openMVG 0.7
-	static bool exportToPMVSFormat(const Document & doc,
-		const std::string & sOutDirectory,
-		const std::string & sImagePath,
-		R3DProject::Densification *pDensification);
-
-	static bool exportToBundlerFormat(const Document & doc,
-		const std::string & sOutFile,
-		const std::string & sOutListFile);
-
-	// For triangulations created with openMVG 0.8
-#if !defined(R3D_USE_OPENMVG_PRE08)
-	static bool exportToPMVSFormat(
-		const openMVG::sfm::SfM_Data & sfm_data,
-		const std::string & sOutDirectory,
-		R3DProject::Densification *pDensification);
-
-	static bool exportToBundlerFormat(
-		const openMVG::sfm::SfM_Data & sfm_data,
-		const std::string & sOutFile,
-		const std::string & sOutListFile);
-#endif
 };
 
 #endif

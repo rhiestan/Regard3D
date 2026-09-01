@@ -44,7 +44,6 @@ public:
 	{
 		STTLoadModel = 0,
 		STTLoadSurfaceModel,
-		STTExportToPMVS,
 		STTExportToMeshLab,
 		STTExportToExternalMVS,
 		STTExportToPointCloud,
@@ -52,7 +51,6 @@ public:
 		STTColorizeSurface,
 		STTCombineDenseModels,
 		STTExportOldSfM_Output,
-		STTExportToMVE2,
 		STTPrepareComputeMatches
 	};
 
@@ -70,7 +68,6 @@ public:
 
 	void loadModel(const wxString &filename, Regard3DModelViewHelper *pRegard3DModelViewHelper);
 	void loadSurfaceModel(const wxString &filename, Regard3DModelViewHelper *pRegard3DModelViewHelper);
-	void exportToPMVS(R3DProject::Densification *pDensification);
 	void exportDensificationToMeshLab(R3DProject::Densification *pDensification, const wxString &pathname);
 	void exportTriangulationToExternalMVS(R3DProject::Triangulation *pTriangulation, const wxString &pathname);
 	void exportDensificationToPointCloud(R3DProject::Densification *pDensification, const wxString &filename);
@@ -78,7 +75,6 @@ public:
 	void colorizeSurface(R3DProject::Surface *pSurface);
 	void combineDenseModels(R3DProject::Densification *pDensification, int numberOfClusters);
 	void exportOldSfM_Output(R3DProject::Densification *pDensification);
-	void exportToMVE2(R3DProject::Densification *pDensification, R3DProject::Surface *pSurface);
 	void prepareComputeMatches(R3DProject::ComputeMatches *pComputeMatches);
 
 protected:

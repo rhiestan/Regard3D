@@ -49,6 +49,12 @@ public:
 	const wxString &getComputeMatchesPath() { return computeMatchesPath_; }
 	const wxString &getGeometricFilterPath() { return geometricFilterPath_; }
 	const wxString &getSfMPath() { return sfmPath_; }
+	const wxString &getOpenMVG2PMVSPath() { return openMVG2PMVSPath_; }
+	const wxString &getOpenMVG2MVE2Path() { return openMVG2MVE2Path_; }
+	const wxString &getOpenMVG2MeshLabPath() { return openMVG2MeshLabPath_; }
+	const wxString &getOpenMVG2NVMPath() { return openMVG2NVMPath_; }
+	const wxString &getOpenMVG2CMPMVSPath() { return openMVG2CMPMVSPath_; }
+	const wxString &getOpenMVG2openMVSPath() { return openMVG2openMVSPath_; }
 
 	const wxArrayString &getAllPaths() { return allPaths_; }
 
@@ -71,6 +77,12 @@ private:
 	wxString computeFeaturesPath_, computeFeaturesOpenCVPath_;
 	wxString pairGeneratorPath_, computeMatchesPath_, geometricFilterPath_;
 	wxString sfmPath_;
+	wxString openMVG2PMVSPath_;
+	wxString openMVG2MVE2Path_;
+	wxString openMVG2MeshLabPath_;
+	wxString openMVG2NVMPath_;
+	wxString openMVG2CMPMVSPath_;
+	wxString openMVG2openMVSPath_;
 	wxArrayString allPaths_;
 
 	static R3DExternalPrograms instance_;

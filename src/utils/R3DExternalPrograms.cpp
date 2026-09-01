@@ -105,6 +105,14 @@ bool R3DExternalPrograms::initialize()
 			checkExecutable(openMVGPath, wxT("openMVG_main_ComputeMatches"), executableExtension, computeMatchesPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_GeometricFilter"), executableExtension, geometricFilterPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_SfM"), executableExtension, sfmPath_);
+
+			// The exports
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2PMVS"), executableExtension, openMVG2PMVSPath_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2MVE2"), executableExtension, openMVG2MVE2Path_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2MESHLAB"), executableExtension, openMVG2MeshLabPath_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2NVM"), executableExtension, openMVG2NVMPath_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2CMPMVS"), executableExtension, openMVG2CMPMVSPath_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2openMVS"), executableExtension, openMVG2openMVSPath_);
 		}
 
 		// Graphviz, used by OpenMVG's global SfM engine: it renders the graphs of

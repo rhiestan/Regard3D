@@ -50,6 +50,7 @@ protected:
 	virtual void OnTerminate(int pid, int status);
 
 	void runSingleCommand();
+	bool writePMVSOptions();
 
 private:
 	Regard3DMainFrame *pMainFrame_;
@@ -63,6 +64,9 @@ private:
 	wxArrayString cmds_, progressTexts_;
 
 	bool checkForClusters_, wasCancelled_;
+	// The parameters of the dialog have to go into the pmvs_options.txt that
+	// openMVG_main_openMVG2PMVS wrote, once it has run
+	bool writePMVSOptions_;
 	wxString relativePMVSOutPath_;
 	int numberOfClusters_;
 };

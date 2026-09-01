@@ -23,6 +23,17 @@
 #include "Regard3DMainFrame.h"
 #include "R3DExternalPrograms.h"
 
+namespace
+{
+	// Project paths are user chosen and regularly contain spaces
+	wxString quoted(const wxString &str)
+	{
+		return wxT("\"") + str + wxT("\"");
+	}
+}
+
+#include <iostream>
+
 R3DSurfaceGenProcess::R3DSurfaceGenProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),
 	processId_(0), wasCancelled_(false)
@@ -97,6 +108,17 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 
 	cmds_.Clear();
 	progressTexts_.Clear();
+
+	// The MVE scene is written by openMVG_main_openMVG2MVE2, which creates the
+	// "MVE" directory below its -o. Only once: densification and surface
+	// generation share the scene, and it is expensive to write.
+	if(!wxFileName::DirExists(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc)))
+	{
+		cmds_.Add(quoted(R3DExternalPrograms::getInstance().getOpenMVG2MVE2Path())
+			+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+			+ wxT(" -o ") + quoted(wxString(paths.relativeOutPath_.c_str(), wxConvLibc)));
+		progressTexts_.Add(wxT("Exporting project to MVE"));
+	}
 
 	wxString relativeSurfacePath(paths.relativeSurfacePath_.c_str(), wxConvLibc);
 	wxString relativeSurfaceFilename;		// Used for texturing
@@ -206,6 +228,8 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 
 void R3DSurfaceGenProcess::readConsoleOutput()
 {
+	// Forwarded to std::cout/std::cerr, where the console output window picks
+	// it up the same way as the OpenMVG library's own logging
 	wxInputStream *pIn = GetInputStream();
 	if(pIn != NULL)
 	{
@@ -217,7 +241,8 @@ void R3DSurfaceGenProcess::readConsoleOutput()
 				buf.push_back( static_cast<char>(curc) );
 		}
 
-		//MLOG << buf.c_str();
+		if(!buf.empty())
+			std::cout << buf << std::flush;
 	}
 	wxInputStream *pErr = GetErrorStream();
 	if(pErr != NULL)
@@ -230,7 +255,8 @@ void R3DSurfaceGenProcess::readConsoleOutput()
 				buf.push_back( static_cast<char>(curc) );
 		}
 
-		//MLOG << buf.c_str();
+		if(!buf.empty())
+			std::cerr << buf << std::flush;
 	}
 }
 

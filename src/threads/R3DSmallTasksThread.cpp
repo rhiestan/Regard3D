@@ -71,15 +71,6 @@ void R3DSmallTasksThread::loadSurfaceModel(const wxString &filename, Regard3DMod
 	this->Run();
 }
 
-void R3DSmallTasksThread::exportToPMVS(R3DProject::Densification *pDensification)
-{
-	type_ = R3DSmallTasksThread::STTExportToPMVS;
-	pDensification_ = pDensification;
-
-	this->Create();
-	this->Run();
-}
-
 void R3DSmallTasksThread::exportDensificationToMeshLab(R3DProject::Densification *pDensification, const wxString &pathname)
 {
 	type_ = R3DSmallTasksThread::STTExportToMeshLab;
@@ -148,16 +139,6 @@ void R3DSmallTasksThread::exportOldSfM_Output(R3DProject::Densification *pDensif
 	this->Run();
 }
 
-void R3DSmallTasksThread::exportToMVE2(R3DProject::Densification *pDensification, R3DProject::Surface *pSurface)
-{
-	type_ = R3DSmallTasksThread::STTExportToMVE2;
-	pDensification_ = pDensification;
-	pSurface_ = pSurface;
-
-	this->Create();
-	this->Run();
-}
-
 /**
  * Gets everything ready for R3DComputeMatchesProcess.
  *
@@ -184,10 +165,6 @@ wxThread::ExitCode R3DSmallTasksThread::Entry()
 	else if(type_ == STTLoadSurfaceModel)
 	{
 		model_ = pRegard3DModelViewHelper_->loadSurfaceModel(filename_);
-	}
-	else if(type_ == STTExportToPMVS)
-	{
-		OpenMVGHelper::exportToPMVS(pDensification_);
 	}
 	else if(type_ == STTExportToMeshLab)
 	{
@@ -218,25 +195,6 @@ wxThread::ExitCode R3DSmallTasksThread::Entry()
 		R3DProjectPaths paths;
 		R3DProject::getInstance()->getProjectPathsDns(paths, pDensification_);
 		OpenMVGHelper::exportOldSfM_output(paths);
-	}
-	else if(type_ == STTExportToMVE2)
-	{
-		R3DProjectPaths paths;
-		if(pDensification_ != NULL)
-			R3DProject::getInstance()->getProjectPathsDns(paths, pDensification_);
-		else if(pSurface_ != NULL)
-			R3DProject::getInstance()->getProjectPathsSrf(paths, pSurface_);
-
-		// Check if MVE path exists
-		wxFileName mveSceneDir(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc), wxT(""));
-		if(!mveSceneDir.DirExists())
-		{
-			openMVG::sfm::SfM_Data sfm_data;
-			if(openMVG::sfm::Load(sfm_data, paths.relativeTriSfmDataFilename_, openMVG::sfm::ESfM_Data(openMVG::sfm::ALL)))
-			{
-				OpenMVGHelper::exportToMVE2Format(sfm_data, wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc));
-			}
-		}
 	}
 	else if(type_ == STTPrepareComputeMatches)
 	{

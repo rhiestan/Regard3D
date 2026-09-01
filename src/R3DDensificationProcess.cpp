@@ -22,12 +22,26 @@
 #include "R3DDensificationProcess.h"
 #include "Regard3DMainFrame.h"
 #include "R3DExternalPrograms.h"
+
+#include <wx/textfile.h>
+
+namespace
+{
+	// Project paths are user chosen and regularly contain spaces
+	wxString quoted(const wxString &str)
+	{
+		return wxT("\"") + str + wxT("\"");
+	}
+}
 #include "cpuinfo.hpp"
+
+#include <iostream>
 
 
 R3DDensificationProcess::R3DDensificationProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),
 	processId_(0), checkForClusters_(false), wasCancelled_(false),
+	writePMVSOptions_(false),
 	numberOfClusters_(0)
 {
 }
@@ -107,6 +121,19 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 		wxString pmvsPath(relativePMVSOutPath_);
 		pmvsPath.Append(wxT("/"));
 
+		// The scene is exported by openMVG_main_openMVG2PMVS. It creates a
+		// "PMVS" directory below -o, which is exactly relativePMVSOutPath_,
+		// so what it has to be given is the densification directory.
+		const wxString openMVG2PMVSExe = R3DExternalPrograms::getInstance().getOpenMVG2PMVSPath();
+		cmds_.Add(quoted(openMVG2PMVSExe)
+			+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+			+ wxT(" -o ") + quoted(wxString(paths.relativeDensificationPath_.c_str(), wxConvLibc))
+			+ wxT(" -r 1")		// Full resolution, as the built-in export used
+			+ wxString::Format(wxT(" -c %d"), pDensification->pmvsNumThreads_)
+			+ wxString::Format(wxT(" -v %d"), (pDensification->useCMVS_ ? 1 : 0)));
+		progressTexts_.Add(wxT("Exporting project to PMVS"));
+		writePMVSOptions_ = true;
+
 		wxString pmvsExe = R3DExternalPrograms::getInstance().getPMVSPath();
 		wxString cmvsExe = R3DExternalPrograms::getInstance().getCMVSPath();
 		wxString genOptionExe = R3DExternalPrograms::getInstance().getGenOptionPath();
@@ -139,6 +166,17 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 	}
 	else if(pDensification->densificationType_ == R3DProject::DTMVE)
 	{
+		// The MVE scene is written by openMVG_main_openMVG2MVE2, which creates
+		// the "MVE" directory below its -o. Only once: densification and
+		// surface generation share the scene, and it is expensive to write.
+		if(!wxFileName::DirExists(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc)))
+		{
+			cmds_.Add(quoted(R3DExternalPrograms::getInstance().getOpenMVG2MVE2Path())
+				+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+				+ wxT(" -o ") + quoted(wxString(paths.relativeOutPath_.c_str(), wxConvLibc)));
+			progressTexts_.Add(wxT("Exporting project to MVE"));
+		}
+
 		wxString dmreconExe = R3DExternalPrograms::getInstance().getDMReconPath();
 		wxString scene2psetExe = R3DExternalPrograms::getInstance().getScene2PsetPath();
 		wxString mveSceneDir = wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc);
@@ -158,6 +196,17 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 	}
 	else if(pDensification->densificationType_ == R3DProject::DTSMVS)
 	{
+		// The MVE scene is written by openMVG_main_openMVG2MVE2, which creates
+		// the "MVE" directory below its -o. Only once: densification and
+		// surface generation share the scene, and it is expensive to write.
+		if(!wxFileName::DirExists(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc)))
+		{
+			cmds_.Add(quoted(R3DExternalPrograms::getInstance().getOpenMVG2MVE2Path())
+				+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+				+ wxT(" -o ") + quoted(wxString(paths.relativeOutPath_.c_str(), wxConvLibc)));
+			progressTexts_.Add(wxT("Exporting project to MVE"));
+		}
+
 		wxString smvsreconExe = R3DExternalPrograms::getInstance().getSMVSReconPath();
 		cpuid::cpuinfo cpuinfo;
 		if(cpuinfo.has_sse4_1())		// TODO: Allow user to fall back to generic version
@@ -189,6 +238,8 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 
 void R3DDensificationProcess::readConsoleOutput()
 {
+	// Forwarded to std::cout/std::cerr, where the console output window picks
+	// it up the same way as the OpenMVG library's own logging
 	wxInputStream *pIn = GetInputStream();
 	if(pIn != NULL)
 	{
@@ -200,7 +251,8 @@ void R3DDensificationProcess::readConsoleOutput()
 				buf.push_back( static_cast<char>(curc) );
 		}
 
-		//MLOG << buf.c_str();
+		if(!buf.empty())
+			std::cout << buf << std::flush;
 	}
 	wxInputStream *pErr = GetErrorStream();
 	if(pErr != NULL)
@@ -213,7 +265,8 @@ void R3DDensificationProcess::readConsoleOutput()
 				buf.push_back( static_cast<char>(curc) );
 		}
 
-		//MLOG << buf.c_str();
+		if(!buf.empty())
+			std::cerr << buf << std::flush;
 	}
 }
 
@@ -253,6 +306,15 @@ void R3DDensificationProcess::OnTerminate(int pid, int status)
 	// This process is gone; cancel() must not kill a recycled pid
 	processId_ = 0;
 
+	if(writePMVSOptions_)
+	{
+		// The export was the first command of the queue, so this is the
+		// moment its pmvs_options.txt exists
+		writePMVSOptions_ = false;
+		if(!wasCancelled_)
+			writePMVSOptions();
+	}
+
 	if(cmds_.IsEmpty())
 	{
 		bool foundClusters = false;
@@ -288,6 +350,48 @@ void R3DDensificationProcess::OnTerminate(int pid, int status)
 	}
 	else
 		runSingleCommand();
+}
+
+/**
+ * Puts the parameters of the densification dialog into pmvs_options.txt.
+ *
+ * openMVG_main_openMVG2PMVS writes that file with openMVG's own values and
+ * has no options for these six. Everything else it wrote is kept, above all
+ * timages, which counts the views it really exported.
+ */
+bool R3DDensificationProcess::writePMVSOptions()
+{
+	if(pDensification_ == NULL)
+		return false;
+
+	const wxFileName optionsFN(relativePMVSOutPath_, wxT("pmvs_options.txt"));
+	wxTextFile optionsFile(optionsFN.GetFullPath());
+	if(!optionsFile.Open())
+		return false;
+
+	for(size_t i = 0; i < optionsFile.GetLineCount(); i++)
+	{
+		const wxString key(optionsFile[i].BeforeFirst(wxT(' ')));
+
+		if(key.IsSameAs(wxT("level")))
+			optionsFile[i] = wxString::Format(wxT("level %d"), pDensification_->pmvsLevel_);
+		else if(key.IsSameAs(wxT("csize")))
+			optionsFile[i] = wxString::Format(wxT("csize %d"), pDensification_->pmvsCSize_);
+		else if(key.IsSameAs(wxT("threshold")))
+			// PMVS reads this with the C locale, so not wxString::Format
+			optionsFile[i] = wxT("threshold ") + wxString::FromCDouble(pDensification_->pmvsThreshold_);
+		else if(key.IsSameAs(wxT("wsize")))
+			optionsFile[i] = wxString::Format(wxT("wsize %d"), pDensification_->pmvsWSize_);
+		else if(key.IsSameAs(wxT("minImageNum")))
+			optionsFile[i] = wxString::Format(wxT("minImageNum %d"), pDensification_->pmvsMinImageNum_);
+		else if(key.IsSameAs(wxT("CPU")))
+			optionsFile[i] = wxString::Format(wxT("CPU %d"), pDensification_->pmvsNumThreads_);
+	}
+
+	const bool isOK = optionsFile.Write();
+	optionsFile.Close();
+
+	return isOK;
 }
 
 void R3DDensificationProcess::runSingleCommand()

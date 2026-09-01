@@ -51,6 +51,15 @@ public:
 	R3DProject::Triangulation *getTriangulation() const { return pTriangulation_; }
 	wxTimeSpan getRunTime() const { return wxDateTime::UNow() - beginTime_; }
 
+	/**
+	 * Kills the executable that is running at the moment.
+	 *
+	 * The queue is emptied first, so OnTerminate reports the step as finished
+	 * instead of starting the next command. Called from the progress dialog.
+	 */
+	void cancel();
+	bool getWasCancelled() const { return wasCancelled_; }
+
 	bool getIsOK() const { return isOK_; }
 	const wxString &getErrorMessage() const { return errorMessage_; }
 
@@ -72,7 +81,7 @@ private:
 #endif
 	wxString cmd_;
 
-	bool isOK_;
+	bool isOK_, wasCancelled_;
 	wxString errorMessage_;
 };
 

@@ -52,13 +52,21 @@ using namespace openMVG;
 using namespace openMVG::cameras;
 using namespace openMVG::sfm;
 
-R3DTriangulationThread::R3DTriangulationThread() : wxThread(wxTHREAD_JOINABLE),
-	pMainFrame_(NULL), algorithm_(R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental2),
-	initialPairA_(0), initialPairB_(0),
-	rotAveraging_(2), transAveraging_(1),
-	refineIntrinsics_(true), useGPSInfo_(false),
-	triInitialization_(R3DProject::R3DTriangulationInitialization::R3DTI_MaxPair),
-	isOK_(true), finishExternalOnly_(false)
+R3DTriangulationThread::R3DTriangulationThread()
+	: wxThread(wxTHREAD_JOINABLE)
+   , pProject_(nullptr)
+   , pTriangulation_(nullptr)
+	, algorithm_(R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental2)
+	, initialPairA_(0)
+	, initialPairB_(0)
+	, rotAveraging_(2)
+	, transAveraging_(1)
+	, refineIntrinsics_(true)
+	, useGPSInfo_(false)
+	, triInitialization_(R3DProject::R3DTriangulationInitialization::R3DTI_MaxPair)
+	, finishExternalOnly_(false)
+	, isOK_(true)
+	, wasCancelled_(false)
 {
 }
 
@@ -108,12 +116,13 @@ void R3DTriangulationThread::stopTriangulationThread()
 }
 
 void R3DTriangulationThread::setExternalResult(bool isOK, const wxString &errorMessage,
-	wxTimeSpan runTime)
+	wxTimeSpan runTime, bool wasCancelled)
 {
 	finishExternalOnly_ = true;
 	isOK_ = isOK;
 	errorMessage_ = errorMessage;
 	externalRunTime_ = runTime;
+	wasCancelled_ = wasCancelled;
 }
 
 /**

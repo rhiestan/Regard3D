@@ -891,6 +891,7 @@ bool Regard3DModelViewHelper::loadSurfaceModelAssImp(osg::ref_ptr<osg::Group> ro
 
 					osg::ref_ptr<osg::Texture2D> texture(new osg::Texture2D());
 					//texture->setDataVariance(osg::Object::DYNAMIC);
+					bool textureLoaded = false;
 					unsigned int usedMaterial = pMesh->mMaterialIndex;
 					if(usedMaterial < pScene->mNumMaterials)
 					{
@@ -911,15 +912,20 @@ bool Regard3DModelViewHelper::loadSurfaceModelAssImp(osg::ref_ptr<osg::Group> ro
 							std::string textureFN_str(textureFN.GetFullPath().mb_str());
 							osg::ref_ptr<osg::Image> image(osgDB::readImageFile(textureFN_str.c_str()));
 							if(image.get() == NULL)
-								return false;
+								continue;		// Rather an untextured surface than none at all
+
 							texture->setImage(image.get());
 							texture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
 							texture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
 							texture->setWrap(osg::Texture::WRAP_R, osg::Texture::REPEAT);
+							textureLoaded = true;
 						}
 					}
-					osg::StateSet *pStateSet = geometry->getOrCreateStateSet();
-					pStateSet->setTextureAttributeAndModes(0, texture.get(), osg::StateAttribute::ON);
+					if(textureLoaded)
+					{
+						osg::StateSet *pStateSet = geometry->getOrCreateStateSet();
+						pStateSet->setTextureAttributeAndModes(0, texture.get(), osg::StateAttribute::ON);
+					}
 				}
 
 				geometry->addPrimitiveSet(drawElements.get());

@@ -49,6 +49,103 @@
 
 #include <boost/chrono.hpp>
 
+#include <algorithm>
+
+namespace
+{
+	uint8_t toUInt8(float color)
+	{
+		const int value = static_cast<int>(color * 255.0f + 0.5f);
+		return static_cast<uint8_t>(std::min(255, std::max(0, value)));
+	}
+
+	/**
+	 * Writes the meshes of a scene as a PLY file with per-vertex colors.
+	 *
+	 * AssImp's own PLY exporter cannot be used for this: it writes the colors
+	 * into the vertex rows but declares them in the header only when the mesh
+	 * has texture coordinates as well, its loop over the color sets starting
+	 * at PLY_EXPORT_HAS_TEXCOORDS instead of PLY_EXPORT_HAS_COLORS
+	 * (PlyExporter.cpp, a regression between AssImp 5.4 and 6.0, where that
+	 * loop was given the texture coordinate one's start value). A surface has no
+	 * texture coordinates here, so every reader of the result - including
+	 * AssImp itself, which loads it back for the 3D view - saw an uncolored
+	 * surface. tinyply writes the header from the same data as the rows.
+	 */
+	bool writeColorizedSurface(const aiScene *pScene, const wxString &filename)
+	{
+		std::vector<float> vertices;
+		std::vector<uint8_t> colors;
+		std::vector<int32_t> faceIndices;
+
+		for(unsigned int i = 0; i < pScene->mNumMeshes; i++)
+		{
+			const aiMesh *pMesh = pScene->mMeshes[i];
+			if(pMesh == NULL)
+				continue;
+
+			// The meshes end up in one vertex list, so the faces of the
+			// second one onwards move along with their vertices
+			const int32_t indexOffset = static_cast<int32_t>(vertices.size() / 3);
+			const bool hasColors = (pMesh->mColors[0] != NULL);
+
+			for(unsigned int v = 0; v < pMesh->mNumVertices; v++)
+			{
+				const aiVector3D &vertex = pMesh->mVertices[v];
+				vertices.push_back(vertex.x);
+				vertices.push_back(vertex.y);
+				vertices.push_back(vertex.z);
+
+				if(hasColors)
+				{
+					const aiColor4D &color = pMesh->mColors[0][v];
+					colors.push_back(toUInt8(color.r));
+					colors.push_back(toUInt8(color.g));
+					colors.push_back(toUInt8(color.b));
+				}
+				else
+				{
+					colors.push_back(0);
+					colors.push_back(0);
+					colors.push_back(0);
+				}
+			}
+
+			for(unsigned int f = 0; f < pMesh->mNumFaces; f++)
+			{
+				const aiFace &face = pMesh->mFaces[f];
+				if(face.mNumIndices != 3)
+					continue;		// Triangles only, see aiProcess_Triangulate
+
+				for(unsigned int j = 0; j < 3; j++)
+					faceIndices.push_back(indexOffset
+						+ static_cast<int32_t>(face.mIndices[j]));
+			}
+		}
+
+		if(vertices.empty() || faceIndices.empty())
+			return false;
+
+#if defined(R3D_WIN32)
+		boost::filesystem::ofstream ostream(boost::filesystem::path(filename.wc_str()), std::ios::binary);
+#else
+		boost::filesystem::ofstream ostream(boost::filesystem::path(filename.mb_str()), std::ios::binary);
+#endif
+		if(!ostream.is_open())
+			return false;
+
+		tinyply::PlyFile plyFile;
+		plyFile.add_properties_to_element("vertex", { "x", "y", "z" }, vertices);
+		plyFile.add_properties_to_element("vertex", { "red", "green", "blue" }, colors);
+		plyFile.add_properties_to_element("face", { "vertex_indices" }, faceIndices,
+			3, tinyply::PlyProperty::Type::UINT8);
+
+		plyFile.write(ostream, true);
+		ostream.close();
+
+		return true;
+	}
+}
 
 void R3DModelOperations::combineDenseModels(R3DProject::Densification *pDensification, int numModels)
 {
@@ -180,7 +277,9 @@ void R3DModelOperations::colorizeSurface(R3DProject::Surface *pSurface)
 
 	Assimp::Importer importer;
 	const aiScene *pScene = importer.ReadFile( std::string(surfaceFN.GetFullPath().mb_str()),
-		aiProcess_JoinIdenticalVertices);
+		aiProcess_JoinIdenticalVertices | aiProcess_Triangulate);
+	if(pScene == NULL)
+		return;
 
 	// Load dense point cloud
 	std::ifstream istream(paths.relativeDenseModelName_, std::ios::binary);
@@ -324,11 +423,12 @@ void R3DModelOperations::colorizeSurface(R3DProject::Surface *pSurface)
 	}
 
 	// Save colorized model
-	Assimp::Exporter exp;
-	wxString colorizedModelName(wxT("model_surface_col.ply"));
-	pSurface->finalSurfaceFilename_ = colorizedModelName;
+	const wxString colorizedModelName(wxT("model_surface_col.ply"));
 	wxFileName surfaceOutFN(wxString(paths.relativeSurfacePath_.c_str(), wxConvLibc), colorizedModelName);
-	const aiReturn res = exp.Export(pScene, "ply", surfaceOutFN.GetFullPath().c_str());
+	if(!writeColorizedSurface(pScene, surfaceOutFN.GetFullPath()))
+		return;		// The uncolorized surface stays the result of the step
+
+	pSurface->finalSurfaceFilename_ = colorizedModelName;
 }
 
 bool R3DModelOperations::exportToPointCloud(R3DProject::Densification *pDensification, const wxString &filename)

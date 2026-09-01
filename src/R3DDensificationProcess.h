@@ -37,6 +37,15 @@ public:
 	wxString getRuntimeStr();
 	int getNumberOfClusters() const { return numberOfClusters_; }
 
+	/**
+	 * Kills the executable that is running at the moment.
+	 *
+	 * The queue is emptied first, so OnTerminate reports the step as finished
+	 * instead of starting the next command. Called from the progress dialog.
+	 */
+	void cancel();
+	bool getWasCancelled() const { return wasCancelled_; }
+
 protected:
 	virtual void OnTerminate(int pid, int status);
 
@@ -53,7 +62,7 @@ private:
 #endif
 	wxArrayString cmds_, progressTexts_;
 
-	bool checkForClusters_;
+	bool checkForClusters_, wasCancelled_;
 	wxString relativePMVSOutPath_;
 	int numberOfClusters_;
 };

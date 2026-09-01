@@ -58,7 +58,8 @@ public:
 	 *
 	 * isOK false carries a failure of the executable through unchanged.
 	 */
-	void setExternalResult(bool isOK, const wxString &errorMessage, wxTimeSpan runTime);
+	void setExternalResult(bool isOK, const wxString &errorMessage,
+		wxTimeSpan runTime, bool wasCancelled);
 	R3DProject::Triangulation *getTriangulation() const { return pTriangulation_; }
 
 	// Starting/stopping the triangulation thread
@@ -67,6 +68,9 @@ public:
 
 	// Results
 	bool getIsOK() const { return isOK_; }
+	// True when the user aborted openMVG_main_SfM; always false for the
+	// built-in engine, which cannot be stopped halfway
+	bool getWasCancelled() const { return wasCancelled_; }
 	const wxString &getErrorMessage() const { return errorMessage_; }
 	const wxArrayString &getResultStrings() const { return resultStrings_; }
 
@@ -102,7 +106,7 @@ private:
 	R3DProject::Triangulation *pTriangulation_;
 	R3DProjectPaths paths_;
 
-	bool isOK_;
+	bool isOK_, wasCancelled_;
 	wxString errorMessage_;
 	wxArrayString resultStrings_;
 };

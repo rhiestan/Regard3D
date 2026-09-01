@@ -58,6 +58,15 @@ public:
 	R3DProject::ComputeMatches *getComputeMatches() const { return pComputeMatches_; }
 	wxString getRuntimeStr();
 
+	/**
+	 * Kills the executable that is running at the moment.
+	 *
+	 * The queue is emptied first, so OnTerminate reports the step as finished
+	 * instead of starting the next command. Called from the progress dialog.
+	 */
+	void cancel();
+	bool getWasCancelled() const { return wasCancelled_; }
+
 	// Results, read by Regard3DMainFrame::OnComputeMatchesFinished
 	bool getIsOK() const { return isOK_; }
 	const wxString &getErrorMessage() const { return errorMessage_; }
@@ -90,7 +99,7 @@ private:
 	// Files the run has to produce, checked once everything has terminated
 	wxArrayString expectedOutputs_;
 
-	bool isOK_;
+	bool isOK_, wasCancelled_;
 	wxString errorMessage_;
 	wxArrayString resultStrings_;
 };

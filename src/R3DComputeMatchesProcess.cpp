@@ -74,7 +74,7 @@ namespace
 
 R3DComputeMatchesProcess::R3DComputeMatchesProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame), pComputeMatches_(NULL),
-	processId_(0), stepCount_(0), stepsDone_(0), isOK_(true)
+	processId_(0), stepCount_(0), stepsDone_(0), isOK_(true), wasCancelled_(false)
 {
 }
 
@@ -334,13 +334,39 @@ wxString R3DComputeMatchesProcess::getRuntimeStr()
 	return runTimeStr;
 }
 
+void R3DComputeMatchesProcess::cancel()
+{
+	if(wasCancelled_ || processId_ <= 0)
+		return;
+
+	wasCancelled_ = true;
+
+	// Whatever is still queued would run on data the killed tool never wrote
+	cmds_.Clear();
+	progressTexts_.Clear();
+	stepNames_.Clear();
+
+	// wxKILL_CHILDREN in case the tool started helpers of its own
+	wxProcess::Kill(processId_, wxSIGKILL, wxKILL_CHILDREN);
+}
+
 void R3DComputeMatchesProcess::OnTerminate(int pid, int status)
 {
 	readConsoleOutput();	// Finish reading streams
 
+	// This process is gone; cancel() must not kill a recycled pid
+	processId_ = 0;
+
 	stepsDone_++;
 
-	if(status != 0)
+	if(wasCancelled_)
+	{
+		// The status of a killed process says nothing, and cancel() already
+		// emptied the queue, so there is nothing left to do but report it
+		isOK_ = false;
+		errorMessage_ = wxT("Aborted.");
+	}
+	else if(status != 0)
 	{
 		// All these tools return EXIT_FAILURE on any error, so stop here instead
 		// of running the remaining steps on data that was never written

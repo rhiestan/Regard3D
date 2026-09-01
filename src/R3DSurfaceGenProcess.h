@@ -37,6 +37,15 @@ public:
 	R3DProject::Surface *getSurface() const { return pSurface_; }
 	wxString getRuntimeStr();
 
+	/**
+	 * Kills the executable that is running at the moment.
+	 *
+	 * The queue is emptied first, so OnTerminate reports the step as finished
+	 * instead of starting the next command. Called from the progress dialog.
+	 */
+	void cancel();
+	bool getWasCancelled() const { return wasCancelled_; }
+
 protected:
 	virtual void OnTerminate(int pid, int status);
 
@@ -52,6 +61,8 @@ private:
 	wxExecuteEnv env_;
 #endif
 	wxArrayString cmds_, progressTexts_;
+
+	bool wasCancelled_;
 };
 
 #endif

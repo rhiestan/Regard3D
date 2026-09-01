@@ -32,7 +32,7 @@ enum
 Regard3DProgressDialog::Regard3DProgressDialog(wxWindow *parent, const wxString &title)
 	: Regard3DProgressDialogBase(parent, wxID_ANY, title),
 	aTimer_(this, ID_PROGRESS_DLG_TIMER),
-	startTime_(wxDateTime::Now()),
+	startTime_(wxDateTime::Now()), abortRequested_(false),
 	pMainFrame_(NULL), pConsoleOutputFrame_(NULL)
 {
 	pProgressGauge_->SetRange(100);
@@ -87,7 +87,7 @@ Regard3DProgressDialog::~Regard3DProgressDialog()
 
 void Regard3DProgressDialog::Update(int value, const wxString &newmsg)
 {
-	if(!newmsg.IsEmpty())
+	if(!newmsg.IsEmpty() && !abortRequested_)
 	{
 		pProgressStatusTextCtrl_->SetValue(newmsg);
 		this->Fit();
@@ -98,7 +98,7 @@ void Regard3DProgressDialog::Update(int value, const wxString &newmsg)
 
 void Regard3DProgressDialog::Pulse(const wxString &newmsg)
 {
-	if(!newmsg.IsEmpty())
+	if(!newmsg.IsEmpty() && !abortRequested_)
 	{
 		pProgressStatusTextCtrl_->SetValue(newmsg);
 		this->Fit();
@@ -130,6 +130,26 @@ void Regard3DProgressDialog::OnShowOutputWindowButton( wxCommandEvent& event )
 	}
 }
 
+/**
+ * Stops the external program of the running step.
+ *
+ * The dialog stays open: the program takes a moment to die, and the step
+ * closes the dialog itself once it has reported back.
+ */
+void Regard3DProgressDialog::OnAbortButton( wxCommandEvent& event )
+{
+	if(pMainFrame_ == NULL || abortRequested_)
+		return;
+
+	abortRequested_ = true;
+	pAbortButton_->Disable();
+	pProgressStatusTextCtrl_->SetValue(wxT("Aborting..."));
+
+	// Nothing below this line: the step may end while we are still in here,
+	// and this dialog is deleted when it does
+	pMainFrame_->abortExternalProcess();
+}
+
 void Regard3DProgressDialog::OnTimer( wxTimerEvent &event )
 {
 	// Update elapsed time
@@ -144,6 +164,16 @@ void Regard3DProgressDialog::OnTimer( wxTimerEvent &event )
 	if(!origStr.IsSameAs(runTimeStr))		// Compare strings to avoid flickering
 	{
 		pElapsedTimeTextCtrl_->SetValue(runTimeStr);
+	}
+
+	// Aborting is only possible while an external program is running.
+	// The built-in engines are threads, which cannot be stopped halfway.
+	if(pMainFrame_ != NULL)
+	{
+		const bool canAbort = (!abortRequested_
+			&& pMainFrame_->isExternalProcessRunning());
+		if(canAbort != pAbortButton_->IsEnabled())
+			pAbortButton_->Enable(canAbort);
 	}
 
 	// Update pShowOutputWindowButton_

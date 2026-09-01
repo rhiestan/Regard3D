@@ -76,6 +76,10 @@ public:
 	void sendSurfaceGenFinishedEvent();
 	void sendSmallTaskFinishedEvent();
 
+	// Called by the progress dialog for its Abort button
+	bool isExternalProcessRunning() const;
+	void abortExternalProcess();
+
 	Regard3DConsoleOutputFrame *getConsoleOutputFrame() const { return pRegard3DConsoleOutputFrame_; }
 	wxSplitterWindow *getMainSplitter() const { return pMainSplitter_; }
 	wxSplitterWindow *getProjectSplitter() const { return pProjectSplitter_; }

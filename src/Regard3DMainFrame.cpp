@@ -295,6 +295,40 @@ void Regard3DMainFrame::sendUpdateProgressBarEvent(float progress,
 #endif
 }
 
+/**
+ * Whether the running step is computed by an external program.
+ *
+ * Only those can be aborted: the built-in engines run in a wxThread that has
+ * no way of stopping OpenMVG halfway through.
+ */
+bool Regard3DMainFrame::isExternalProcessRunning() const
+{
+	return (pComputeMatchesProcess_ != NULL
+		|| pTriangulationProcess_ != NULL
+		|| pDensificationProcess_ != NULL
+		|| pR3DSurfaceGenProcess_ != NULL);
+}
+
+/**
+ * Kills the external program of the running step.
+ *
+ * Nothing else happens here. The killed program terminates like any other,
+ * so the step reports back through its usual finished event and is cleaned
+ * up in the OnXxxFinished handler, the same way a failure would be.
+ */
+void Regard3DMainFrame::abortExternalProcess()
+{
+	// At most one of these runs at a time
+	if(pComputeMatchesProcess_ != NULL)
+		pComputeMatchesProcess_->cancel();
+	if(pTriangulationProcess_ != NULL)
+		pTriangulationProcess_->cancel();
+	if(pDensificationProcess_ != NULL)
+		pDensificationProcess_->cancel();
+	if(pR3DSurfaceGenProcess_ != NULL)
+		pR3DSurfaceGenProcess_->cancel();
+}
+
 void Regard3DMainFrame::sendComputeMatchesFinishedEvent()
 {
 #if wxCHECK_VERSION(2, 9, 0)
@@ -621,10 +655,18 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 		BOOST_VERSION / 100 % 1000,
 		BOOST_VERSION % 100));
 	descrString.Append(wxT("\n "));
-	descrString.Append(wxString::Format(wxT("Eigen %d.%d.%d"),
+	descrString.Append(wxT("Eigen "));
+#if defined(EIGEN_VERSION_STRING)
+	// Since Eigen 5 the WORLD number stays 3 forever and the version proper is
+	// MAJOR.MINOR.PATCH, so the three numbers below would read "3.5.0" for
+	// Eigen 5.0.1. Eigen 5 spells the version out itself.
+	descrString.Append(wxString(EIGEN_VERSION_STRING, *wxConvCurrent));
+#else
+	descrString.Append(wxString::Format(wxT("%d.%d.%d"),
 		EIGEN_WORLD_VERSION,
 		EIGEN_MAJOR_VERSION,
 		EIGEN_MINOR_VERSION));
+#endif
 	descrString.Append(wxT("\n "));
 	descrString.Append(wxString(osgGetLibraryName(), *wxConvCurrent));
 	descrString.Append(wxT(" "));
@@ -1250,7 +1292,7 @@ void Regard3DMainFrame::OnComputeMatchesFinished( wxCommandEvent &event )
 		pProgressDialog_ = NULL;
 	}
 
-	bool isOK = false;
+	bool isOK = false, wasCancelled = false;
 	wxString errorMessage;
 	Regard3DFeatures::R3DFParams params;
 	R3DProject::ComputeMatches *pComputeMatches = NULL;
@@ -1271,6 +1313,7 @@ void Regard3DMainFrame::OnComputeMatchesFinished( wxCommandEvent &event )
 		isOK = pComputeMatchesProcess_->getIsOK();
 		errorMessage = pComputeMatchesProcess_->getErrorMessage();
 		resultStrings = pComputeMatchesProcess_->getResultStrings();
+		wasCancelled = pComputeMatchesProcess_->getWasCancelled();
 		pComputeMatches = pComputeMatchesProcess_->getComputeMatches();
 		delete pComputeMatchesProcess_;
 		pComputeMatchesProcess_ = NULL;
@@ -1299,8 +1342,9 @@ void Regard3DMainFrame::OnComputeMatchesFinished( wxCommandEvent &event )
 		project_.save();
 		project_.populateTreeControl(pProjectTreeCtrl_);
 
-		wxMessageBox(errorMessage,
-			wxT("Compute matches"), wxICON_ERROR | wxOK, this);
+		if(!wasCancelled)		// The user pressed Abort, they know
+			wxMessageBox(errorMessage,
+				wxT("Compute matches"), wxICON_ERROR | wxOK, this);
 	}
 }
 
@@ -1321,6 +1365,7 @@ void Regard3DMainFrame::OnTriangulationProcessFinished( wxCommandEvent &event )
 	const bool isOK = pTriangulationProcess_->getIsOK();
 	const wxString errorMessage(pTriangulationProcess_->getErrorMessage());
 	const wxTimeSpan runTime(pTriangulationProcess_->getRunTime());
+	const bool wasCancelled = pTriangulationProcess_->getWasCancelled();
 	R3DProject::Triangulation *pTriangulation = pTriangulationProcess_->getTriangulation();
 
 	delete pTriangulationProcess_;
@@ -1331,13 +1376,13 @@ void Regard3DMainFrame::OnTriangulationProcessFinished( wxCommandEvent &event )
 	pR3DTriangulationThread_ = new R3DTriangulationThread();
 	pR3DTriangulationThread_->setMainFrame(this);
 	pR3DTriangulationThread_->setTriangulation(&project_, pTriangulation);
-	pR3DTriangulationThread_->setExternalResult(isOK, errorMessage, runTime);
+	pR3DTriangulationThread_->setExternalResult(isOK, errorMessage, runTime, wasCancelled);
 	pR3DTriangulationThread_->startTriangulationThread();
 }
 
 void Regard3DMainFrame::OnTriangulationFinished( wxCommandEvent &event )
 {
-	bool isOK = true;
+	bool isOK = true, wasCancelled = false;
 	wxString errorMessage;
 	resultStrings_.Clear();
 	R3DProject::Triangulation *pTriangulation = NULL;
@@ -1345,6 +1390,7 @@ void Regard3DMainFrame::OnTriangulationFinished( wxCommandEvent &event )
 	{
 		pR3DTriangulationThread_->stopTriangulationThread();
 		isOK = pR3DTriangulationThread_->getIsOK();
+		wasCancelled = pR3DTriangulationThread_->getWasCancelled();
 		errorMessage = pR3DTriangulationThread_->getErrorMessage();
 		resultStrings_ = pR3DTriangulationThread_->getResultStrings();
 		pTriangulation = pR3DTriangulationThread_->getTriangulation();
@@ -1393,8 +1439,9 @@ void Regard3DMainFrame::OnTriangulationFinished( wxCommandEvent &event )
 		project_.save();
 		project_.populateTreeControl(pProjectTreeCtrl_);
 
-		wxMessageBox(errorMessage,
-			wxT("Triangulation"), wxICON_ERROR | wxOK, this);
+		if(!wasCancelled)		// The user pressed Abort, they know
+			wxMessageBox(errorMessage,
+				wxT("Triangulation"), wxICON_ERROR | wxOK, this);
 	}
 
 }
@@ -1403,18 +1450,22 @@ void Regard3DMainFrame::OnDensificationFinished( wxCommandEvent &event )
 {
 	R3DProject::Densification *pDensification = NULL;
 	int numberOfClusters = 1;
+	bool wasCancelled = false;
 	if(pDensificationProcess_ != NULL)
 	{
 		pDensificationProcess_->readConsoleOutput();	// Consume all output
 		pDensification = pDensificationProcess_->getDensification();
 		pDensification->runningTime_ = pDensificationProcess_->getRuntimeStr();
 		numberOfClusters = pDensificationProcess_->getNumberOfClusters();
+		wasCancelled = pDensificationProcess_->getWasCancelled();
 
 		delete pDensificationProcess_;
 		pDensificationProcess_ = NULL;
 	}
 
-	if(numberOfClusters > 1)
+	// Combining is pointless after an abort: the later clusters were
+	// never densified
+	if(numberOfClusters > 1 && !wasCancelled)
 	{
 		if(pProgressDialog_ != NULL)
 			pProgressDialog_->Update(80, wxT("Combining generated models"));
@@ -1444,8 +1495,10 @@ void Regard3DMainFrame::OnDensificationFinished( wxCommandEvent &event )
 	R3DProjectPaths paths;
 	project_.getProjectPathsDns(paths, pDensification);
 
+	// An aborted run can well have left a model of the clusters it got
+	// through, but that is not the densification that was asked for
 	wxFileName denseModelFN(wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc));
-	if(denseModelFN.FileExists())
+	if(denseModelFN.FileExists() && !wasCancelled)
 	{
 		pDensification->state_ = R3DProject::OSFinished;
 		project_.save();
@@ -1457,8 +1510,9 @@ void Regard3DMainFrame::OnDensificationFinished( wxCommandEvent &event )
 	else
 	{
 		setProjectTreeItemBold(-1);
-		wxMessageBox(wxT("No generated model found.\nPlease check console output for errors."),
-			wxT("Densification"), wxICON_ERROR | wxOK, this);
+		if(!wasCancelled)		// The user pressed Abort, they know
+			wxMessageBox(wxT("No generated model found.\nPlease check console output for errors."),
+				wxT("Densification"), wxICON_ERROR | wxOK, this);
 
 		project_.removeDensification(pDensification);
 		project_.save();
@@ -1470,19 +1524,23 @@ void Regard3DMainFrame::OnDensificationFinished( wxCommandEvent &event )
 void Regard3DMainFrame::OnSurfaceGenFinished( wxCommandEvent &event )
 {
 	R3DProject::Surface *pSurface = NULL;
+	bool wasCancelled = false;
 	if(pR3DSurfaceGenProcess_ != NULL)
 	{
 		pR3DSurfaceGenProcess_->readConsoleOutput();	// Consume all output
 		pSurface = pR3DSurfaceGenProcess_->getSurface();
 		pSurface->runningTime_ = pR3DSurfaceGenProcess_->getRuntimeStr();
+		wasCancelled = pR3DSurfaceGenProcess_->getWasCancelled();
 
 		delete pR3DSurfaceGenProcess_;
 		pR3DSurfaceGenProcess_ = NULL;
 	}
 
 	wxString surfaceModelFilename(pSurface->finalSurfaceFilename_);
+	// Nothing to colorize after an abort, the surface was never written
 	if(pSurface->colorizationType_ == R3DProject::CTColoredVertices
-		&& pSurface->surfaceType_ == R3DProject::STPoissonRecon)
+		&& pSurface->surfaceType_ == R3DProject::STPoissonRecon
+		&& !wasCancelled)
 	{
 		if(pProgressDialog_ != NULL)
 			pProgressDialog_->Update(80, wxT("Colorizing vertices"));
@@ -1510,7 +1568,7 @@ void Regard3DMainFrame::OnSurfaceGenFinished( wxCommandEvent &event )
 
 	// Load generated model
 	wxFileName surfaceModelFN(wxString(paths.relativeSurfacePath_.c_str(), wxConvLibc), surfaceModelFilename);
-	if(surfaceModelFN.FileExists())
+	if(surfaceModelFN.FileExists() && !wasCancelled)
 	{
 		pSurface->state_ = R3DProject::OSFinished;
 		project_.save();
@@ -1521,8 +1579,9 @@ void Regard3DMainFrame::OnSurfaceGenFinished( wxCommandEvent &event )
 	}
 	else
 	{
-		wxMessageBox(wxT("No generated model found.\nPlease check console output for errors."),
-			wxT("Surface generation"), wxICON_ERROR | wxOK, this);
+		if(!wasCancelled)		// The user pressed Abort, they know
+			wxMessageBox(wxT("No generated model found.\nPlease check console output for errors."),
+				wxT("Surface generation"), wxICON_ERROR | wxOK, this);
 
 		project_.removeSurface(pSurface);
 		project_.save();

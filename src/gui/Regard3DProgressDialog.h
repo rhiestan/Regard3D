@@ -37,6 +37,7 @@ public:
 
 protected:
 	virtual void OnShowOutputWindowButton( wxCommandEvent& event );
+	virtual void OnAbortButton( wxCommandEvent& event );
 
 	virtual void OnTimer( wxTimerEvent &event );
 
@@ -45,6 +46,7 @@ private:
 	wxTimer aTimer_;
 
 	wxDateTime startTime_;
+	bool abortRequested_;
 	Regard3DMainFrame *pMainFrame_;
 	Regard3DConsoleOutputFrame *pConsoleOutputFrame_;
 

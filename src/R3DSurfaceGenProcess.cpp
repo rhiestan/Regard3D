@@ -25,7 +25,7 @@
 
 R3DSurfaceGenProcess::R3DSurfaceGenProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),
-	processId_(0)
+	processId_(0), wasCancelled_(false)
 {
 }
 
@@ -246,9 +246,27 @@ wxString R3DSurfaceGenProcess::getRuntimeStr()
 	return runTimeStr;
 }
 
+void R3DSurfaceGenProcess::cancel()
+{
+	if(wasCancelled_ || processId_ <= 0)
+		return;
+
+	wasCancelled_ = true;
+
+	// Whatever is still queued would run on data the killed tool never wrote
+	cmds_.Clear();
+	progressTexts_.Clear();
+
+	// wxKILL_CHILDREN in case the tool started helpers of its own
+	wxProcess::Kill(processId_, wxSIGKILL, wxKILL_CHILDREN);
+}
+
 void R3DSurfaceGenProcess::OnTerminate(int pid, int status)
 {
 	readConsoleOutput();	// Finish reading streams
+
+	// This process is gone; cancel() must not kill a recycled pid
+	processId_ = 0;
 
 	if(cmds_.IsEmpty())
 		pMainFrame_->sendSurfaceGenFinishedEvent();

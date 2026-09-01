@@ -708,6 +708,7 @@ Regard3DConsoleOutputFrameBase::~Regard3DConsoleOutputFrameBase()
 
 BEGIN_EVENT_TABLE( Regard3DProgressDialogBase, wxDialog )
 	EVT_BUTTON( ID_SHOWOUTPUTWINDOWBUTTON, Regard3DProgressDialogBase::_wxFB_OnShowOutputWindowButton )
+	EVT_BUTTON( ID_ABORTBUTTON, Regard3DProgressDialogBase::_wxFB_OnAbortButton )
 END_EVENT_TABLE()
 
 Regard3DProgressDialogBase::Regard3DProgressDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
@@ -752,6 +753,12 @@ Regard3DProgressDialogBase::Regard3DProgressDialogBase( wxWindow* parent, wxWind
 
 	pShowOutputWindowButton_ = new wxButton( m_panel8, ID_SHOWOUTPUTWINDOWBUTTON, wxT("Show output window"), wxDefaultPosition, wxDefaultSize, 0 );
 	bSizer18->Add( pShowOutputWindowButton_, 0, wxALL, 12 );
+
+	pAbortButton_ = new wxButton( m_panel8, ID_ABORTBUTTON, wxT("Abort"), wxDefaultPosition, wxDefaultSize, 0 );
+	pAbortButton_->Enable( false );
+	pAbortButton_->SetToolTip( wxT("Stop the external program that is running this step.\nThe step is discarded, everything computed before it is kept.") );
+
+	bSizer18->Add( pAbortButton_, 0, wxALL, 12 );
 
 
 	bSizer17->Add( bSizer18, 0, wxEXPAND, 5 );

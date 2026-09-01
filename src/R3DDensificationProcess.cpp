@@ -27,7 +27,8 @@
 
 R3DDensificationProcess::R3DDensificationProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),
-	processId_(0), checkForClusters_(false), numberOfClusters_(0)
+	processId_(0), checkForClusters_(false), wasCancelled_(false),
+	numberOfClusters_(0)
 {
 }
 
@@ -228,9 +229,29 @@ wxString R3DDensificationProcess::getRuntimeStr()
 	return runTimeStr;
 }
 
+void R3DDensificationProcess::cancel()
+{
+	if(wasCancelled_ || processId_ <= 0)
+		return;
+
+	wasCancelled_ = true;
+
+	// Whatever is still queued would run on data the killed tool never wrote,
+	// and the clusters CMVS was going to produce will not be there either
+	cmds_.Clear();
+	progressTexts_.Clear();
+	checkForClusters_ = false;
+
+	// wxKILL_CHILDREN in case the tool started helpers of its own
+	wxProcess::Kill(processId_, wxSIGKILL, wxKILL_CHILDREN);
+}
+
 void R3DDensificationProcess::OnTerminate(int pid, int status)
 {
 	readConsoleOutput();	// Finish reading streams
+
+	// This process is gone; cancel() must not kill a recycled pid
+	processId_ = 0;
 
 	if(cmds_.IsEmpty())
 	{

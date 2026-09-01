@@ -446,6 +446,7 @@ class Regard3DProgressDialogBase : public wxDialog
 
 		// Private event handlers
 		void _wxFB_OnShowOutputWindowButton( wxCommandEvent& event ){ OnShowOutputWindowButton( event ); }
+		void _wxFB_OnAbortButton( wxCommandEvent& event ){ OnAbortButton( event ); }
 
 
 	protected:
@@ -456,7 +457,8 @@ class Regard3DProgressDialogBase : public wxDialog
 			ID_PROGRESSSTATUSTEXTCTRL,
 			ID_ELAPSEDTIMETEXTCTRL,
 			ID_PROGRESSGAUGE,
-			ID_SHOWOUTPUTWINDOWBUTTON
+			ID_SHOWOUTPUTWINDOWBUTTON,
+			ID_ABORTBUTTON
 		};
 
 		wxPanel* m_panel8;
@@ -466,9 +468,11 @@ class Regard3DProgressDialogBase : public wxDialog
 		wxTextCtrl* pElapsedTimeTextCtrl_;
 		wxGauge* pProgressGauge_;
 		wxButton* pShowOutputWindowButton_;
+		wxButton* pAbortButton_;
 
 		// Virtual event handlers, override them in your derived class
 		virtual void OnShowOutputWindowButton( wxCommandEvent& event ) = 0;
+		virtual void OnAbortButton( wxCommandEvent& event ) = 0;
 
 
 	public:

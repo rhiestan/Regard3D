@@ -36,7 +36,7 @@ namespace
 
 R3DTriangulationProcess::R3DTriangulationProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame), pTriangulation_(NULL),
-	processId_(0), isOK_(true)
+	processId_(0), isOK_(true), wasCancelled_(false)
 {
 }
 
@@ -264,11 +264,31 @@ void R3DTriangulationProcess::readConsoleOutput()
 	}
 }
 
+void R3DTriangulationProcess::cancel()
+{
+	if(wasCancelled_ || processId_ <= 0)
+		return;
+
+	wasCancelled_ = true;
+
+	// wxKILL_CHILDREN in case the tool started helpers of its own
+	wxProcess::Kill(processId_, wxSIGKILL, wxKILL_CHILDREN);
+}
+
 void R3DTriangulationProcess::OnTerminate(int pid, int status)
 {
 	readConsoleOutput();	// Finish reading streams
 
-	if(status != 0)
+	// This process is gone; cancel() must not kill a recycled pid
+	processId_ = 0;
+
+	if(wasCancelled_)
+	{
+		// A partial sfm_data.bin may well exist, but it is not a reconstruction
+		isOK_ = false;
+		errorMessage_ = wxT("Aborted.");
+	}
+	else if(status != 0)
 	{
 		isOK_ = false;
 		errorMessage_ = wxString::Format(

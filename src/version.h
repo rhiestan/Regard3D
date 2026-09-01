@@ -14,7 +14,7 @@
 
 #define REGARD3D_NAME "Regard 3D"
 #define REGARD3D_COPYRIGHT_NAME "Roman Hiestand"
-#define REGARD3D_COPYRIGHT_YEAR "2019"
+#define REGARD3D_COPYRIGHT_YEAR "2026"
 #define REGARD3D_VENDOR_NAME "hiesti.ch"
 
 // The check for __INTEL_COMPILER needs to be before _MSC_VER and __GNUG__, as

@@ -2207,12 +2207,9 @@ void Regard3DMainFrame::updateProjectDetails()
 				wxString matchingAlgorithmString;
 				if(pComputeMatches->matchingAlgorithm_ == 0)
 					matchingAlgorithmString = wxT("FLANN");
-				else if(pComputeMatches->matchingAlgorithm_ == 1)
-					matchingAlgorithmString = wxT("KGraph Fast");
-				else if(pComputeMatches->matchingAlgorithm_ == 2)
-					matchingAlgorithmString = wxT("KGraph Medium");
-				else if(pComputeMatches->matchingAlgorithm_ == 3)
-					matchingAlgorithmString = wxT("KGraph Precise");
+				else if(pComputeMatches->matchingAlgorithm_ >= 1
+					&& pComputeMatches->matchingAlgorithm_ <= 3)
+					matchingAlgorithmString = wxT("KGraph (retired)");
 				else if(pComputeMatches->matchingAlgorithm_ == 4)
 					matchingAlgorithmString = wxT("Brute Force");
 				else if(pComputeMatches->matchingAlgorithm_ == 5)
@@ -2336,24 +2333,32 @@ void Regard3DMainFrame::updateProjectDetails()
 						params = wxString::Format(wxT("Old Incremental, initial pair %zu/%zu"), pTriangulation->initialImageIndexA_,
 							pTriangulation->initialImageIndexB_);
 					}
+					const R3DOpenMVGTriangulationParams &omvg = pTriangulation->openMVGParams_;
 					if(pTriangulation->refineIntrinsics_)
-						params.Append(wxT(", intrinsic camera parameters refined"));
+					{
+						params.Append(wxT(", intrinsic camera parameters refined ("));
+						params.Append(R3DOpenMVGOptions::intrinsicRefinementName(omvg.intrinsicRefinement_));
+						params.Append(wxT(")"));
+					}
 					else
 						params.Append(wxT(", intrinsic camera parameters kept constant"));
+
+					// Only the newer incremental engine reads the extrinsics option
+					if(pTriangulation->algorithm_ == R3DProject::R3DTriangulationAlgorithm::R3DTA_Incremental2)
+					{
+						params.Append(wxT(", extrinsics: "));
+						params.Append(R3DOpenMVGOptions::extrinsicRefinementName(omvg.extrinsicRefinement_));
+					}
+
+					// ...and only the incremental ones the camera model
+					if(pTriangulation->algorithm_ != R3DProject::R3DTriangulationAlgorithm::R3DTA_Global)
+						params.Append(wxString::Format(wxT(", unknown intrinsics as camera model %d"),
+							omvg.cameraModel_));
 
 					if(pTriangulation->computeEngine_ == 1)
 					{
 						// Say which engine ran, and the options only it has
-						const R3DOpenMVGTriangulationParams &omvg = pTriangulation->openMVGParams_;
 						params.Prepend(wxT("OpenMVG: "));
-						if(pTriangulation->refineIntrinsics_)
-						{
-							params.Append(wxT(" ("));
-							params.Append(R3DOpenMVGOptions::intrinsicRefinementName(omvg.intrinsicRefinement_));
-							params.Append(wxT(")"));
-						}
-						params.Append(wxT(", extrinsics: "));
-						params.Append(R3DOpenMVGOptions::extrinsicRefinementName(omvg.extrinsicRefinement_));
 						if(pTriangulation->algorithm_ != R3DProject::R3DTriangulationAlgorithm::R3DTA_Global)
 							params.Append(wxString::Format(wxT(", triangulation method %d, resection method %d"),
 								omvg.triangulationMethod_, omvg.resectionMethod_));
@@ -2773,7 +2778,8 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 			pR3DTriangulationThread_ = new R3DTriangulationThread();
 			pR3DTriangulationThread_->setMainFrame(this);
 			pR3DTriangulationThread_->setParameters(algorithm, initialPairA, initialPairB,
-				rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization);
+				rotAveraging, transAveraging, refineIntrinsics, useGPSInfo, triInitilization,
+				dlgResults.openMVG_);
 			pR3DTriangulationThread_->setTriangulation(&project_, pTriangulation);
 			pR3DTriangulationThread_->startTriangulationThread();
 		}

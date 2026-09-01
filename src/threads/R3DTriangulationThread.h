@@ -45,7 +45,8 @@ public:
 		int initialPairA, int initialPairB,
 		int rotAveraging, int transAveraging,
 		bool refineIntrinsics, bool useGPSInfo,
-		R3DProject::R3DTriangulationInitialization triInitialization);
+		R3DProject::R3DTriangulationInitialization triInitialization,
+		const R3DOpenMVGTriangulationParams &openMVGParams);
 	void setTriangulation(R3DProject *pProject, R3DProject::Triangulation *pTriangulation);
 
 	/**
@@ -97,6 +98,9 @@ private:
 	bool refineIntrinsics_;
 	bool useGPSInfo_;
 	R3DProject::R3DTriangulationInitialization triInitialization_;
+	// Not only for openMVG_main_SfM: the refinement options in there are
+	// understood by the built-in engines as well
+	R3DOpenMVGTriangulationParams openMVGParams_;
 
 	// Set by setExternalResult: openMVG_main_SfM has already run
 	bool finishExternalOnly_;

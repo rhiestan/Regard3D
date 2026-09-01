@@ -28,6 +28,41 @@ namespace
 	// the order R3DOpenMVGOptions lists them. Keep the .fbp and that header in
 	// step: R3DOpenMVGMatchingParams stores indices into those tables.
 	using R3DOpenMVGOptions::kMatchers;
+
+namespace
+{
+	// What the built-in matching algorithm is stored as, in the order the
+	// choice control lists them. The number used to be the position itself,
+	// until KGraph was retired and 1 to 3 fell out of the list; keeping the
+	// numbers is what lets older project files keep their meaning. A new
+	// matcher gets the next free number and is appended here.
+	const int kBuiltinMatchers[] = {
+		0,		// FLANN
+		4,		// Brute force
+		5,		// MRPT
+		6,		// HNSW - Fast
+		7,		// HNSW - Medium
+		8 };	// HNSW - Precise
+
+	int matchingAlgorithmToIndex(int algorithm)
+	{
+		for(size_t i = 0; i < WXSIZEOF(kBuiltinMatchers); i++)
+		{
+			if(kBuiltinMatchers[i] == algorithm)
+				return static_cast<int>(i);
+		}
+
+		return 0;		// Retired, or from a newer build: FLANN
+	}
+
+	int indexToMatchingAlgorithm(int index)
+	{
+		if(index < 0 || index >= static_cast<int>(WXSIZEOF(kBuiltinMatchers)))
+			return 0;
+
+		return kBuiltinMatchers[index];
+	}
+}
 	using R3DOpenMVGOptions::kMatcherCount;
 
 	// The executables every OpenMVG run needs, whatever the describer
@@ -85,7 +120,7 @@ void Regard3DComputeMatchesDialog::OnInitDialog( wxInitDialogEvent& event )
 
 	pKeypointDetectorRadioBox_->SetSelection(keyPointDetectorType_);
 	pAddTBMRDetectorCheckBox_->SetValue(addTBMR_);
-	pMatchingAlgorithmChoice_->SetSelection(matchingAlgorithm_);
+	pMatchingAlgorithmChoice_->SetSelection(matchingAlgorithmToIndex(matchingAlgorithm_));
 	pCameraModelChoice_->SetSelection(cameraModel_ - 1);
 
 	initializeOpenMVGPage();
@@ -121,7 +156,7 @@ void Regard3DComputeMatchesDialog::OnOKButtonClick(wxCommandEvent& event)
 		keyPointDetectorType_ = pKeypointDetectorRadioBox_->GetSelection();
 		addTBMR_ = pAddTBMRDetectorCheckBox_->GetValue();
 		cameraModel_ = pCameraModelChoice_->GetCurrentSelection() + 1;
-		matchingAlgorithm_ = pMatchingAlgorithmChoice_->GetCurrentSelection();
+		matchingAlgorithm_ = indexToMatchingAlgorithm(pMatchingAlgorithmChoice_->GetCurrentSelection());
 
 		results_.engine_ = pMatchingEngineChoicebook_->GetSelection();
 		results_.keypointSensitivity_ = keypointSensitivity_;

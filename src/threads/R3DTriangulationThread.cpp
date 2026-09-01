@@ -21,6 +21,7 @@
 #include "Regard3DMainFrame.h"
 #include "R3DTriangulationThread.h"
 #include "R3DProject.h"
+#include "R3DOpenMVGOptions.h"
 #include "Regard3DFeatures.h"
 #include "OpenMVGHelper.h"
 
@@ -45,12 +46,56 @@
 #include "software/SfM/SfMPlyHelper.hpp"
 #endif
 
+#include "openMVG/cameras/Cameras_Common_command_line_helper.hpp"
 #include "openMVG/system/timer.hpp"
 #include "third_party/stlplus3/filesystemSimplified/file_system.hpp"
 
 using namespace openMVG;
 using namespace openMVG::cameras;
 using namespace openMVG::sfm;
+
+namespace
+{
+	// The dialog stores the refinement options as indices into the tables of
+	// R3DOpenMVGOptions, whose strings are what openMVG_main_SfM is given on
+	// its command line. openMVG turns them into the enums with the two
+	// functions below, so feeding it the same strings makes both engines
+	// read one setting the same way.
+	openMVG::cameras::Intrinsic_Parameter_Type intrinsicRefinementType(
+		const R3DOpenMVGTriangulationParams &params, bool refineIntrinsics)
+	{
+		if(!refineIntrinsics)
+			return openMVG::cameras::Intrinsic_Parameter_Type::NONE;
+
+		const wxString name(R3DOpenMVGOptions::intrinsicRefinementName(params.intrinsicRefinement_));
+		return openMVG::cameras::StringTo_Intrinsic_Parameter_Type(
+			std::string(name.mb_str()));
+	}
+
+	// -c of openMVG_main_SfM: the model given to views whose intrinsics are
+	// not known. The dialog stores openMVG's own EINTRINSIC value, so a
+	// project written by a newer build cannot mean anything unexpected here.
+	// Read by the incremental engines only, the global one has no use for it.
+	openMVG::cameras::EINTRINSIC unknownCameraType(
+		const R3DOpenMVGTriangulationParams &params)
+	{
+		const openMVG::cameras::EINTRINSIC model =
+			static_cast<openMVG::cameras::EINTRINSIC>(params.cameraModel_);
+
+		return (openMVG::cameras::isPinhole(model)
+			? model : openMVG::cameras::PINHOLE_CAMERA_RADIAL3);
+	}
+
+	// Read by the newer incremental engine only, see sequential_SfM2.cpp.
+	// The other two ignore it, with openMVG_main_SfM just as much as here.
+	openMVG::sfm::Extrinsic_Parameter_Type extrinsicRefinementType(
+		const R3DOpenMVGTriangulationParams &params)
+	{
+		const wxString name(R3DOpenMVGOptions::extrinsicRefinementName(params.extrinsicRefinement_));
+		return openMVG::sfm::StringTo_Extrinsic_Parameter_Type(
+			std::string(name.mb_str()));
+	}
+}
 
 R3DTriangulationThread::R3DTriangulationThread()
 	: wxThread(wxTHREAD_JOINABLE)
@@ -83,7 +128,8 @@ void R3DTriangulationThread::setParameters(R3DProject::R3DTriangulationAlgorithm
 	int initialPairA, int initialPairB,
 	int rotAveraging, int transAveraging,
 	bool refineIntrinsics, bool useGPSInfo,
-	R3DProject::R3DTriangulationInitialization triInitialization)
+	R3DProject::R3DTriangulationInitialization triInitialization,
+	const R3DOpenMVGTriangulationParams &openMVGParams)
 {
 	algorithm_ = algorithm;
 	initialPairA_ = initialPairA;
@@ -93,6 +139,7 @@ void R3DTriangulationThread::setParameters(R3DProject::R3DTriangulationAlgorithm
 	refineIntrinsics_ = refineIntrinsics;
 	useGPSInfo_ = useGPSInfo;
 	triInitialization_ = triInitialization;
+	openMVGParams_ = openMVGParams;
 }
 
 void R3DTriangulationThread::setTriangulation(R3DProject *pProject, R3DProject::Triangulation *pTriangulation)
@@ -298,10 +345,8 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 
 					// Configure reconstruction parameters
 					//sfmEngine.Set_bFixedIntrinsics(!bRefineIntrinsics);
-					cameras::Intrinsic_Parameter_Type intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::ADJUST_ALL;
-					if(!bRefineIntrinsics)
-						intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
-					sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
+					sfmEngine.Set_Intrinsics_Refinement_Type(
+						intrinsicRefinementType(openMVGParams_, bRefineIntrinsics));
 					sfmEngine.Set_Use_Motion_Prior(useGPSInfo_);
 
 					// Configure motion averaging method
@@ -458,8 +503,8 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 		}
 #else
 		std::string sSfM_Data_Filename(paths_.matchesSfmDataFilename_);
-		openMVG::cameras::EINTRINSIC i_User_camera_model = openMVG::cameras::PINHOLE_CAMERA_RADIAL3;			// TODO: Make configurable
-		bool bRefineIntrinsics = true;
+		const openMVG::cameras::EINTRINSIC i_User_camera_model = unknownCameraType(openMVGParams_);
+		bool bRefineIntrinsics = refineIntrinsics_;
 
 		// Load input SfM_Data scene
 		openMVG::sfm::SfM_Data sfm_data;
@@ -489,10 +534,8 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 
 						// Configure reconstruction parameters
 						//sfmEngine.Set_bFixedIntrinsics(!bRefineIntrinsics);
-						cameras::Intrinsic_Parameter_Type intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::ADJUST_ALL;
-						if(!bRefineIntrinsics)
-							intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
-						sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
+						sfmEngine.Set_Intrinsics_Refinement_Type(
+							intrinsicRefinementType(openMVGParams_, bRefineIntrinsics));
 						sfmEngine.Set_Use_Motion_Prior(useGPSInfo_);
 
 						sfmEngine.SetUnknownCameraType(i_User_camera_model);
@@ -552,8 +595,19 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 					else
 					{
 						// Incremental SfM engine 2
-						std::unique_ptr<SfMSceneInitializer> scene_initializer(new SfMSceneInitializerStellar(sfm_data,
-							feats_provider.get(), matches_provider.get()));
+						//
+						// openMVG_main_SfM knows two initializers more, but
+						// AUTO_PAIR is not implemented in openMVG and
+						// EXISTING_POSE needs poses that the scene does not
+						// have yet at this point, so the dialog offers these
+						// two only, whichever engine runs.
+						std::unique_ptr<SfMSceneInitializer> scene_initializer;
+						if(triInitialization_ == R3DProject::R3DTriangulationInitialization::R3DTI_MaxPair)
+							scene_initializer.reset(new SfMSceneInitializerMaxPair(sfm_data,
+								feats_provider.get(), matches_provider.get()));
+						else
+							scene_initializer.reset(new SfMSceneInitializerStellar(sfm_data,
+								feats_provider.get(), matches_provider.get()));
 						SequentialSfMReconstructionEngine2 sfmEngine(
 							scene_initializer.get(),
 							sfm_data,
@@ -565,10 +619,10 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 						sfmEngine.SetMatchesProvider(matches_provider.get());
 
 						// Configure reconstruction parameters
-						cameras::Intrinsic_Parameter_Type intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::ADJUST_ALL;
-						if(!bRefineIntrinsics)
-							intrinsic_refinement_options = cameras::Intrinsic_Parameter_Type::NONE;
-						sfmEngine.Set_Intrinsics_Refinement_Type(intrinsic_refinement_options);
+						sfmEngine.Set_Intrinsics_Refinement_Type(
+							intrinsicRefinementType(openMVGParams_, bRefineIntrinsics));
+						sfmEngine.Set_Extrinsics_Refinement_Type(
+							extrinsicRefinementType(openMVGParams_));
 						sfmEngine.SetUnknownCameraType(EINTRINSIC(i_User_camera_model));
 						sfmEngine.Set_Use_Motion_Prior(useGPSInfo_);
 
@@ -610,6 +664,11 @@ wxThread::ExitCode R3DTriangulationThread::Entry()
 							wxTimeSpan runTime = wxDateTime::UNow() - beginTime;
 							prepareResultStrings(sfmEngine.Get_SfM_Data(),
 								sfm_data.GetViews().size(), runTime);
+						}
+						else
+						{
+							isOK_ = false;
+							errorMessage_ = wxT("Error in incremental reconstruction engine");
 						}
 					}
 				}

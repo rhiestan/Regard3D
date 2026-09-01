@@ -258,4 +258,4 @@ private:
 	const Eigen::Map<const Eigen::MatrixXf> *datasetMap_;
 };
 
-#endif // !MATCHER_KGRAPH_H
+#endif // !MATCHER_MRPT_H

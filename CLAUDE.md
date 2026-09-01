@@ -142,7 +142,7 @@ grep -rhoE '#include [<"]boost/[a-zA-Z0-9_/.]+' --include=*.cpp --include=*.h sr
 ```
 
 Vendored third-party sources live in `src/thirdparty/`: `akaze`, `fast-akaze`, `liop`, `tinyply`,
-`sqlite`, `cpuid`, header-only `efanna`, `mrpt`, `hnswlib`, `kgraph`, plus a handful of OpenMVG
+`sqlite`, `cpuid`, header-only `efanna`, `mrpt`, `hnswlib`, plus a handful of OpenMVG
 headers that upstream does not install (`src/thirdparty/openMVG/**`, e.g. `InterfaceMVS.h`,
 `SfMPlyHelper.hpp`, `document.h`).
 
@@ -197,20 +197,27 @@ than recompute paths.
 
 ### Work execution — two mechanisms
 
-(Mechanism 1 is being retired in favour of mechanism 2 — see *Direction of travel* below.)
+**Both are permanent, and both are maintained.** The external tools are the default path, but the
+in-process one is deliberately kept so that new libraries — nearest-neighbour matchers above all —
+can be tried out inside Regard3D. See *Direction of travel* below.
 
 1. **In-process `wxThread`s** (`src/threads/`) for anything using OpenMVG as a library:
    `R3DFeaturesThread` (keypoints/descriptors), `R3DComputeMatchesThread`, `R3DTriangulationThread`,
    `R3DSmallTasksThread` (exports, model loading, colorization), plus `ImageInfoThread` and
    `PreviewGeneratorThread` for the UI.
 2. **External processes** via `wxProcess` for the bundled executables:
-   `R3DDensificationProcess` and `R3DSurfaceGenProcess`. Each builds an ordered `wxArrayString cmds_`
+   `R3DComputeMatchesProcess`, `R3DTriangulationProcess`, `R3DDensificationProcess` and
+   `R3DSurfaceGenProcess`. Each builds an ordered `wxArrayString cmds_`
    and runs them one at a time, advancing in `OnTerminate()` — a small command-queue state machine.
    Executables are discovered at startup by `src/utils/R3DExternalPrograms.cpp`, which expects
-   `pmvs/`, `poisson/`, `mve/` (and optionally `cmpmvs/`) subdirectories next to the Regard3D
-   executable (overridable in Properties): `pmvs2`, `cmvs`, `genOption`, `PoissonRecon`,
+   `pmvs/`, `poisson/`, `mve/`, `openmvg/` (and optionally `cmpmvs/`) subdirectories next to the
+   Regard3D executable (overridable in Properties): `pmvs2`, `cmvs`, `genOption`, `PoissonRecon`,
    `SurfaceTrimmer`, `makescene`, `dmrecon`, `scene2pset`, `fssrecon`, `meshclean`, `texrecon`,
-   `smvsrecon`, `smvsrecon_SSE41`. The OpenMVG executables will need to be registered here too.
+   `smvsrecon`, `smvsrecon_SSE41`, and the OpenMVG tools listed below.
+
+Which of the two runs a step is stored per project node in `computeEngine_` (0 = built-in,
+1 = OpenMVG executables) and chosen in the step's dialog. Both ends have to keep working: a change
+to one is only half the job.
 
 Threads and processes never touch the GUI directly — they post `wxCommandEvent`s back to
 `Regard3DMainFrame` (`sendComputeMatchesFinishedEvent()`, `sendTriangulationFinishedEvent()`,
@@ -223,8 +230,11 @@ Threads and processes never touch the GUI directly — they post `wxCommandEvent
   (VLFeat-derived, in `src/thirdparty/liop`). `getKpSizeFactor()` holds the per-detector scaling.
 - `src/R3DComputeMatches.cpp` — the pipeline's heavyweight (~2700 lines). Putative matching plus
   geometric filtering (F / E / H). Backends behind the "Matching algorithm" choice:
-  `0 FLANN`, `1–3 KGraph (Fast/Medium/Precise)`, `4 Brute Force`, `5 MRPT`, `6–8 HNSW`.
-  Implementations are in `src/utils/matcher_{kgraph,hnsw,mrpt,efanna}.h`.
+  `0 FLANN`, `4 Brute Force`, `5 MRPT`, `6–8 HNSW`. Implementations are in
+  `src/utils/matcher_{hnsw,mrpt,efanna}.h`. The numbers are stored in project files, so a retired
+  backend leaves its numbers behind rather than renumbering the rest — `1–3` were KGraph and are
+  now unused; `Regard3DComputeMatchesDialog` maps between them and the position in the choice
+  control. Adding a matcher means a new number at the end, never a reordering.
 - `src/utils/OpenMVGHelper.cpp` — the largest single file; SfM data I/O, SVG match visualisation,
   export to PMVS/CMVS, MVE, NVM (VisualSFM), MeshLab, and track colorization.
 - `src/utils/OpenMVGExportToMVS.cpp` — export to the OpenMVS `.mvs` scene format.
@@ -245,18 +255,23 @@ Threads and processes never touch the GUI directly — they post `wxCommandEvent
 - Branching: `master` is the release branch, `develop` is where work lands and is merged into
   `master` at release time.
 
-## Direction of travel — library OpenMVG → OpenMVG command-line tools
+## Direction of travel — OpenMVG command-line tools alongside the library
 
-**This is the guiding intent for current work.** Feature detection, matching and triangulation are
-to move off the linked OpenMVG library and onto the **OpenMVG command-line executables**, because
-tracking a set of executables across OpenMVG releases is far less work than tracking its C++ API.
+**This is the guiding intent for current work.** Feature detection, matching and triangulation can
+be run by the **OpenMVG command-line executables** as well as by the linked library, and the
+executables are the default: tracking a set of executables across OpenMVG releases is far less work
+than tracking its C++ API.
 
-That means the in-process thread mechanism should converge on the external-process mechanism already
-used for densification and surfacing (`R3DDensificationProcess` / `R3DSurfaceGenProcess`): build an
-ordered command list, run it through `wxProcess`, advance in `OnTerminate()`.
+**The in-process path is not being retired.** It is what makes it possible to try a new library
+inside Regard3D — a nearest-neighbour matcher, a detector, a descriptor — and compare it against the
+others on the same pictures. That is worth keeping even though the executables carry the everyday
+work. So new external steps are added *next to* the in-process one, following the pattern of
+`R3DComputeMatchesProcess` / `R3DTriangulationProcess`: build an ordered command list, run it
+through `wxProcess`, advance in `OnTerminate()`.
 
-The relevant OpenMVG 2.0 tools (vcpkg installs them to
-`C:\Projects\vcpkg\vcpkg\installed\x64-windows\tools\openmvg`):
+The relevant OpenMVG 2.1 tools (the manifest build installs them to
+`build_2026\vcpkg_installed\x64-windows\tools\openmvg`; Regard3D finds them once they are copied
+into `external_tools\openmvg\`):
 
 | Step | Executable |
 |---|---|
@@ -275,43 +290,58 @@ for this migration.
 
 Consequences worth knowing before "fixing" anything that looks broken:
 
-- **The console output window being dead is expected for now.** Since the CLI tools will write to
-  stdout/stderr and be captured like the existing external processes already are, re-plumbing
-  minilog into the linked library would be throwaway work.
+- **The console output window works for both paths, through the C++ streams.**
+  `Regard3DConsoleOutputFrame` swaps the stream buffer of `std::cout`/`std::cerr`
+  (`USE_STREAMBUF_CAPTURE`), which catches OpenMVG 2.x's `OPENMVG_LOG_*` from the linked library as
+  well as the redirected output of the executables. minilog is gone and every `MLOG <<` is still
+  commented out; nothing depends on it any more.
 - Reconstruction quality/parameter surface will change: the CLI exposes OpenMVG's own describers
   (SIFT, SIFT_ANATOMY, AKAZE_FLOAT, AKAZE_MLDB, plus AKAZE_OPENCV/SIFT_OPENCV) and its own
   nearest-neighbour methods, not Regard3D's custom detector/descriptor combinations
-  (Fast-AKAZE, LIOP, TBMR, …) or its custom matchers (KGraph, MRPT, HNSW, EFANNA). Decide per
-  option whether it survives the move — and remember GUI indices are persisted in project files.
-- The vendored `src/thirdparty/{akaze,fast-akaze,liop,efanna,mrpt,hnswlib,kgraph}` and the matcher
-  headers in `src/utils/matcher_*.h` exist only to serve the in-process path; they become removable
-  as it retires.
+  (Fast-AKAZE, LIOP, TBMR, …) or its custom matchers (MRPT, HNSW, EFANNA). The two sets stay
+  different on purpose — and remember GUI indices are persisted in project files.
+- The vendored `src/thirdparty/{akaze,fast-akaze,liop,efanna,mrpt,hnswlib}` and the matcher headers
+  in `src/utils/matcher_*.h` serve the in-process path, which stays — they are the library testbed,
+  not leftovers. Retire one only when it is genuinely dead, the way `kgraph` was.
 - OpenMVG's binary/text intermediate files (`sfm_data.json/bin`, `matches.putative.*`,
   `matches.f/e/h.*`) become the interface between steps, so `R3DProjectPaths` filenames must line up
   with what the tools expect on the command line.
 
-## Current state — in-flight build migration (uncommitted)
+## Current state
 
-`git status` shows **modified but uncommitted** work moving the build from the old hand-built
-dependency stack to **vcpkg + OpenMVG 2.0**. This is the enabling step for the CLI migration above:
+Work happens on `develop`. The toolchain move and the first external steps are **committed**; a
+Debug build of `build_2026` links and produces `build_2026\Debug\Regard3D.exe`.
 
-- **OpenMVG 1.4 → 2.0.** `C_Progress_display` (`third_party/progress/progress.hpp`) was replaced
-  upstream by `openMVG::system::LoggerProgress` (`openMVG/system/loggerprogress.hpp`); this is
-  already converted in `OpenMVGHelper.cpp` but merely commented out in `OpenMVGExportToMVS.cpp`.
-- **minilog was dropped.** OpenMVG 2.0 no longer ships it, so every `MLOG <<` call is commented out
-  and `Regard3DConsoleOutputFrame`'s mutex adapter is disabled. Deliberately *not* replaced — see
-  above.
-- **kgraph was disabled.** `thirdparty/kgraph` is no longer added to the build, and
-  `ArrayMatcher_kgraph`, `kgraph_match()` and `performParamsOptimization()` in
-  `R3DComputeMatches.cpp` are commented out. Matching algorithms 1–3 in the GUI
-  ("KGraph - Fast / Medium / Precise") therefore hit an empty dispatch branch and produce zero
-  matches. Resolved by the CLI migration; until then it is a live trap for anyone testing matching.
+| Commit | What it brought |
+|---|---|
+| `0750f57` | vcpkg + OpenMVG 2.1 + wxWidgets 3.3.1 under VS 2026; minilog and kgraph dropped |
+| `1a6640b` | console output window works again, by capturing the C++ streams |
+| `8e09349` | features and matching through the OpenMVG executables |
+| `1dfcd12` | triangulation through `openMVG_main_SfM` |
+| `f243985` | external tools registered and discoverable; Abort button kills the running one |
+
+`R3DExternalPrograms` looks for six executables in the `openmvg/` directory: `ComputeFeatures`,
+`ComputeFeatures_OpenCV`, `PairGenerator`, `ComputeMatches`, `GeometricFilter` and `SfM`. The
+`_OpenCV` one is **not** shipped by vcpkg's openmvg port, so the describers that need it
+(`AKAZE_OPENCV`, `SIFT_OPENCV`) are unusable unless it is built by hand; the compute matches dialog
+checks for it and says so.
+
+Left over from the OpenMVG 1.4 → 2.1 move:
+
+- `C_Progress_display` (`third_party/progress/progress.hpp`) was replaced upstream by
+  `openMVG::system::LoggerProgress` (`openMVG/system/loggerprogress.hpp`). Converted in
+  `OpenMVGHelper.cpp`, still commented out in `OpenMVGExportToMVS.cpp`.
+- `OpenMVGHelper::exportMatches` — the per-pair match SVGs — has its whole body inside `#if 0`,
+  and still calls `C_Progress_display`. Both callers in `R3DComputeMatches.cpp` therefore do
+  nothing. Enabling it means converting that progress bar too.
 - **AssImp** switched from the versioned `assimp-4.0` module path to `find_package(assimp CONFIG)`
   and the `assimp::assimp` imported target.
 - Assorted MSVC warning fixes (float literal suffixes, explicit casts) plus an `#undef isnan` after
   the VLFeat headers in `Regard3DFeatures.cpp`.
 
-A Debug build in `build_2022/` does currently link and produce `Regard3D.exe`.
+Not yet available through the executables, so still library-only: track colorization
+(`openMVG_main_ComputeSfM_DataColor`) and every export (`openMVG_main_openMVG2PMVS`, `…2MVE2`,
+`…2openMVS`, `…2MESHLAB`, `…2NVM`).
 
 ## Things to watch
 

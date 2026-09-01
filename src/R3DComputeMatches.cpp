@@ -26,7 +26,6 @@
 
 //#include "minilog/minilog.h"
 
-//#include "utils/matcher_kgraph.h"
 #include "utils/matcher_hnsw.h"
 #include "openMVG/matching/regions_matcher.hpp"
 
@@ -138,141 +137,8 @@ bool testIntrinsicsEquality(
   return ci1.m_K == ci2.m_K;
 }
 
-//#include <kgraph.h>
 //#include "utils/matcher_efanna.h"
 #include "utils/matcher_mrpt.h"
-/*
-#include <xmmintrin.h>
-#define SSE_L2SQR(addr1, addr2, dest, tmp1, tmp2) \
-    tmp1 = _mm_load_ps(addr1);\
-    tmp2 = _mm_load_ps(addr2);\
-    tmp1 = _mm_sub_ps(tmp1, tmp2); \
-    tmp1 = _mm_mul_ps(tmp1, tmp1); \
-    dest = _mm_add_ps(dest, tmp1); 
-
-float float_l2sqr_sse2 (float const *t1, float const *t2, unsigned dim)
-{
-    __m128 sum;
-    __m128 l0, l1, l2, l3;
-    __m128 r0, r1, r2, r3;
-    unsigned D = (dim + 3) & ~3U;
-    unsigned DR = D % 16;
-    unsigned DD = D - DR;
-    const float *l = t1;
-    const float *r = t2;
-    const float *e_l = l + DD;
-    const float *e_r = r + DD;
-#if defined(_MSC_VER)
-	__declspec( align( 16 ) ) float unpack[4] = {0, 0, 0, 0};
-#else
-    float unpack[4] __attribute__ ((aligned (16))) = {0, 0, 0, 0};
-#endif
-    float ret = 0.0;
-    sum = _mm_load_ps(unpack);
-    switch (DR) {
-        case 12:
-            SSE_L2SQR(e_l+8, e_r+8, sum, l2, r2);
-        case 8:
-            SSE_L2SQR(e_l+4, e_r+4, sum, l1, r1);
-        case 4:
-            SSE_L2SQR(e_l, e_r, sum, l0, r0);
-    }
-    for (unsigned i = 0; i < DD; i += 16, l += 16, r += 16) {
-        SSE_L2SQR(l, r, sum, l0, r0);
-        SSE_L2SQR(l + 4, r + 4, sum, l1, r1);
-        SSE_L2SQR(l + 8, r + 8, sum, l2, r2);
-        SSE_L2SQR(l + 12, r + 12, sum, l3, r3);
-    }
-    _mm_storeu_ps(unpack, sum);
-    ret = unpack[0] + unpack[1] + unpack[2] + unpack[3];
-    return ret;//sqrt(ret);
-}
-
-#define AVX_L2SQR(addr1, addr2, dest, tmp1, tmp2) \
-    tmp1 = _mm256_loadu_ps(addr1);\
-    tmp2 = _mm256_loadu_ps(addr2);\
-    tmp1 = _mm256_sub_ps(tmp1, tmp2); \
-    tmp1 = _mm256_mul_ps(tmp1, tmp1); \
-    dest = _mm256_add_ps(dest, tmp1); 
-namespace kgraph {
-float float_l2sqr_avx (float const *t1, float const *t2, unsigned dim) {
-    __m256 sum;
-    __m256 l0, l1, l2, l3;
-    __m256 r0, r1, r2, r3;
-    unsigned D = (dim + 7) & ~7U; // # dim aligned up to 256 bits, or 8 floats
-    unsigned DR = D % 32;
-    unsigned DD = D - DR;
-    const float *l = t1;
-    const float *r = t2;
-    const float *e_l = l + DD;
-    const float *e_r = r + DD;
-#if defined(_MSC_VER)
-	__declspec( align( 32 ) ) float unpack[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-#else
-    float unpack[8] __attribute__ ((aligned (32))) = {0, 0, 0, 0, 0, 0, 0, 0};
-#endif
-    float ret = 0.0;
-    sum = _mm256_load_ps(unpack);
-    switch (DR) {
-        case 24:
-            AVX_L2SQR(e_l+16, e_r+16, sum, l2, r2);
-        case 16:
-            AVX_L2SQR(e_l+8, e_r+8, sum, l1, r1);
-        case 8:
-            AVX_L2SQR(e_l, e_r, sum, l0, r0);
-    }
-    for (unsigned i = 0; i < DD; i += 32, l += 32, r += 32) {
-        AVX_L2SQR(l, r, sum, l0, r0);
-        AVX_L2SQR(l + 8, r + 8, sum, l1, r1);
-        AVX_L2SQR(l + 16, r + 16, sum, l2, r2);
-        AVX_L2SQR(l + 24, r + 24, sum, l3, r3);
-    }
-    _mm256_storeu_ps(unpack, sum);
-    ret = unpack[0] + unpack[1] + unpack[2] + unpack[3]
-        + unpack[4] + unpack[5] + unpack[6] + unpack[7];
-    return ret;//sqrt(ret);
-}
-template<unsigned int dim>
-float float_l2sqr_avx_t(float const *t1, float const *t2)
-{
-    __m256 sum;
-    __m256 l0, l1, l2, l3;
-    __m256 r0, r1, r2, r3;
-    unsigned D = (dim + 7) & ~7U; // # dim aligned up to 256 bits, or 8 floats
-    unsigned DR = D % 32;
-    unsigned DD = D - DR;
-    const float *l = t1;
-    const float *r = t2;
-    const float *e_l = l + DD;
-    const float *e_r = r + DD;
-#if defined(_MSC_VER)
-	__declspec( align( 32 ) ) float unpack[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-#else
-    float unpack[8] __attribute__ ((aligned (32))) = {0, 0, 0, 0, 0, 0, 0, 0};
-#endif
-    float ret = 0.0;
-    sum = _mm256_load_ps(unpack);
-    switch (DR) {
-        case 24:
-            AVX_L2SQR(e_l+16, e_r+16, sum, l2, r2);
-        case 16:
-            AVX_L2SQR(e_l+8, e_r+8, sum, l1, r1);
-        case 8:
-            AVX_L2SQR(e_l, e_r, sum, l0, r0);
-    }
-    for (unsigned i = 0; i < DD; i += 32, l += 32, r += 32) {
-        AVX_L2SQR(l, r, sum, l0, r0);
-        AVX_L2SQR(l + 8, r + 8, sum, l1, r1);
-        AVX_L2SQR(l + 16, r + 16, sum, l2, r2);
-        AVX_L2SQR(l + 24, r + 24, sum, l3, r3);
-    }
-    _mm256_storeu_ps(unpack, sum);
-    ret = unpack[0] + unpack[1] + unpack[2] + unpack[3]
-        + unpack[4] + unpack[5] + unpack[6] + unpack[7];
-    return ret;//sqrt(ret);
-}
-}
-*/
 template<class T>
 struct R3D_L2
 {
@@ -282,11 +148,6 @@ struct R3D_L2
 	template <typename Iterator1, typename Iterator2>
 	inline ResultType operator()(Iterator1 a, Iterator2 b, size_t size) const
 	{
-		//return float_l2sqr_sse2(a, b, size);
-		//if(size == 144)		// LIOP
-		//	return kgraph::float_l2sqr_avx_t<144>(a, b);
-		//else
-		//	return kgraph::float_l2sqr_avx(a, b, size);
 		openMVG::matching::L2<T> metric;
 		return metric(a, b, size);
 
@@ -295,70 +156,6 @@ struct R3D_L2
 };
 
 
-/*class R3D_IndexOracle: public kgraph::IndexOracle
-{
-public:
-	R3D_IndexOracle(openMVG::features::Regions *pRegions)
-		: kgraph::IndexOracle(),
-		pRegions_(pRegions)
-	{
-	}
-
-	// returns size N of dataset
-	virtual unsigned size() const
-	{
-		return static_cast<unsigned>(pRegions_->RegionCount());
-	}
-
-	// computes similarity of object 0 <= i and j < N
-	virtual float operator () (unsigned i, unsigned j) const
-	{
-		openMVG::matching::L2<float> metric;
-
-		const float *pData = reinterpret_cast<const float *>(pRegions_->DescriptorRawData());
-		const float *pDataI = pData + pRegions_->DescriptorLength()*i;
-		const float *pDataJ = pData + pRegions_->DescriptorLength()*j;
-
-		return metric(pDataI, pDataJ, pRegions_->DescriptorLength());
-	}
-
-	openMVG::features::Regions *pRegions_;
-};
-
-class R3D_SearchOracle: public kgraph::SearchOracle
-{
-public:
-	R3D_SearchOracle(openMVG::features::Regions *pRegionsDB, openMVG::features::Regions *pRegionsQuery, size_t index)
-		: kgraph::SearchOracle(),
-		pRegionsDB_(pRegionsDB),
-		pRegionsQuery_(pRegionsQuery),
-		index_(index)
-	{
-	}
-
-	/// Returns the size N of the dataset.
-	virtual unsigned size() const
-	{
-		return static_cast<unsigned>(pRegionsDB_->RegionCount());
-	}
-
-	/// Computes similarity of query and object 0 <= i < N.
-	virtual float operator () (unsigned i) const
-	{
-		openMVG::matching::L2<float> metric;
-
-		const float *pDataDB = reinterpret_cast<const float *>(pRegionsDB_->DescriptorRawData());
-		const float *pDataQuery = reinterpret_cast<const float *>(pRegionsQuery_->DescriptorRawData());
-		const float *pDataI = pDataDB + pRegionsDB_->DescriptorLength()*i;
-		const float *pDataJ = pDataQuery + pRegionsQuery_->DescriptorLength()*index_;
-
-		return metric(pDataI, pDataJ, pRegionsDB_->DescriptorLength());
-	}
-
-	openMVG::features::Regions *pRegionsDB_, *pRegionsQuery_;
-	size_t index_;
-};
-*/
 #include "openMVG/sfm/pipelines/sfm_matches_provider.hpp"
 
 std::vector< size_t > getNumberOfMatches(openMVG::sfm::SfM_Data &sfm_data, const std::string &matchesfilename)
@@ -602,8 +399,6 @@ void efanna_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Prov
 {
 	const int K = 2;
 
-	kgraph::verbosity = 0;
-
 	// Sort pairs according the first index to minimize the MatcherT build operations
 	using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
 	Map_vectorT map_Pairs;
@@ -797,270 +592,6 @@ void hnsw_match_withparams(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Reg
 
 }
 
-
-/*
-// Static variables
-template< typename Scalar, typename Metric >
-kgraph::KGraph::IndexParams ArrayMatcher_kgraph<Scalar, Metric>::iparams;
-template< typename Scalar, typename Metric >
-kgraph::KGraph::SearchParams ArrayMatcher_kgraph<Scalar, Metric>::sparams;
-
-void kgraph_match(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
-	Pair_Set pairs, PairWiseMatches &map_PutativesMatches, float fDistRatio, int matchingAlgorithm)
-{
-	const int K = 2;
-
-	kgraph::verbosity = 0;
-
-	// Sort pairs according the first index to minimize the MatcherT build operations
-	using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
-	Map_vectorT map_Pairs;
-	for(Pair_Set::const_iterator iter = pairs.begin(); iter != pairs.end(); ++iter)
-	{
-		map_Pairs[iter->first].push_back(iter->second);
-	}
-
-	// Perform matching between all the pairs
-	for(Map_vectorT::const_iterator iter = map_Pairs.begin();
-		iter != map_Pairs.end(); ++iter)
-	{
-		const IndexT I = iter->first;
-		const auto & indexToCompare = iter->second;
-
-		std::shared_ptr<features::Regions> regionsI = regions_provider->get(I);
-		if(regionsI->RegionCount() == 0)
-		{
-			continue;
-		}
-		
-		// Initialize the matching interface
-		//using MetricT = L2<double>;
-		using MetricT = L2<float>;
-//		using MetricT = R3D_L2<float>;
-		using MatcherT = ArrayMatcher_kgraph<float, MetricT>;
-		typedef openMVG::matching::RegionsMatcherT<MatcherT> R3DRegionsMatcher;
-		std::unique_ptr<R3DRegionsMatcher> matcher(new R3DRegionsMatcher(*regionsI.get(), true));
-
-		MatcherT::iparams.K = 16;
-		MatcherT::iparams.L = 24;
-		MatcherT::iparams.recall = 0.99f;
-		MatcherT::iparams.reverse = -1;
-		MatcherT::iparams.prune = 1;
-		MatcherT::iparams.iterations = 30;
-		//MatcherT::iparams.S = 20;
-		MatcherT::sparams.P = 10;
-
-		if(matchingAlgorithm == 0)
-		{
-			MatcherT::iparams.K = 2;
-			MatcherT::iparams.L = 20;
-			MatcherT::iparams.recall = 0.6f;
-			MatcherT::sparams.P = 2;
-		}
-		else if(matchingAlgorithm == 1)
-		{
-			MatcherT::iparams.K = 16;
-			MatcherT::iparams.L = 24;
-			MatcherT::iparams.recall = 0.2f;
-			MatcherT::sparams.P = 6;
-		}
-		else if(matchingAlgorithm == 2)
-		{
-			MatcherT::iparams.K = 16;
-			MatcherT::iparams.L = 24;
-			MatcherT::iparams.recall = 0.8f;
-			MatcherT::sparams.P = 12;
-		}
-
-
-
-#pragma omp parallel for schedule(dynamic)
-		for(int j = 0; j < (int)indexToCompare.size(); ++j)
-		{
-			const IndexT J = indexToCompare[j];
-
-			std::shared_ptr<features::Regions> regionsJ = regions_provider->get(J);
-			if(regionsJ->RegionCount() == 0
-				|| regionsI->Type_id() != regionsJ->Type_id())
-			{
-				continue;
-			}
-
-			IndMatches vec_putatives_matches;
-			matcher->MatchDistanceRatio(fDistRatio, *regionsJ.get(), vec_putatives_matches);
-
-#pragma omp critical
-			{
-				if(!vec_putatives_matches.empty())
-				{
-					map_PutativesMatches.insert({ {I,J}, std::move(vec_putatives_matches) });
-				}
-			}
-		}
-	}
-
-}
-
-void kgraph_match_withparams(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
-	Pair_Set pairs, PairWiseMatches &map_PutativesMatches, float fDistRatio, kgraph::KGraph::IndexParams &iparams, kgraph::KGraph::SearchParams &sparams)
-{
-	const int K = 2;
-
-	kgraph::verbosity = 0;
-
-	// Sort pairs according the first index to minimize the MatcherT build operations
-	using Map_vectorT = std::map<IndexT, std::vector<IndexT>>;
-	Map_vectorT map_Pairs;
-	for(Pair_Set::const_iterator iter = pairs.begin(); iter != pairs.end(); ++iter)
-	{
-		map_Pairs[iter->first].push_back(iter->second);
-	}
-
-	// Perform matching between all the pairs
-	for(Map_vectorT::const_iterator iter = map_Pairs.begin();
-		iter != map_Pairs.end(); ++iter)
-	{
-		const IndexT I = iter->first;
-		const auto & indexToCompare = iter->second;
-
-		std::shared_ptr<features::Regions> regionsI = regions_provider->get(I);
-		if(regionsI->RegionCount() == 0)
-		{
-			continue;
-		}
-		
-		// Initialize the matching interface
-		//using MetricT = L2<double>;
-		using MetricT = L2<float>;
-		//using MetricT = cv::L2<float>;
-		//using MetricT = R3D_L2<float>;
-		using MatcherT = ArrayMatcher_kgraph<float, MetricT>;
-		typedef openMVG::matching::RegionsMatcherT<MatcherT> R3DRegionsMatcher;
-
-		MatcherT::iparams = iparams;
-		MatcherT::sparams = sparams;
-
-		std::unique_ptr<R3DRegionsMatcher> matcher(new R3DRegionsMatcher(*regionsI.get(), true));
-
-#pragma omp parallel for schedule(dynamic)
-		for(int j = 0; j < (int)indexToCompare.size(); ++j)
-		{
-			const IndexT J = indexToCompare[j];
-
-			std::shared_ptr<features::Regions> regionsJ = regions_provider->get(J);
-			if(regionsJ->RegionCount() == 0
-				|| regionsI->Type_id() != regionsJ->Type_id())
-			{
-				continue;
-			}
-
-			IndMatches vec_putatives_matches;
-			matcher->MatchDistanceRatio(fDistRatio, *regionsJ.get(), vec_putatives_matches);
-
-#pragma omp critical
-			{
-				if(!vec_putatives_matches.empty())
-				{
-					map_PutativesMatches.insert({ {I,J}, std::move(vec_putatives_matches) });
-				}
-			}
-		}
-	}
-}
-
-
-void singleRunKGraph(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
-	Pair_Set pairs, float fDistRatio, const std::string &sMatchesDirectory,
-	kgraph::KGraph::IndexParams &iparams, kgraph::KGraph::SearchParams &sparams)
-{
-	PairWiseMatches map_PutativesMatches;
-
-	boost::chrono::high_resolution_clock::time_point t1 = boost::chrono::high_resolution_clock::now();
-
-	kgraph_match_withparams(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, iparams, sparams);
-
-	boost::chrono::duration<double, boost::milli> diff = boost::chrono::high_resolution_clock::now() - t1;
-
-	Save(map_PutativesMatches, std::string(sMatchesDirectory + "/matches.putative.txt"));
-
-
-	PairWiseMatches map_GeometricMatches;
-
-	const double maxResidualError = 4.0;	// Orig: 4 (higher is more relaxed, e.g. 5.5)
-	ImageCollectionGeometricFilter collectionGeomFilter(&sfm_data, regions_provider);
-	int imax_iteration = 2048;
-	bool bGuided_matching = false;
-
-	map_GeometricMatches.clear();
-	collectionGeomFilter.Robust_model_estimation(GeometricFilter_FMatrix_AC(4.0, imax_iteration),
-		map_PutativesMatches, bGuided_matching);
-	map_GeometricMatches = collectionGeomFilter.Get_geometric_matches();
-
-	Save(map_GeometricMatches, std::string(sMatchesDirectory + "/matches.f.txt"));
-
-
-	// Find best matches
-	std::vector< size_t > vec_NbMatchesPerPair_p = getNumberOfMatches(sfm_data, std::string(sMatchesDirectory + "/matches.putative.txt"));
-	std::vector< size_t > vec_NbMatchesPerPair_f = getNumberOfMatches(sfm_data, std::string(sMatchesDirectory + "/matches.f.txt"));
-
-	std::ostringstream ostr;
-	ostr << "KGraph params iter: " << iparams.iterations
-		<< " L: " << iparams.L
-		<< " K: " << iparams.K
-		<< " S: " << iparams.S
-		<< " R: " << iparams.R
-		<< " recall: " << iparams.recall
-		<< " prune: " << iparams.prune
-		<< " reverse: " << iparams.reverse
-		<< " K: " << sparams.K
-		<< " M: " << sparams.M
-		<< " P: " << sparams.P
-		<< " S: " << sparams.S
-		<< " T: " << sparams.T
-		<< " time: " << diff << " ms, ";
-	if(vec_NbMatchesPerPair_p.size() > 1)
-		ostr << " P: " << vec_NbMatchesPerPair_p[0] << ", " << vec_NbMatchesPerPair_p[1];
-	if(vec_NbMatchesPerPair_p.size() > 1)
-		ostr << " F: " << vec_NbMatchesPerPair_f[0] << ", " << vec_NbMatchesPerPair_f[1];
-	ostr << std::endl;
-
-#if defined(_MSC_VER)
-	OutputDebugStringA(ostr.str().c_str());
-#endif
-}
-
-void performParamsOptimization(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
-	Pair_Set pairs, float fDistRatio, const std::string &sMatchesDirectory)
-{
-	kgraph::KGraph::IndexParams iparams;
-	kgraph::KGraph::SearchParams sparams;
-
-	iparams.reverse = -1;
-	iparams.recall = 0.99f;
-	iparams.K = 24;
-	iparams.L = 200;
-	iparams.prune = 1;
-	iparams.iterations = 10000;
-	iparams.S = 20;
-
-	sparams.K = 2;
-	sparams.P = 10;
-	//sparams.M = 50;
-
-	//for(int i = 0; i < 16; i++)
-	{
-		//iparams.recall = 0.2 + static_cast<float>(i)*0.05f;
-		for(int j = 0; j < 102; j+=2)
-		{
-			sparams.P = j;
-			if(sparams.P == 0)
-				sparams.P = 1;
-			singleRunKGraph(sfm_data, regions_provider, pairs, fDistRatio, sMatchesDirectory, iparams, sparams);
-		}
-	}
-}
-
-*/
 
 void singleRunMRPT(openMVG::sfm::SfM_Data &sfm_data, std::shared_ptr<Regions_Provider> regions_provider,
 	Pair_Set pairs, float fDistRatio, const std::string &sMatchesDirectory,
@@ -2032,33 +1563,34 @@ bool R3DComputeMatches::computeMatches(Regard3DFeatures::R3DFParams &params,
 	}*/
 
 	
+	// 1 to 3 were KGraph, which is retired. Those numbers still occur in older
+	// project files, so everything that is not a matcher of its own falls back
+	// to FLANN rather than matching nothing at all.
+	const bool useMRPT = (matchingAlgorithm == 5);
+	const bool useHNSW = (matchingAlgorithm >= 6 && matchingAlgorithm <= 8);
+
 	std::unique_ptr<Matcher_Regions> collectionMatcher;
-	if(matchingAlgorithm == 0)
-	    collectionMatcher.reset(new Matcher_Regions(fDistRatio, ANN_L2));
-	else if(matchingAlgorithm == 4)
-	    collectionMatcher.reset(new Matcher_Regions(fDistRatio, BRUTE_FORCE_L2));
+	if(!useMRPT && !useHNSW)
+	    collectionMatcher.reset(new Matcher_Regions(fDistRatio,
+	        (matchingAlgorithm == 4 ? BRUTE_FORCE_L2 : ANN_L2)));
+
 	if(regions_provider->load(sfm_data, sMatchesDirectory, regions_type))
 	{
 		Pair_Set pairs = exhaustivePairs(sfm_data.GetViews().size());
 
 		// Photometric matching of putative pairs
-		if(matchingAlgorithm == 0
-			|| matchingAlgorithm == 4)
-		{
-			collectionMatcher->Match(regions_provider, pairs, map_PutativesMatches);
-		}
-		else if(matchingAlgorithm > 0 && matchingAlgorithm < 4)
-		{
-			//kgraph_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm-1);
-		}
-		else if(matchingAlgorithm == 5)
+		if(useMRPT)
 		{
 			mrpt_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm-5);
 			//efanna_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm);
 		}
-		else if(matchingAlgorithm >= 6 && matchingAlgorithm <= 8)
+		else if(useHNSW)
 		{
 			hnsw_match(sfm_data, regions_provider, pairs, map_PutativesMatches, fDistRatio, matchingAlgorithm-6);
+		}
+		else
+		{
+			collectionMatcher->Match(regions_provider, pairs, map_PutativesMatches);
 		}
 
 		if (!Save(map_PutativesMatches, std::string(sMatchesDirectory + "/matches.putative.txt")))

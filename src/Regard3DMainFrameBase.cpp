@@ -1075,7 +1075,7 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	wxStaticBoxSizer* sbSizer221;
 	sbSizer221 = new wxStaticBoxSizer( new wxStaticBox( sbSizer3->GetStaticBox(), wxID_ANY, wxT("Matching algorithm") ), wxVERTICAL );
 
-	wxString pMatchingAlgorithmChoice_Choices[] = { wxT("FLANN"), wxT("KGraph - Fast"), wxT("KGraph - Medium"), wxT("KGraph - Precise"), wxT("Brute Force"), wxT("MRPT"), wxT("HNSW - Fast"), wxT("HNSW - Medium"), wxT("HNSW - Precise") };
+	wxString pMatchingAlgorithmChoice_Choices[] = { wxT("FLANN"), wxT("Brute Force"), wxT("MRPT"), wxT("HNSW - Fast"), wxT("HNSW - Medium"), wxT("HNSW - Precise") };
 	int pMatchingAlgorithmChoice_NChoices = sizeof( pMatchingAlgorithmChoice_Choices ) / sizeof( wxString );
 	pMatchingAlgorithmChoice_ = new wxChoice( sbSizer221->GetStaticBox(), ID_MATCHINGALGORITHMCHOICE, wxDefaultPosition, wxDefaultSize, pMatchingAlgorithmChoice_NChoices, pMatchingAlgorithmChoice_Choices, 0 );
 	pMatchingAlgorithmChoice_->SetSelection( 0 );
@@ -1432,34 +1432,59 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	pTriangulationChoicebook_->AddPage( pGlobalSFMPanel_, wxT("Global Structure from Motion"), false );
 	bSizer55->Add( pTriangulationChoicebook_, 1, wxEXPAND | wxALL, 3 );
 
+	wxStaticBoxSizer* sbSizerCameraParams_;
+	sbSizerCameraParams_ = new wxStaticBoxSizer( new wxStaticBox( sbSizer4->GetStaticBox(), wxID_ANY, wxT("Camera parameters") ), wxVERTICAL );
+
+	wxFlexGridSizer* fgSizerCameraParams;
+	fgSizerCameraParams = new wxFlexGridSizer( 3, 2, 0, 0 );
+	fgSizerCameraParams->AddGrowableCol( 1 );
+	fgSizerCameraParams->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizerCameraParams->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_staticTextOMVGTri1 = new wxStaticText( sbSizerCameraParams_->GetStaticBox(), wxID_ANY, wxT("Intrinsics to refine:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri1->Wrap( -1 );
+	fgSizerCameraParams->Add( m_staticTextOMVGTri1, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGIntrinsicRefinementChoice_Choices[] = { wxT("All"), wxT("Focal length"), wxT("Principal point"), wxT("Distortion"), wxT("Focal length + principal point"), wxT("Focal length + distortion"), wxT("Principal point + distortion") };
+	int pOMVGIntrinsicRefinementChoice_NChoices = sizeof( pOMVGIntrinsicRefinementChoice_Choices ) / sizeof( wxString );
+	pOMVGIntrinsicRefinementChoice_ = new wxChoice( sbSizerCameraParams_->GetStaticBox(), ID_OMVGINTRINSICREFINEMENTCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGIntrinsicRefinementChoice_NChoices, pOMVGIntrinsicRefinementChoice_Choices, 0 );
+	pOMVGIntrinsicRefinementChoice_->SetSelection( 0 );
+	fgSizerCameraParams->Add( pOMVGIntrinsicRefinementChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri2 = new wxStaticText( sbSizerCameraParams_->GetStaticBox(), wxID_ANY, wxT("Extrinsics to refine:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri2->Wrap( -1 );
+	fgSizerCameraParams->Add( m_staticTextOMVGTri2, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGExtrinsicRefinementChoice_Choices[] = { wxT("All"), wxT("None") };
+	int pOMVGExtrinsicRefinementChoice_NChoices = sizeof( pOMVGExtrinsicRefinementChoice_Choices ) / sizeof( wxString );
+	pOMVGExtrinsicRefinementChoice_ = new wxChoice( sbSizerCameraParams_->GetStaticBox(), ID_OMVGEXTRINSICREFINEMENTCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGExtrinsicRefinementChoice_NChoices, pOMVGExtrinsicRefinementChoice_Choices, 0 );
+	pOMVGExtrinsicRefinementChoice_->SetSelection( 0 );
+	fgSizerCameraParams->Add( pOMVGExtrinsicRefinementChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGTri5 = new wxStaticText( sbSizerCameraParams_->GetStaticBox(), wxID_ANY, wxT("Camera model for unknown intrinsics:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGTri5->Wrap( -1 );
+	fgSizerCameraParams->Add( m_staticTextOMVGTri5, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGSfMCameraModelChoice_Choices[] = { wxT("Pinhole"), wxT("Pinhole radial 1"), wxT("Pinhole radial 3"), wxT("Pinhole brown 2"), wxT("Pinhole Fisheye") };
+	int pOMVGSfMCameraModelChoice_NChoices = sizeof( pOMVGSfMCameraModelChoice_Choices ) / sizeof( wxString );
+	pOMVGSfMCameraModelChoice_ = new wxChoice( sbSizerCameraParams_->GetStaticBox(), ID_OMVGSFMCAMERAMODELCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGSfMCameraModelChoice_NChoices, pOMVGSfMCameraModelChoice_Choices, 0 );
+	pOMVGSfMCameraModelChoice_->SetSelection( 2 );
+	fgSizerCameraParams->Add( pOMVGSfMCameraModelChoice_, 0, wxEXPAND | wxALL, 3 );
+
+
+	sbSizerCameraParams_->Add( fgSizerCameraParams, 1, wxEXPAND | wxALL, 3 );
+
+
+	bSizer55->Add( sbSizerCameraParams_, 0, wxEXPAND | wxALL, 3 );
+
 	wxStaticBoxSizer* sbSizerOMVGSfM_;
 	sbSizerOMVGSfM_ = new wxStaticBoxSizer( new wxStaticBox( sbSizer4->GetStaticBox(), wxID_ANY, wxT("OpenMVG options (openMVG_main_SfM)") ), wxVERTICAL );
 
 	wxFlexGridSizer* fgSizerOMVGSfM;
-	fgSizerOMVGSfM = new wxFlexGridSizer( 6, 2, 0, 0 );
+	fgSizerOMVGSfM = new wxFlexGridSizer( 3, 2, 0, 0 );
 	fgSizerOMVGSfM->AddGrowableCol( 1 );
 	fgSizerOMVGSfM->SetFlexibleDirection( wxHORIZONTAL );
 	fgSizerOMVGSfM->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
-
-	m_staticTextOMVGTri1 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Intrinsics to refine:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticTextOMVGTri1->Wrap( -1 );
-	fgSizerOMVGSfM->Add( m_staticTextOMVGTri1, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
-
-	wxString pOMVGIntrinsicRefinementChoice_Choices[] = { wxT("All"), wxT("Focal length"), wxT("Principal point"), wxT("Distortion"), wxT("Focal length + principal point"), wxT("Focal length + distortion"), wxT("Principal point + distortion") };
-	int pOMVGIntrinsicRefinementChoice_NChoices = sizeof( pOMVGIntrinsicRefinementChoice_Choices ) / sizeof( wxString );
-	pOMVGIntrinsicRefinementChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGINTRINSICREFINEMENTCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGIntrinsicRefinementChoice_NChoices, pOMVGIntrinsicRefinementChoice_Choices, 0 );
-	pOMVGIntrinsicRefinementChoice_->SetSelection( 0 );
-	fgSizerOMVGSfM->Add( pOMVGIntrinsicRefinementChoice_, 0, wxEXPAND | wxALL, 3 );
-
-	m_staticTextOMVGTri2 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Extrinsics to refine:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticTextOMVGTri2->Wrap( -1 );
-	fgSizerOMVGSfM->Add( m_staticTextOMVGTri2, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
-
-	wxString pOMVGExtrinsicRefinementChoice_Choices[] = { wxT("All"), wxT("None") };
-	int pOMVGExtrinsicRefinementChoice_NChoices = sizeof( pOMVGExtrinsicRefinementChoice_Choices ) / sizeof( wxString );
-	pOMVGExtrinsicRefinementChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGEXTRINSICREFINEMENTCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGExtrinsicRefinementChoice_NChoices, pOMVGExtrinsicRefinementChoice_Choices, 0 );
-	pOMVGExtrinsicRefinementChoice_->SetSelection( 0 );
-	fgSizerOMVGSfM->Add( pOMVGExtrinsicRefinementChoice_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVGTri3 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Triangulation method:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextOMVGTri3->Wrap( -1 );
@@ -1480,16 +1505,6 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	pOMVGResectionMethodChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGRESECTIONMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGResectionMethodChoice_NChoices, pOMVGResectionMethodChoice_Choices, 0 );
 	pOMVGResectionMethodChoice_->SetSelection( 3 );
 	fgSizerOMVGSfM->Add( pOMVGResectionMethodChoice_, 0, wxEXPAND | wxALL, 3 );
-
-	m_staticTextOMVGTri5 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Camera model for unknown intrinsics:"), wxDefaultPosition, wxDefaultSize, 0 );
-	m_staticTextOMVGTri5->Wrap( -1 );
-	fgSizerOMVGSfM->Add( m_staticTextOMVGTri5, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
-
-	wxString pOMVGSfMCameraModelChoice_Choices[] = { wxT("Pinhole"), wxT("Pinhole radial 1"), wxT("Pinhole radial 3"), wxT("Pinhole brown 2"), wxT("Pinhole Fisheye") };
-	int pOMVGSfMCameraModelChoice_NChoices = sizeof( pOMVGSfMCameraModelChoice_Choices ) / sizeof( wxString );
-	pOMVGSfMCameraModelChoice_ = new wxChoice( sbSizerOMVGSfM_->GetStaticBox(), ID_OMVGSFMCAMERAMODELCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGSfMCameraModelChoice_NChoices, pOMVGSfMCameraModelChoice_Choices, 0 );
-	pOMVGSfMCameraModelChoice_->SetSelection( 2 );
-	fgSizerOMVGSfM->Add( pOMVGSfMCameraModelChoice_, 0, wxEXPAND | wxALL, 3 );
 
 	m_staticTextOMVGTri6 = new wxStaticText( sbSizerOMVGSfM_->GetStaticBox(), wxID_ANY, wxT("Matches to use:"), wxDefaultPosition, wxDefaultSize, 0 );
 	m_staticTextOMVGTri6->Wrap( -1 );

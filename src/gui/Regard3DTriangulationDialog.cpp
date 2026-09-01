@@ -226,7 +226,9 @@ void Regard3DTriangulationDialog::setOpenMVGToolTips()
       wxT("Clear \"Refine camera intrinsics\" to hold all of them fixed."));
    pOMVGExtrinsicRefinementChoice_->SetToolTip(
       wxT("Which camera poses bundle adjustment may change.\n")
-      wxT("None keeps the poses as the initializer produced them."));
+      wxT("None keeps the poses as the initializer produced them.\n")
+      wxT("Only the incremental method above reads this; the old incremental\n")
+      wxT("and the global one always adjust the poses."));
    pOMVGTriangulationMethodChoice_->SetToolTip(
       wxT("How a 3D point is computed from its observations.\n")
       wxT("Inverse depth weighted midpoint is OpenMVG's default and the most\n")
@@ -243,6 +245,14 @@ void Regard3DTriangulationDialog::setOpenMVGToolTips()
       wxT("Which filtered matches the reconstruction is built from.\n")
       wxT("Automatic uses matches.e.txt for the global method and matches.f.txt\n")
       wxT("for the incremental ones, which is what each of them expects."));
+
+   // Say why the two greyed out initializers are greyed out
+   pIncrSFMInitRadioBox_->SetItemToolTip(2,
+      wxT("Not available: openMVG has not implemented this initializer,\n")
+      wxT("openMVG_main_SfM stops with \"Not yet implemented\"."));
+   pIncrSFMInitRadioBox_->SetItemToolTip(3,
+      wxT("Not available: this starts from camera poses that are already in\n")
+      wxT("the scene, and the scene of a compute matches node has none."));
 }
 
 void Regard3DTriangulationDialog::initializeOpenMVGOptions()
@@ -281,19 +291,26 @@ void Regard3DTriangulationDialog::updateEngineDependencies()
    // Page 0 is INCREMENTALV2, page 1 INCREMENTAL, page 2 GLOBAL
    const bool incremental = (page == 0 || page == 1);
 
-   // AUTO_PAIR and EXISTING_POSE exist in openMVG_main_SfM only
-   pIncrSFMInitRadioBox_->Enable(2, openMVG);
-   pIncrSFMInitRadioBox_->Enable(3, openMVG);
-   if (!openMVG && pIncrSFMInitRadioBox_->GetSelection() > 1)
+   // Neither of the last two initializers can produce a reconstruction here,
+   // whichever engine runs: openMVG_main_SfM answers AUTO_PAIR with "Not yet
+   // implemented", and EXISTING_POSE starts from poses that the scene of a
+   // compute matches node does not have. They keep their place in the list so
+   // that the numbers stored in project files keep their meaning.
+   pIncrSFMInitRadioBox_->Enable(2, false);
+   pIncrSFMInitRadioBox_->Enable(3, false);
+   if (pIncrSFMInitRadioBox_->GetSelection() > 1)
       pIncrSFMInitRadioBox_->SetSelection(0);
 
-   pOMVGIntrinsicRefinementChoice_->Enable(openMVG
-      && pTRefineCameraIntrinsicsCheckBox_->GetValue());
-   pOMVGExtrinsicRefinementChoice_->Enable(openMVG);
-   // -t, -r and -c are read by the incremental engines only
+   // Both engines refine through the same openMVG bundle adjustment, so
+   // these two are not tied to the external one. The extrinsics option is
+   // read by the newer incremental engine alone (sequential_SfM2.cpp).
+   pOMVGIntrinsicRefinementChoice_->Enable(pTRefineCameraIntrinsicsCheckBox_->GetValue());
+   pOMVGExtrinsicRefinementChoice_->Enable(page == 0);
+   // -t and -r are read by the incremental engines of openMVG_main_SfM only
    pOMVGTriangulationMethodChoice_->Enable(openMVG && incremental);
    pOMVGResectionMethodChoice_->Enable(openMVG && incremental);
-   pOMVGSfMCameraModelChoice_->Enable(openMVG && incremental);
+   // The camera model is used by the incremental engines, either engine
+   pOMVGSfMCameraModelChoice_->Enable(incremental);
    pOMVGMatchesFileChoice_->Enable(openMVG);
 }
 

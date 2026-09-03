@@ -51,6 +51,8 @@
 #include "R3DDensificationProcess.h"
 #include "Regard3DSurfaceDialog.h"
 #include "R3DSurfaceGenProcess.h"
+#include "R3DExportProcess.h"
+#include "R3DExternalPrograms.h"
 #include "R3DModelOperations.h"
 #include "R3DSmallTasksThread.h"
 #include "Regard3DSettings.h"
@@ -116,6 +118,7 @@ enum
 	ID_DENSIFICATION_FINISHED,
 	ID_SURFACE_GEN_FINISHED,
 	ID_SMALL_TASK_FINISHED,
+	ID_EXPORT_FINISHED,
 	ID_CTX_ADD_PICTURESET,
 	ID_CTX_COMPUTE_MATCHES,
 	ID_CTX_EDIT_PICTURESET,
@@ -135,7 +138,11 @@ enum
 	ID_CTX_EXPORT_TRIANGULATION_TO_EXT_MVS,
 	ID_CTX_EXPORT_POINT_CLOUD,
 	ID_CTX_EXPORT_DENSIFICATION_TO_MESHLAB,
-	ID_CTX_EXPORT_SURFACE
+	ID_CTX_EXPORT_SURFACE,
+	ID_CTX_EXPORT_TRIANGULATION_TO_COLMAP,
+	ID_CTX_EXPORT_TRIANGULATION_TO_AGISOFT,
+	ID_CTX_EXPORT_TRIANGULATION_TO_WEBGL,
+	ID_CTX_CONVERT_TRIANGULATION_SFM_DATA
 };
    
 
@@ -149,7 +156,7 @@ Regard3DMainFrame::Regard3DMainFrame(wxWindow* parent)
 	pComputeMatchesProcess_(NULL),
 	pR3DTriangulationThread_(NULL), pTriangulationProcess_(NULL),
 	pDensificationProcess_(NULL),
-	pR3DSurfaceGenProcess_(NULL), pR3DSmallTasksThread_(NULL),
+	pR3DSurfaceGenProcess_(NULL), pExportProcess_(NULL), pR3DSmallTasksThread_(NULL),
 	pProgressDialog_(NULL), pStdProgressDialog_(NULL)
 {
 	GraphicsWindowWX* gw = new GraphicsWindowWX(pOSGGLCanvas_);
@@ -306,7 +313,8 @@ bool Regard3DMainFrame::isExternalProcessRunning() const
 	return (pComputeMatchesProcess_ != NULL
 		|| pTriangulationProcess_ != NULL
 		|| pDensificationProcess_ != NULL
-		|| pR3DSurfaceGenProcess_ != NULL);
+		|| pR3DSurfaceGenProcess_ != NULL
+		|| pExportProcess_ != NULL);
 }
 
 /**
@@ -327,6 +335,8 @@ void Regard3DMainFrame::abortExternalProcess()
 		pDensificationProcess_->cancel();
 	if(pR3DSurfaceGenProcess_ != NULL)
 		pR3DSurfaceGenProcess_->cancel();
+	if(pExportProcess_ != NULL)
+		pExportProcess_->cancel();
 }
 
 void Regard3DMainFrame::sendComputeMatchesFinishedEvent()
@@ -380,6 +390,17 @@ void Regard3DMainFrame::sendSurfaceGenFinishedEvent()
 	wxQueueEvent(this, newEvent);
 #else
 	wxCommandEvent newEvent(myCustomEventType, ID_SURFACE_GEN_FINISHED);
+	AddPendingEvent(newEvent);
+#endif
+}
+
+void Regard3DMainFrame::sendExportFinishedEvent()
+{
+#if wxCHECK_VERSION(2, 9, 0)
+	wxCommandEvent* newEvent = new wxCommandEvent(myCustomEventType, ID_EXPORT_FINISHED);
+	wxQueueEvent(this, newEvent);
+#else
+	wxCommandEvent newEvent(myCustomEventType, ID_EXPORT_FINISHED);
 	AddPendingEvent(newEvent);
 #endif
 }
@@ -821,6 +842,10 @@ void Regard3DMainFrame::OnProjectTreeItemMenu( wxTreeEvent& event )
 		pTreeListPopupMenu_->Append(ID_CTX_CREATE_DENSE_POINTCLOUD, wxT("Create dense pointcloud..."));
 		pTreeListPopupMenu_->Append(ID_CTX_SHOW_TRIANGULATED_POINTS, wxT("Show triangulated points"));
 		pTreeListPopupMenu_->Append(ID_CTX_EXPORT_TRIANGULATION_TO_EXT_MVS, wxT("Export to external MVS"));
+		pTreeListPopupMenu_->Append(ID_CTX_EXPORT_TRIANGULATION_TO_COLMAP, wxT("Export to Colmap..."));
+		pTreeListPopupMenu_->Append(ID_CTX_EXPORT_TRIANGULATION_TO_AGISOFT, wxT("Export to Agisoft..."));
+		pTreeListPopupMenu_->Append(ID_CTX_EXPORT_TRIANGULATION_TO_WEBGL, wxT("Export to WebGL..."));
+		pTreeListPopupMenu_->Append(ID_CTX_CONVERT_TRIANGULATION_SFM_DATA, wxT("Convert SfM_Data..."));
 		pTreeListPopupMenu_->Append(ID_CTX_DELETE_TRIANGULATION, wxT("Delete"));
 	}
 	else if(type == R3DProject::R3DTreeItem::TypeDensification)
@@ -1443,6 +1468,8 @@ void Regard3DMainFrame::OnDensificationFinished( wxCommandEvent &event )
 	R3DProject::Densification *pDensification = NULL;
 	int numberOfClusters = 1;
 	bool wasCancelled = false;
+	bool wasOK = true;
+	wxString errorMessage;
 	if(pDensificationProcess_ != NULL)
 	{
 		pDensificationProcess_->readConsoleOutput();	// Consume all output
@@ -1450,14 +1477,16 @@ void Regard3DMainFrame::OnDensificationFinished( wxCommandEvent &event )
 		pDensification->runningTime_ = pDensificationProcess_->getRuntimeStr();
 		numberOfClusters = pDensificationProcess_->getNumberOfClusters();
 		wasCancelled = pDensificationProcess_->getWasCancelled();
+		wasOK = pDensificationProcess_->getIsOK();
+		errorMessage = pDensificationProcess_->getErrorMessage();
 
 		delete pDensificationProcess_;
 		pDensificationProcess_ = NULL;
 	}
 
-	// Combining is pointless after an abort: the later clusters were
-	// never densified
-	if(numberOfClusters > 1 && !wasCancelled)
+	// Combining is pointless after an abort or a failed step: the later
+	// clusters were never densified
+	if(numberOfClusters > 1 && !wasCancelled && wasOK)
 	{
 		if(pProgressDialog_ != NULL)
 			pProgressDialog_->Update(80, wxT("Combining generated models"));
@@ -1487,10 +1516,10 @@ void Regard3DMainFrame::OnDensificationFinished( wxCommandEvent &event )
 	R3DProjectPaths paths;
 	project_.getProjectPathsDns(paths, pDensification);
 
-	// An aborted run can well have left a model of the clusters it got
-	// through, but that is not the densification that was asked for
+	// An aborted or failed run can well have left a model of the clusters it
+	// got through, but that is not the densification that was asked for
 	wxFileName denseModelFN(wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc));
-	if(denseModelFN.FileExists() && !wasCancelled)
+	if(denseModelFN.FileExists() && !wasCancelled && wasOK)
 	{
 		pDensification->state_ = R3DProject::OSFinished;
 		project_.save();
@@ -1503,8 +1532,13 @@ void Regard3DMainFrame::OnDensificationFinished( wxCommandEvent &event )
 	{
 		setProjectTreeItemBold(-1);
 		if(!wasCancelled)		// The user pressed Abort, they know
-			wxMessageBox(wxT("No generated model found.\nPlease check console output for errors."),
+		{
+			// A tool can exit 0 and still not have written the model, so
+			// fall back to the generic message when there is no specific one
+			wxMessageBox(!errorMessage.IsEmpty() ? errorMessage
+					: wxT("No generated model found.\nPlease check console output for errors."),
 				wxT("Densification"), wxICON_ERROR | wxOK, this);
+		}
 
 		project_.removeDensification(pDensification);
 		project_.save();
@@ -1882,6 +1916,48 @@ void Regard3DMainFrame::OnContextMenuDeleteSurface( wxCommandEvent &event )
 		deleteSurface(pSurface);
 }
 
+void Regard3DMainFrame::OnContextMenuExportTriangulationToColmap( wxCommandEvent &event )
+{
+	R3DProject::Triangulation *pTriangulation = getSpecializedProjectItem<R3DProject::Triangulation>(contextMenuItemId_,
+		R3DProject::R3DTreeItem::TypeTriangulation);
+	if(pTriangulation != NULL)
+		exportTriangulationWithTool(pTriangulation,
+			R3DExternalPrograms::getInstance().getOpenMVG2ColmapPath(),
+			wxT("Colmap"), wxT("openMVG_main_openMVG2Colmap"), wxEmptyString);
+}
+
+void Regard3DMainFrame::OnContextMenuExportTriangulationToAgisoft( wxCommandEvent &event )
+{
+	R3DProject::Triangulation *pTriangulation = getSpecializedProjectItem<R3DProject::Triangulation>(contextMenuItemId_,
+		R3DProject::R3DTreeItem::TypeTriangulation);
+	if(pTriangulation != NULL)
+		exportTriangulationWithTool(pTriangulation,
+			R3DExternalPrograms::getInstance().getOpenMVG2AgisoftPath(),
+			wxT("Agisoft"), wxT("openMVG_main_openMVG2Agisoft"), wxEmptyString);
+}
+
+void Regard3DMainFrame::OnContextMenuExportTriangulationToWebGL( wxCommandEvent &event )
+{
+	R3DProject::Triangulation *pTriangulation = getSpecializedProjectItem<R3DProject::Triangulation>(contextMenuItemId_,
+		R3DProject::R3DTreeItem::TypeTriangulation);
+	if(pTriangulation != NULL)
+		exportTriangulationWithTool(pTriangulation,
+			R3DExternalPrograms::getInstance().getOpenMVG2WebGLPath(),
+			wxT("WebGL"), wxT("openMVG_main_openMVG2WebGL"), wxEmptyString);
+}
+
+void Regard3DMainFrame::OnContextMenuConvertTriangulationSfMData( wxCommandEvent &event )
+{
+	R3DProject::Triangulation *pTriangulation = getSpecializedProjectItem<R3DProject::Triangulation>(contextMenuItemId_,
+		R3DProject::R3DTreeItem::TypeTriangulation);
+	if(pTriangulation != NULL)
+		exportTriangulationWithTool(pTriangulation,
+			R3DExternalPrograms::getInstance().getConvertSfMDataFormatPath(),
+			wxT("SfM_Data"), wxT("openMVG_main_ConvertSfM_DataFormat"),
+			wxT("JSON (*.json)|*.json|Binary (*.bin)|*.bin|XML (*.xml)|*.xml")
+			wxT("|Stanford polygon (*.ply)|*.ply|Bundle adjustment file (*.baf)|*.baf"));
+}
+
 void Regard3DMainFrame::OnContextMenuExportTriangulationToExternalMVS( wxCommandEvent &event )
 {
 	// Get right-clicked TreeViewCtrl item
@@ -1933,6 +2009,8 @@ void Regard3DMainFrame::OnTimer( wxTimerEvent &WXUNUSED(event) )
 		pDensificationProcess_->readConsoleOutput();
 	if(pR3DSurfaceGenProcess_ != NULL)
 		pR3DSurfaceGenProcess_->readConsoleOutput();
+	if(pExportProcess_ != NULL)
+		pExportProcess_->readConsoleOutput();
 }
 
 // Icon: From resource on Win32, from PNG otherwise
@@ -2367,6 +2445,8 @@ void Regard3DMainFrame::updateProjectDetails()
 					type = wxString(wxT("CMPMVS"));
 				else if(pDensification->densificationType_ == R3DProject::DTSMVS)
 					type = wxString(wxT("SMVS"));
+				else if(pDensification->densificationType_ == R3DProject::DTCOLMAP)
+					type = wxString(wxT("COLMAP"));
 				else
 					type = wxString(wxT("Unknown"));
 
@@ -2390,6 +2470,14 @@ void Regard3DMainFrame::updateProjectDetails()
 						(pDensification->smvsEnableShadingBasedOptimization_  ? wxT("yes") : wxT("no")),
 						(pDensification->smvsEnableSemiGlobalMatching_  ? wxT("yes") : wxT("no")),
 						pDensification->smvsAlpha_);
+				}
+				else if(pDensification->densificationType_ == R3DProject::DTCOLMAP)
+				{
+					params.Printf(wxT("Max image size: %d Window radius: %d Geometric consistency: %s Filter: %s Max reproj. error: %g"),
+						pDensification->colmapMaxImageSize_, pDensification->colmapWindowRadius_,
+						(pDensification->colmapGeomConsistency_ ? wxT("yes") : wxT("no")),
+						(pDensification->colmapFilter_ ? wxT("yes") : wxT("no")),
+						pDensification->colmapMaxReprojError_);
 				}
 				runningTime = pDensification->runningTime_;
 			}
@@ -2816,6 +2904,21 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 			return;
 		}
 
+		if(pDensification->densificationType_ == R3DProject::R3DDensificationType::DTCOLMAP
+			&& (R3DExternalPrograms::getInstance().getColmapPath().IsEmpty()
+				|| R3DExternalPrograms::getInstance().getOpenMVG2ColmapPath().IsEmpty()))
+		{
+			wxMessageBox(wxT("COLMAP was not found.\n\n")
+				wxT("Please put colmap.exe into the subdirectory \"colmap\" of the external\n")
+				wxT("tools directory, and openMVG_main_openMVG2Colmap into its \"openmvg\"\n")
+				wxT("subdirectory, or use a different densification method."),
+				wxT("Regard3D error"), wxOK | wxICON_ERROR);
+			project_.removeDensification(pDensification);
+			project_.save();
+			project_.populateTreeControl(pProjectTreeCtrl_);
+			return;
+		}
+
 		pDensification->state_ = R3DProject::OSRunning;
 		clear3DModel();
 		setProjectTreeItemBold(-1);
@@ -3013,6 +3116,96 @@ void Regard3DMainFrame::deleteSurface(R3DProject::Surface *pSurface)
 		project_.save();
 		updateProjectDetails();
 	}
+}
+
+/**
+ * Asks where the export should go and runs the tool that writes it.
+ *
+ * An empty fileWildcard means the tool wants an output directory, which is
+ * what all of them but ConvertSfM_DataFormat do; that one writes a single
+ * file whose extension chooses the format, so it gets a save dialog.
+ */
+void Regard3DMainFrame::exportTriangulationWithTool(R3DProject::Triangulation *pTriangulation,
+	const wxString &toolPath, const wxString &name, const wxString &toolName,
+	const wxString &fileWildcard)
+{
+	if(toolPath.IsEmpty())
+	{
+		wxMessageBox(wxString::Format(wxT("%s was not found.\n\n")
+			wxT("Please put it into the subdirectory \"openmvg\" of the external\n")
+			wxT("tools directory."), toolName.c_str()),
+			wxT("Export"), wxICON_ERROR | wxOK, this);
+		return;
+	}
+
+	R3DProjectPaths paths;
+	if(!project_.getProjectPathsTri(paths, pTriangulation))
+		return;
+
+	wxString target;
+	if(fileWildcard.IsEmpty())
+	{
+		wxDirDialog dlg(this, wxString::Format(wxT("Choose directory to export the %s scene to:"), name.c_str()),
+			wxEmptyString, wxDD_DEFAULT_STYLE);
+		if(dlg.ShowModal() != wxID_OK)
+			return;
+		target = dlg.GetPath();
+	}
+	else
+	{
+		wxFileDialog dlg(this, wxString::Format(wxT("Save the %s scene as:"), name.c_str()),
+			wxEmptyString, wxT("sfm_data.json"), fileWildcard,
+			wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+		if(dlg.ShowModal() != wxID_OK)
+			return;
+		target = dlg.GetPath();
+	}
+
+	// The tools that write a directory take -o, the one that writes a file
+	// calls the same thing -o as well, so one command shape does for both
+	const wxString sfmData(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc);
+	const wxString command(wxT("\"") + toolPath + wxT("\"")
+		+ wxT(" -i \"") + sfmData + wxT("\"")
+		+ wxT(" -o \"") + target + wxT("\""));
+
+	pProgressDialog_ = new Regard3DProgressDialog(this, wxString::Format(wxT("Export to %s..."), name.c_str()));
+	pProgressDialog_->Show();
+	pProgressDialog_->Pulse(wxString::Format(wxT("Exporting to %s"), name.c_str()));
+
+	if(pExportProcess_ != NULL)
+		delete pExportProcess_;
+	pExportProcess_ = new R3DExportProcess(this);
+	// Only a single file can be checked for, so only the conversion is
+	pExportProcess_->runExportProcess(paths, name, command,
+		(fileWildcard.IsEmpty() ? wxEmptyString : target));
+}
+
+/**
+ * One of the export tools has terminated.
+ */
+void Regard3DMainFrame::OnExportFinished( wxCommandEvent &event )
+{
+	if(pExportProcess_ == NULL)
+		return;
+
+	pExportProcess_->readConsoleOutput();	// Consume all output
+
+	const bool isOK = pExportProcess_->getIsOK();
+	const bool wasCancelled = pExportProcess_->getWasCancelled();
+	const wxString errorMessage(pExportProcess_->getErrorMessage());
+
+	delete pExportProcess_;
+	pExportProcess_ = NULL;
+
+	if(pProgressDialog_ != NULL)
+	{
+		pProgressDialog_->EndDialog();
+		delete pProgressDialog_;
+		pProgressDialog_ = NULL;
+	}
+
+	if(!isOK && !wasCancelled)		// The user pressed Abort, they know
+		wxMessageBox(errorMessage, wxT("Export"), wxICON_ERROR | wxOK, this);
 }
 
 void Regard3DMainFrame::exportTriangulationToExternalMVS(R3DProject::Triangulation *pTriangulation)
@@ -3234,6 +3427,7 @@ BEGIN_EVENT_TABLE( Regard3DMainFrame, Regard3DMainFrameBase )
 	EVT_COMMAND(ID_TRIANGULATION_PROCESS_FINISHED, myCustomEventType, Regard3DMainFrame::OnTriangulationProcessFinished)
 	EVT_COMMAND(ID_DENSIFICATION_FINISHED, myCustomEventType, Regard3DMainFrame::OnDensificationFinished)
 	EVT_COMMAND(ID_SURFACE_GEN_FINISHED, myCustomEventType, Regard3DMainFrame::OnSurfaceGenFinished)
+	EVT_COMMAND(ID_EXPORT_FINISHED, myCustomEventType, Regard3DMainFrame::OnExportFinished)
 	EVT_COMMAND(ID_SMALL_TASK_FINISHED, myCustomEventType, Regard3DMainFrame::OnSmallTaskFinished)
 	EVT_MENU( ID_CTX_ADD_PICTURESET, Regard3DMainFrame::OnContextMenuAddPictureSet )
 	EVT_MENU( ID_CTX_COMPUTE_MATCHES, Regard3DMainFrame::OnContextMenuComputeMatches )
@@ -3252,6 +3446,10 @@ BEGIN_EVENT_TABLE( Regard3DMainFrame, Regard3DMainFrameBase )
 	EVT_MENU( ID_CTX_SHOW_SURFACE, Regard3DMainFrame::OnContextMenuShowSurface )
 	EVT_MENU( ID_CTX_DELETE_SURFACE, Regard3DMainFrame::OnContextMenuDeleteSurface )
 	EVT_MENU( ID_CTX_EXPORT_TRIANGULATION_TO_EXT_MVS, Regard3DMainFrame::OnContextMenuExportTriangulationToExternalMVS )
+	EVT_MENU( ID_CTX_EXPORT_TRIANGULATION_TO_COLMAP, Regard3DMainFrame::OnContextMenuExportTriangulationToColmap )
+	EVT_MENU( ID_CTX_EXPORT_TRIANGULATION_TO_AGISOFT, Regard3DMainFrame::OnContextMenuExportTriangulationToAgisoft )
+	EVT_MENU( ID_CTX_EXPORT_TRIANGULATION_TO_WEBGL, Regard3DMainFrame::OnContextMenuExportTriangulationToWebGL )
+	EVT_MENU( ID_CTX_CONVERT_TRIANGULATION_SFM_DATA, Regard3DMainFrame::OnContextMenuConvertTriangulationSfMData )
 	EVT_MENU( ID_CTX_EXPORT_POINT_CLOUD, Regard3DMainFrame::OnContextMenuExportPointCloud )
 	EVT_MENU( ID_CTX_EXPORT_DENSIFICATION_TO_MESHLAB, Regard3DMainFrame::OnContextMenuExportDensificationToMeshLab )
 	EVT_MENU( ID_CTX_EXPORT_SURFACE, Regard3DMainFrame::OnContextMenuExportSurface )

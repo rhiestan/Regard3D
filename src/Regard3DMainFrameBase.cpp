@@ -1830,6 +1830,9 @@ BEGIN_EVENT_TABLE( Regard3DDensificationDialogBase, wxDialog )
 	EVT_COMMAND_SCROLL( ID_SMVSINPUTSCALESLIDER, Regard3DDensificationDialogBase::_wxFB_OnSMVSInputScaleSliderScroll )
 	EVT_COMMAND_SCROLL( ID_SMVSOUTPUTSCALESLIDER, Regard3DDensificationDialogBase::_wxFB_OnSMVSOutputScaleSliderScroll )
 	EVT_COMMAND_SCROLL( ID_SMVSSURFACESMOOTHINGFACTORSLIDER, Regard3DDensificationDialogBase::_wxFB_OnSMVSSurfaceSmoothingFactorSliderScroll )
+	EVT_COMMAND_SCROLL( ID_COLMAPMAXIMAGESIZESLIDER, Regard3DDensificationDialogBase::_wxFB_OnColmapMaxImageSizeSliderScroll )
+	EVT_COMMAND_SCROLL( ID_COLMAPWINDOWRADIUSSLIDER, Regard3DDensificationDialogBase::_wxFB_OnColmapWindowRadiusSliderScroll )
+	EVT_COMMAND_SCROLL( ID_COLMAPMAXREPROJERRORSLIDER, Regard3DDensificationDialogBase::_wxFB_OnColmapMaxReprojErrorSliderScroll )
 END_EVENT_TABLE()
 
 Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
@@ -2070,6 +2073,86 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	pSMVSReconParamsPanel_->Layout();
 	sbSizer26->Fit( pSMVSReconParamsPanel_ );
 	pDensificationMethodChoicebook_->AddPage( pSMVSReconParamsPanel_, wxT("Shading-Aware Multi-view Stereo (SMVS)"), false );
+	pColmapReconParamsPanel_ = new wxPanel( pDensificationMethodChoicebook_, ID_COLMAPRECONPARAMSPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxStaticBoxSizer* sbSizerColmap;
+	sbSizerColmap = new wxStaticBoxSizer( new wxStaticBox( pColmapReconParamsPanel_, wxID_ANY, wxT("Parameters for COLMAP dense reconstruction") ), wxVERTICAL );
+
+	wxFlexGridSizer* fgSizerColmap;
+	fgSizerColmap = new wxFlexGridSizer( 5, 3, 0, 0 );
+	fgSizerColmap->AddGrowableCol( 2 );
+	fgSizerColmap->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizerColmap->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_staticTextColmap1 = new wxStaticText( sbSizerColmap->GetStaticBox(), wxID_ANY, wxT("Max image size:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmap1->Wrap( -1 );
+	fgSizerColmap->Add( m_staticTextColmap1, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapMaxImageSizeTextCtrl_ = new wxTextCtrl( sbSizerColmap->GetStaticBox(), ID_COLMAPMAXIMAGESIZETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizerColmap->Add( pColmapMaxImageSizeTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapMaxImageSizeSlider_ = new wxSlider( sbSizerColmap->GetStaticBox(), ID_COLMAPMAXIMAGESIZESLIDER, 0, 0, 5, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pColmapMaxImageSizeSlider_->SetToolTip( wxT("Limits the resolution used for undistortion and stereo matching (image_undistorter / PatchMatchStereo max_image_size). Original is slowest but most detailed; smaller sizes are much faster.") );
+
+	fgSizerColmap->Add( pColmapMaxImageSizeSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+
+	m_staticTextColmap2 = new wxStaticText( sbSizerColmap->GetStaticBox(), wxID_ANY, wxT("Window radius:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmap2->Wrap( -1 );
+	fgSizerColmap->Add( m_staticTextColmap2, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapWindowRadiusTextCtrl_ = new wxTextCtrl( sbSizerColmap->GetStaticBox(), ID_COLMAPWINDOWRADIUSTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizerColmap->Add( pColmapWindowRadiusTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapWindowRadiusSlider_ = new wxSlider( sbSizerColmap->GetStaticBox(), ID_COLMAPWINDOWRADIUSSLIDER, 5, 1, 9, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pColmapWindowRadiusSlider_->SetToolTip( wxT("Radius (pixels) of the patch window used for photometric matching (PatchMatchStereo window_radius). Larger windows are more robust to noise but slower and can over-smooth fine detail.") );
+
+	fgSizerColmap->Add( pColmapWindowRadiusSlider_, 0, wxALL|wxEXPAND, 3 );
+
+	m_staticTextColmap3 = new wxStaticText( sbSizerColmap->GetStaticBox(), wxID_ANY, wxT("Geometric consistency:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmap3->Wrap( -1 );
+	fgSizerColmap->Add( m_staticTextColmap3, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapGeomConsistencyCheckBox_ = new wxCheckBox( sbSizerColmap->GetStaticBox(), ID_COLMAPGEOMCONSISTENCYCHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pColmapGeomConsistencyCheckBox_->SetValue(true);
+	pColmapGeomConsistencyCheckBox_->SetToolTip( wxT("Enable the geometric consistency term during stereo matching (PatchMatchStereo geom_consistency). Slower but noticeably more accurate; recommended.") );
+
+	fgSizerColmap->Add( pColmapGeomConsistencyCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+
+	fgSizerColmap->Add( 0, 0, 1, wxEXPAND, 5 );
+
+	m_staticTextColmap4 = new wxStaticText( sbSizerColmap->GetStaticBox(), wxID_ANY, wxT("Filter outliers:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmap4->Wrap( -1 );
+	fgSizerColmap->Add( m_staticTextColmap4, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapFilterCheckBox_ = new wxCheckBox( sbSizerColmap->GetStaticBox(), ID_COLMAPFILTERCHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pColmapFilterCheckBox_->SetValue(true);
+	pColmapFilterCheckBox_->SetToolTip( wxT("Remove low-confidence depth/normal estimates before fusion (PatchMatchStereo filter). Turning this off keeps more points but adds more noise.") );
+
+	fgSizerColmap->Add( pColmapFilterCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+
+	fgSizerColmap->Add( 0, 0, 1, wxEXPAND, 5 );
+
+	m_staticTextColmap5 = new wxStaticText( sbSizerColmap->GetStaticBox(), wxID_ANY, wxT("Max reprojection error:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmap5->Wrap( -1 );
+	fgSizerColmap->Add( m_staticTextColmap5, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapMaxReprojErrorTextCtrl_ = new wxTextCtrl( sbSizerColmap->GetStaticBox(), ID_COLMAPMAXREPROJERRORTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizerColmap->Add( pColmapMaxReprojErrorTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapMaxReprojErrorSlider_ = new wxSlider( sbSizerColmap->GetStaticBox(), ID_COLMAPMAXREPROJERRORSLIDER, 20, 1, 50, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL );
+	pColmapMaxReprojErrorSlider_->SetToolTip( wxT("Maximum reprojection error, in pixels, allowed when fusing depth maps into the point cloud (StereoFusion max_reproj_error). Lower values give a cleaner but sparser cloud.") );
+
+	fgSizerColmap->Add( pColmapMaxReprojErrorSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+
+
+	sbSizerColmap->Add( fgSizerColmap, 1, wxEXPAND, 3 );
+
+
+	pColmapReconParamsPanel_->SetSizer( sbSizerColmap );
+	pColmapReconParamsPanel_->Layout();
+	sbSizerColmap->Fit( pColmapReconParamsPanel_ );
+	pDensificationMethodChoicebook_->AddPage( pColmapReconParamsPanel_, wxT("Dense reconstruction (COLMAP)"), false );
 	pDensificationMethodSizer_->Add( pDensificationMethodChoicebook_, 1, wxEXPAND | wxALL, 3 );
 
 

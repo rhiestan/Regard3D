@@ -20,6 +20,13 @@
 #include "CommonIncludes.h"
 #include "Regard3DDensificationDialog.h"
 
+namespace
+{
+	// Presets shown on the "Max image size" slider; index 0 is COLMAP's
+	// "original size" (-1), the others are the longest side in pixels.
+	const int colmapMaxImageSizePresets[] = { -1, 3200, 2400, 1600, 1200, 800 };
+}
+
 Regard3DDensificationDialog::Regard3DDensificationDialog(wxWindow *pParent)
 	: Regard3DDensificationDialogBase(pParent)
 {
@@ -38,6 +45,8 @@ void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensifi
 		pDensification->densificationType_ = R3DProject::DTMVE;
 	else if(pDensificationMethodChoicebook_->GetSelection() == 2)
 		pDensification->densificationType_ = R3DProject::DTSMVS;
+	else if(pDensificationMethodChoicebook_->GetSelection() == 3)
+		pDensification->densificationType_ = R3DProject::DTCOLMAP;
 
 	pDensification->pmvsNumThreads_ = pNumberOfThreadsChoice_->GetSelection() + 1;
 	pDensification->useCMVS_ = pUseCMVSCheckBox_->GetValue();
@@ -60,6 +69,12 @@ void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensifi
 	pDensification->smvsEnableShadingBasedOptimization_ = pSMVSShadingOptCheckBox_->GetValue();
 	pDensification->smvsEnableSemiGlobalMatching_ = pSMVSSemiGlobalMatcihingCheckBox_->GetValue();
 	pDensification->smvsAlpha_ = static_cast<float>(pSMVSSurfaceSmoothingFactorSlider_->GetValue()) * 0.1f;
+
+	pDensification->colmapMaxImageSize_ = colmapMaxImageSizePresets[pColmapMaxImageSizeSlider_->GetValue()];
+	pDensification->colmapWindowRadius_ = pColmapWindowRadiusSlider_->GetValue();
+	pDensification->colmapGeomConsistency_ = pColmapGeomConsistencyCheckBox_->GetValue();
+	pDensification->colmapFilter_ = pColmapFilterCheckBox_->GetValue();
+	pDensification->colmapMaxReprojError_ = static_cast<float>(pColmapMaxReprojErrorSlider_->GetValue()) * 0.1f;
 }
 
 void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
@@ -86,6 +101,9 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 	updateSMVSInputScaleText();
 	updateSMVSOutputScaleText();
 	updateSMVSSurfaceSmoothingFactorText();
+	updateColmapMaxImageSizeText();
+	updateColmapWindowRadiusText();
+	updateColmapMaxReprojErrorText();
 
 	Fit();
 	CenterOnParent();
@@ -144,6 +162,21 @@ void Regard3DDensificationDialog::OnSMVSOutputScaleSliderScroll(wxScrollEvent& e
 void Regard3DDensificationDialog::OnSMVSSurfaceSmoothingFactorSliderScroll(wxScrollEvent& event)
 {
 	updateSMVSSurfaceSmoothingFactorText();
+}
+
+void Regard3DDensificationDialog::OnColmapMaxImageSizeSliderScroll(wxScrollEvent& event)
+{
+	updateColmapMaxImageSizeText();
+}
+
+void Regard3DDensificationDialog::OnColmapWindowRadiusSliderScroll(wxScrollEvent& event)
+{
+	updateColmapWindowRadiusText();
+}
+
+void Regard3DDensificationDialog::OnColmapMaxReprojErrorSliderScroll(wxScrollEvent& event)
+{
+	updateColmapMaxReprojErrorText();
 }
 
 void Regard3DDensificationDialog::updatePMVSLevelText()
@@ -205,6 +238,26 @@ void Regard3DDensificationDialog::updateSMVSSurfaceSmoothingFactorText()
 {
 	int sliderValue = pSMVSSurfaceSmoothingFactorSlider_->GetValue();
 	pSMVSSurfaceSmoothingFactorTextCtrl_->SetValue( wxString::Format( wxT("%g"),
+		static_cast<float>(sliderValue)*0.1f ) );
+}
+
+void Regard3DDensificationDialog::updateColmapMaxImageSizeText()
+{
+	int pixelSize = colmapMaxImageSizePresets[pColmapMaxImageSizeSlider_->GetValue()];
+	pColmapMaxImageSizeTextCtrl_->SetValue( pixelSize > 0
+		? wxString::Format( wxT("%d"), pixelSize ) : wxString(wxT("Original")) );
+}
+
+void Regard3DDensificationDialog::updateColmapWindowRadiusText()
+{
+	int sliderValue = pColmapWindowRadiusSlider_->GetValue();
+	pColmapWindowRadiusTextCtrl_->SetValue( wxString::Format( wxT("%d"), sliderValue ) );
+}
+
+void Regard3DDensificationDialog::updateColmapMaxReprojErrorText()
+{
+	int sliderValue = pColmapMaxReprojErrorSlider_->GetValue();
+	pColmapMaxReprojErrorTextCtrl_->SetValue( wxString::Format( wxT("%g"),
 		static_cast<float>(sliderValue)*0.1f ) );
 }
 

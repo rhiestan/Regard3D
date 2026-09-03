@@ -43,6 +43,9 @@ protected:
 	virtual void OnSMVSInputScaleSliderScroll( wxScrollEvent& event );
 	virtual void OnSMVSOutputScaleSliderScroll( wxScrollEvent& event );
 	virtual void OnSMVSSurfaceSmoothingFactorSliderScroll( wxScrollEvent& event );
+	virtual void OnColmapMaxImageSizeSliderScroll( wxScrollEvent& event );
+	virtual void OnColmapWindowRadiusSliderScroll( wxScrollEvent& event );
+	virtual void OnColmapMaxReprojErrorSliderScroll( wxScrollEvent& event );
 
 	void updatePMVSLevelText();
 	void updatePMVSCellSizeText();
@@ -54,6 +57,9 @@ protected:
 	void updateSMVSInputScaleText();
 	void updateSMVSOutputScaleText();
 	void updateSMVSSurfaceSmoothingFactorText();
+	void updateColmapMaxImageSizeText();
+	void updateColmapWindowRadiusText();
+	void updateColmapMaxReprojErrorText();
 
 private:
 	DECLARE_EVENT_TABLE()

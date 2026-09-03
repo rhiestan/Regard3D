@@ -979,6 +979,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 		void _wxFB_OnSMVSInputScaleSliderScroll( wxScrollEvent& event ){ OnSMVSInputScaleSliderScroll( event ); }
 		void _wxFB_OnSMVSOutputScaleSliderScroll( wxScrollEvent& event ){ OnSMVSOutputScaleSliderScroll( event ); }
 		void _wxFB_OnSMVSSurfaceSmoothingFactorSliderScroll( wxScrollEvent& event ){ OnSMVSSurfaceSmoothingFactorSliderScroll( event ); }
+		void _wxFB_OnColmapMaxImageSizeSliderScroll( wxScrollEvent& event ){ OnColmapMaxImageSizeSliderScroll( event ); }
+		void _wxFB_OnColmapWindowRadiusSliderScroll( wxScrollEvent& event ){ OnColmapWindowRadiusSliderScroll( event ); }
+		void _wxFB_OnColmapMaxReprojErrorSliderScroll( wxScrollEvent& event ){ OnColmapMaxReprojErrorSliderScroll( event ); }
 
 
 	protected:
@@ -1017,7 +1020,16 @@ class Regard3DDensificationDialogBase : public wxDialog
 			ID_SMVSSHADINGOPTCHECKBOX,
 			ID_SMVSSEMIGLOBALMATCIHINGCHECKBOX,
 			ID_SMVSSURFACESMOOTHINGFACTORTEXTCTRL,
-			ID_SMVSSURFACESMOOTHINGFACTORSLIDER
+			ID_SMVSSURFACESMOOTHINGFACTORSLIDER,
+			ID_COLMAPRECONPARAMSPANEL,
+			ID_COLMAPMAXIMAGESIZETEXTCTRL,
+			ID_COLMAPMAXIMAGESIZESLIDER,
+			ID_COLMAPWINDOWRADIUSTEXTCTRL,
+			ID_COLMAPWINDOWRADIUSSLIDER,
+			ID_COLMAPGEOMCONSISTENCYCHECKBOX,
+			ID_COLMAPFILTERCHECKBOX,
+			ID_COLMAPMAXREPROJERRORTEXTCTRL,
+			ID_COLMAPMAXREPROJERRORSLIDER
 		};
 
 		wxPanel* pDensificationPanel_;
@@ -1066,6 +1078,20 @@ class Regard3DDensificationDialogBase : public wxDialog
 		wxStaticText* m_staticText61;
 		wxTextCtrl* pSMVSSurfaceSmoothingFactorTextCtrl_;
 		wxSlider* pSMVSSurfaceSmoothingFactorSlider_;
+		wxPanel* pColmapReconParamsPanel_;
+		wxStaticText* m_staticTextColmap1;
+		wxTextCtrl* pColmapMaxImageSizeTextCtrl_;
+		wxSlider* pColmapMaxImageSizeSlider_;
+		wxStaticText* m_staticTextColmap2;
+		wxTextCtrl* pColmapWindowRadiusTextCtrl_;
+		wxSlider* pColmapWindowRadiusSlider_;
+		wxStaticText* m_staticTextColmap3;
+		wxCheckBox* pColmapGeomConsistencyCheckBox_;
+		wxStaticText* m_staticTextColmap4;
+		wxCheckBox* pColmapFilterCheckBox_;
+		wxStaticText* m_staticTextColmap5;
+		wxTextCtrl* pColmapMaxReprojErrorTextCtrl_;
+		wxSlider* pColmapMaxReprojErrorSlider_;
 		wxStdDialogButtonSizer* pStdDialogButtonSizer_;
 		wxButton* pStdDialogButtonSizer_OK;
 		wxButton* pStdDialogButtonSizer_Cancel;
@@ -1083,6 +1109,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 		virtual void OnSMVSInputScaleSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnSMVSOutputScaleSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnSMVSSurfaceSmoothingFactorSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnColmapMaxImageSizeSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnColmapWindowRadiusSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnColmapMaxReprojErrorSliderScroll( wxScrollEvent& event ) = 0;
 
 
 	public:

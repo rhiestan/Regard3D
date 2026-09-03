@@ -39,6 +39,7 @@ public:
 	const wxString &getCMPMVSPath() { return cmpmvsPath_; }
 	const wxString &getSMVSReconPath() { return smvsreconPath_; }
 	const wxString &getSMVSReconSSE41Path() { return smvsreconSSE41Path; }
+	const wxString &getColmapPath() { return colmapPath_; }
 	// Directory holding the Graphviz tools, empty when they are not installed
 	const wxString &getGraphvizPath() { return graphvizPath_; }
 
@@ -51,6 +52,10 @@ public:
 	const wxString &getSfMPath() { return sfmPath_; }
 	const wxString &getOpenMVG2PMVSPath() { return openMVG2PMVSPath_; }
 	const wxString &getOpenMVG2MVE2Path() { return openMVG2MVE2Path_; }
+	const wxString &getOpenMVG2ColmapPath() { return openMVG2ColmapPath_; }
+	const wxString &getOpenMVG2AgisoftPath() { return openMVG2AgisoftPath_; }
+	const wxString &getOpenMVG2WebGLPath() { return openMVG2WebGLPath_; }
+	const wxString &getConvertSfMDataFormatPath() { return convertSfMDataFormatPath_; }
 	const wxString &getOpenMVG2MeshLabPath() { return openMVG2MeshLabPath_; }
 	const wxString &getOpenMVG2NVMPath() { return openMVG2NVMPath_; }
 	const wxString &getOpenMVG2CMPMVSPath() { return openMVG2CMPMVSPath_; }
@@ -73,12 +78,17 @@ private:
 	wxString dmreconPath_, scene2psetPath_, fssreconPath_, meshcleanPath_;
 	wxString cmpmvsPath_;
 	wxString smvsreconPath_, smvsreconSSE41Path;
+	wxString colmapPath_;
 	wxString graphvizPath_;
 	wxString computeFeaturesPath_, computeFeaturesOpenCVPath_;
 	wxString pairGeneratorPath_, computeMatchesPath_, geometricFilterPath_;
 	wxString sfmPath_;
 	wxString openMVG2PMVSPath_;
 	wxString openMVG2MVE2Path_;
+	wxString openMVG2ColmapPath_;
+	wxString openMVG2AgisoftPath_;
+	wxString openMVG2WebGLPath_;
+	wxString convertSfMDataFormatPath_;
 	wxString openMVG2MeshLabPath_;
 	wxString openMVG2NVMPath_;
 	wxString openMVG2CMPMVSPath_;

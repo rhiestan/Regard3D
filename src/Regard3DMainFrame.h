@@ -27,6 +27,7 @@ class R3DComputeMatchesThread;
 class R3DComputeMatchesProcess;
 class R3DTriangulationThread;
 class R3DTriangulationProcess;
+class R3DExportProcess;
 class Regard3DConsoleOutputFrame;
 class Regard3DProgressDialog;
 class Regard3DModelViewHelper;
@@ -74,6 +75,7 @@ public:
 	void sendTriangulationProcessFinishedEvent();
 	void sendDensificationFinishedEvent();
 	void sendSurfaceGenFinishedEvent();
+	void sendExportFinishedEvent();
 	void sendSmallTaskFinishedEvent();
 
 	// Called by the progress dialog for its Abort button
@@ -137,6 +139,7 @@ protected:
 	virtual void OnTriangulationProcessFinished( wxCommandEvent &event );
 	virtual void OnDensificationFinished( wxCommandEvent &event );
 	virtual void OnSurfaceGenFinished( wxCommandEvent &event );
+	virtual void OnExportFinished( wxCommandEvent &event );
 	virtual void OnSmallTaskFinished( wxCommandEvent &event );
 	virtual void OnContextMenuAddPictureSet( wxCommandEvent &event );
 	virtual void OnContextMenuComputeMatches( wxCommandEvent &event );
@@ -155,6 +158,10 @@ protected:
 	virtual void OnContextMenuShowSurface( wxCommandEvent &event );
 	virtual void OnContextMenuDeleteSurface( wxCommandEvent &event );
 	virtual void OnContextMenuExportTriangulationToExternalMVS( wxCommandEvent &event );
+	virtual void OnContextMenuExportTriangulationToColmap( wxCommandEvent &event );
+	virtual void OnContextMenuExportTriangulationToAgisoft( wxCommandEvent &event );
+	virtual void OnContextMenuExportTriangulationToWebGL( wxCommandEvent &event );
+	virtual void OnContextMenuConvertTriangulationSfMData( wxCommandEvent &event );
 	virtual void OnContextMenuExportPointCloud( wxCommandEvent &event );
 	virtual void OnContextMenuExportDensificationToMeshLab( wxCommandEvent &event );
 	virtual void OnContextMenuExportSurface( wxCommandEvent &event );
@@ -189,6 +196,9 @@ protected:
 	void showSurface(R3DProject::Surface *pSurface);
 	void deleteSurface(R3DProject::Surface *pSurface);
 	void exportTriangulationToExternalMVS(R3DProject::Triangulation *pTriangulation);
+	void exportTriangulationWithTool(R3DProject::Triangulation *pTriangulation,
+		const wxString &toolPath, const wxString &name, const wxString &toolName,
+		const wxString &fileWildcard);
 	void exportPointCloud(R3DProject::Densification *pDensification);
 	void exportDensificationToMeshLab(R3DProject::Densification *pDensification);
 	void exportSurface(R3DProject::Surface *pSurface);
@@ -241,6 +251,8 @@ private:
 	R3DTriangulationProcess *pTriangulationProcess_;
 	R3DDensificationProcess *pDensificationProcess_;
 	R3DSurfaceGenProcess *pR3DSurfaceGenProcess_;
+	// Runs one of the OpenMVG export tools, started from the context menu
+	R3DExportProcess *pExportProcess_;
 	R3DSmallTasksThread *pR3DSmallTasksThread_;
 
 	R3DProject project_;

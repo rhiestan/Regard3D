@@ -242,7 +242,8 @@ public:
 		DTCMVSPMVS = 0,
 		DTMVE,
 		DTCMPMVS,
-		DTSMVS
+		DTSMVS,
+		DTCOLMAP
 	};
 
 	/**
@@ -275,6 +276,12 @@ public:
 		bool smvsEnableShadingBasedOptimization_;
 		bool smvsEnableSemiGlobalMatching_;
 		float smvsAlpha_;
+		// -1 means COLMAP's "original size", otherwise the longest side in pixels
+		int colmapMaxImageSize_;
+		int colmapWindowRadius_;
+		bool colmapGeomConsistency_;
+		bool colmapFilter_;
+		float colmapMaxReprojError_;
 		wxString finalDenseModelName_;
 		wxString runningTime_;
 

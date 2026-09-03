@@ -25,6 +25,12 @@
 
 #include <wx/textfile.h>
 
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 namespace
 {
 	// Project paths are user chosen and regularly contain spaces
@@ -40,9 +46,10 @@ namespace
 
 R3DDensificationProcess::R3DDensificationProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),
-	processId_(0), checkForClusters_(false), wasCancelled_(false),
+	processId_(0), checkForClusters_(false), wasCancelled_(false), isOK_(true),
 	writePMVSOptions_(false),
-	numberOfClusters_(0)
+	numberOfClusters_(0),
+	fixColmapSparseModel_(false)
 {
 }
 
@@ -115,6 +122,7 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 
 	cmds_.Clear();
 	progressTexts_.Clear();
+	stepNames_.Clear();
 
 	if(pDensification->densificationType_ == R3DProject::DTCMVSPMVS)
 	{
@@ -132,6 +140,7 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 			+ wxString::Format(wxT(" -c %d"), pDensification->pmvsNumThreads_)
 			+ wxString::Format(wxT(" -v %d"), (pDensification->useCMVS_ ? 1 : 0)));
 		progressTexts_.Add(wxT("Exporting project to PMVS"));
+		stepNames_.Add(wxT("openMVG_main_openMVG2PMVS"));
 		writePMVSOptions_ = true;
 
 		wxString pmvsExe = R3DExternalPrograms::getInstance().getPMVSPath();
@@ -143,12 +152,14 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 				+ wxString::Format(wxT(" %d %d"),
 				pDensification->pmvsMaxClusterSize_, pDensification->pmvsNumThreads_));
 			progressTexts_.Add(wxT("Clustering images (CMVS)"));
+			stepNames_.Add(wxT("cmvs"));
 			cmds_.Add(genOptionExe + wxString(wxT(" ")) + pmvsPath
 				+ wxString::Format(wxT(" %d %d %f %d %d %d"),
 				pDensification->pmvsLevel_, pDensification->pmvsCSize_,
 				pDensification->pmvsThreshold_, pDensification->pmvsWSize_,
 				pDensification->pmvsMinImageNum_, pDensification->pmvsNumThreads_));
 			progressTexts_.Add(wxT("Generating options"));
+			stepNames_.Add(wxT("genOption"));
 
 			pDensification->finalDenseModelName_ = wxT("option-0000.ply");
 
@@ -160,6 +171,7 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 			wxString cmdLine = pmvsExe + wxString(wxT(" ")) + pmvsPath + wxString(wxT(" pmvs_options.txt"));
 			cmds_.Add(cmdLine);
 			progressTexts_.Add(wxT("Densify point cloud (PMVS)"));
+			stepNames_.Add(wxT("pmvs2"));
 
 			pDensification->finalDenseModelName_ = wxT("pmvs_options.txt.ply");
 		}
@@ -175,6 +187,7 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 				+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
 				+ wxT(" -o ") + quoted(wxString(paths.relativeOutPath_.c_str(), wxConvLibc)));
 			progressTexts_.Add(wxT("Exporting project to MVE"));
+			stepNames_.Add(wxT("openMVG_main_openMVG2MVE2"));
 		}
 
 		wxString dmreconExe = R3DExternalPrograms::getInstance().getDMReconPath();
@@ -185,12 +198,14 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 		cmds_.Add(dmreconExe + wxString::Format(wxT(" --scale=%d --filter-width=%d --force "),
 			pDensification->mveScale_, pDensification->mveFilterWidth_) + mveSceneDir);
 		progressTexts_.Add(wxT("Densify point cloud (MVE)"));
+		stepNames_.Add(wxT("dmrecon"));
 
 		wxFileName outputModelFN(wxString(paths.relativeDensificationPath_.c_str(), wxConvLibc), outputModelFilename);
 		cmds_.Add(scene2psetExe
 			+ wxString::Format(wxT(" -ddepth-L%d -iundist-L%d -n -s -c "), pDensification->mveScale_, pDensification->mveScale_)
 			+ mveSceneDir + wxT(" ") + outputModelFN.GetFullPath());
 		progressTexts_.Add(wxT("Generating point cloud model (MVE)"));
+		stepNames_.Add(wxT("scene2pset"));
 
 		pDensification->finalDenseModelName_ = outputModelFilename;
 	}
@@ -205,6 +220,7 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 				+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
 				+ wxT(" -o ") + quoted(wxString(paths.relativeOutPath_.c_str(), wxConvLibc)));
 			progressTexts_.Add(wxT("Exporting project to MVE"));
+			stepNames_.Add(wxT("openMVG_main_openMVG2MVE2"));
 		}
 
 		wxString smvsreconExe = R3DExternalPrograms::getInstance().getSMVSReconPath();
@@ -225,10 +241,94 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 			pDensification->smvsAlpha_)
 			+ mveSceneDir);
 		progressTexts_.Add(wxT("Densify point cloud (SMVS)"));
+		stepNames_.Add(wxT("smvsrecon"));
 
 		wxFileName outputModelFN(wxString(paths.relativeDensificationPath_.c_str(), wxConvLibc), outputModelFilename);
 
 		pDensification->finalDenseModelName_ = outputModelFilename;
+	}
+	else if(pDensification->densificationType_ == R3DProject::DTCOLMAP)
+	{
+		// COLMAP is driven entirely through its own CLI, in four steps:
+		//   openMVG_main_openMVG2Colmap  -> cameras.txt/images.txt/points3D.txt (a sparse model)
+		//   colmap image_undistorter    -> undistorted images + a binary sparse model
+		//   colmap patch_match_stereo   -> per-image depth/normal maps (needs a CUDA GPU)
+		//   colmap stereo_fusion        -> colmap_fused.ply
+		const wxString densificationDir(paths.relativeDensificationPath_.c_str(), wxConvLibc);
+		const wxString imagePath(quoted(wxString(paths.relativeImagePath_.c_str(), wxConvLibc)));
+		wxFileName sparseFN(densificationDir, wxEmptyString);
+		sparseFN.AppendDir(wxT("colmap_sparse"));
+		relativeColmapSparsePath_ = sparseFN.GetPath(wxPATH_GET_VOLUME);
+		const wxString sparsePath(quoted(relativeColmapSparsePath_));
+		fixColmapSparseModel_ = true;
+		wxFileName denseFN(densificationDir, wxEmptyString);
+		denseFN.AppendDir(wxT("colmap_dense"));
+		const wxString densePath(quoted(denseFN.GetPath(wxPATH_GET_VOLUME)));
+		const wxString outputModelFilename(wxT("colmap_fused.ply"));
+		wxFileName outputModelFN(densificationDir, outputModelFilename);
+		const wxString outputModelPath(quoted(outputModelFN.GetFullPath()));
+
+		// -1 means "original size": leave the size arguments off, COLMAP's own
+		// default is -1 as well
+		wxString maxImageSizeArg;
+		if(pDensification->colmapMaxImageSize_ > 0)
+			maxImageSizeArg = wxString::Format(wxT(" --max_image_size %d"), pDensification->colmapMaxImageSize_);
+		wxString maxImageSizePMArg;
+		if(pDensification->colmapMaxImageSize_ > 0)
+			maxImageSizePMArg = wxString::Format(wxT(" --PatchMatchStereo.max_image_size %d"), pDensification->colmapMaxImageSize_);
+
+		const wxString openMVG2ColmapExe = R3DExternalPrograms::getInstance().getOpenMVG2ColmapPath();
+		const wxString colmapExe = R3DExternalPrograms::getInstance().getColmapPath();
+
+		cmds_.Add(quoted(openMVG2ColmapExe)
+			+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+			+ wxT(" -o ") + sparsePath);
+		progressTexts_.Add(wxT("Exporting project to Colmap"));
+		stepNames_.Add(wxT("openMVG_main_openMVG2Colmap"));
+
+		cmds_.Add(quoted(colmapExe) + wxT(" image_undistorter")
+			+ wxT(" --image_path ") + imagePath
+			+ wxT(" --input_path ") + sparsePath
+			+ wxT(" --output_path ") + densePath
+			+ wxT(" --output_type COLMAP")
+			+ maxImageSizeArg);
+		progressTexts_.Add(wxT("Undistorting images (COLMAP)"));
+		stepNames_.Add(wxT("colmap image_undistorter"));
+
+		cmds_.Add(quoted(colmapExe) + wxT(" patch_match_stereo")
+			+ wxT(" --workspace_path ") + densePath
+			+ maxImageSizePMArg
+			+ wxString::Format(wxT(" --PatchMatchStereo.window_radius %d"), pDensification->colmapWindowRadius_)
+			+ wxString::Format(wxT(" --PatchMatchStereo.geom_consistency %d"), (pDensification->colmapGeomConsistency_ ? 1 : 0))
+			+ wxString::Format(wxT(" --PatchMatchStereo.filter %d"), (pDensification->colmapFilter_ ? 1 : 0)));
+		progressTexts_.Add(wxT("Computing depth maps (COLMAP)"));
+		stepNames_.Add(wxT("colmap patch_match_stereo"));
+
+		// Fusing from photometric-only depth maps needs --input_type photometric;
+		// otherwise stereo_fusion looks for the geometric ones patch_match_stereo
+		// just wrote
+		cmds_.Add(quoted(colmapExe) + wxT(" stereo_fusion")
+			+ wxT(" --workspace_path ") + densePath
+			+ wxT(" --input_type ") + (pDensification->colmapGeomConsistency_ ? wxT("geometric") : wxT("photometric"))
+			+ wxT(" --output_type PLY")
+			+ wxT(" --output_path ") + outputModelPath
+			// Read with the C locale, so not wxString::Format
+			+ wxT(" --StereoFusion.max_reproj_error ") + wxString::FromCDouble(pDensification->colmapMaxReprojError_, 2));
+		progressTexts_.Add(wxT("Fusing point cloud (COLMAP)"));
+		stepNames_.Add(wxT("colmap stereo_fusion"));
+
+		pDensification->finalDenseModelName_ = outputModelFilename;
+	}
+
+	if(cmds_.IsEmpty())
+	{
+		// An unimplemented/unrecognized densification type: nothing was
+		// queued, so OnTerminate would never run and the progress dialog
+		// would otherwise sit there forever
+		isOK_ = false;
+		errorMessage_ = wxT("This densification method is not implemented.");
+		pMainFrame_->sendDensificationFinishedEvent();
+		return false;
 	}
 
 	runSingleCommand();
@@ -293,6 +393,7 @@ void R3DDensificationProcess::cancel()
 	// and the clusters CMVS was going to produce will not be there either
 	cmds_.Clear();
 	progressTexts_.Clear();
+	stepNames_.Clear();
 	checkForClusters_ = false;
 
 	// wxKILL_CHILDREN in case the tool started helpers of its own
@@ -306,13 +407,57 @@ void R3DDensificationProcess::OnTerminate(int pid, int status)
 	// This process is gone; cancel() must not kill a recycled pid
 	processId_ = 0;
 
+	// All these tools return a non-zero exit code on failure; stop here
+	// instead of running the remaining steps on data the failed tool never
+	// wrote, which otherwise just piles on confusing, unrelated errors
+	bool stepFailed = false;
+	if(wasCancelled_)
+	{
+		isOK_ = false;
+		errorMessage_ = wxT("Aborted.");
+	}
+	else if(status != 0)
+	{
+		stepFailed = true;
+		isOK_ = false;
+		errorMessage_ = wxString::Format(
+			wxT("%s returned with error code %d.\n\nPlease check the console output for details."),
+			currentStepName_.c_str(), status);
+	}
+
 	if(writePMVSOptions_)
 	{
 		// The export was the first command of the queue, so this is the
 		// moment its pmvs_options.txt exists
 		writePMVSOptions_ = false;
-		if(!wasCancelled_)
+		if(!wasCancelled_ && !stepFailed)
 			writePMVSOptions();
+	}
+
+	if(fixColmapSparseModel_)
+	{
+		// The Colmap export was the first command of the queue, so this is
+		// the moment its images.txt/points3D.txt exist, and image_undistorter
+		// (the next command) needs the fixed-up version
+		fixColmapSparseModel_ = false;
+		if(!wasCancelled_ && !stepFailed && !fixColmapPoints3DFile())
+		{
+			stepFailed = true;
+			isOK_ = false;
+			errorMessage_ = wxT("Could not patch Colmap's points3D.txt after the export.\n\n")
+				wxT("image_undistorter would fail to read the sparse model.");
+		}
+	}
+
+	if(stepFailed)
+	{
+		// Whatever is still queued would run on data the failed tool never
+		// wrote, and the clusters CMVS was going to produce will not be
+		// there either
+		cmds_.Clear();
+		progressTexts_.Clear();
+		stepNames_.Clear();
+		checkForClusters_ = false;
 	}
 
 	if(cmds_.IsEmpty())
@@ -330,6 +475,7 @@ void R3DDensificationProcess::OnTerminate(int pid, int status)
 			{
 				foundClusters = true;
 				cmds_.Add(pmvsExe + wxString(wxT(" ")) + pmvsPath + wxString(wxT(" ")) + optionFilename);
+				stepNames_.Add(wxT("pmvs2"));
 				i++;
 				optionFilename = wxString::Format(wxT("option-%04d"), i);
 				optionFN.SetFullName(optionFilename);
@@ -394,6 +540,113 @@ bool R3DDensificationProcess::writePMVSOptions()
 	return isOK;
 }
 
+/**
+ * Patches openMVG_main_openMVG2Colmap's points3D.txt in place.
+ *
+ * The exporter writes each track observation as (IMAGE_ID, the raw openMVG
+ * feature index), but Colmap's reader expects (IMAGE_ID, the position of
+ * that observation within the *same* image's own POINTS2D[] line in
+ * images.txt) -- otherwise it looks up the wrong entry and aborts with
+ * "Check failed: point2D.point3D_id == point3D_id". Rebuilding that mapping
+ * from the images.txt the export just wrote and rewriting points3D.txt's
+ * indices accordingly is enough to fix it without touching openMVG itself.
+ */
+bool R3DDensificationProcess::fixColmapPoints3DFile()
+{
+	const wxFileName imagesFN(relativeColmapSparsePath_, wxT("images.txt"));
+	const wxFileName points3DFN(relativeColmapSparsePath_, wxT("points3D.txt"));
+
+	std::ifstream imagesIn(std::string(imagesFN.GetFullPath().mb_str(wxConvLibc)));
+	if(!imagesIn.is_open())
+		return false;
+
+	// imageId -> (point3dId -> its position in that image's POINTS2D[] line)
+	std::unordered_map<long long, std::unordered_map<long long, int>> pointIndexByImage;
+
+	std::string line;
+	while(std::getline(imagesIn, line))
+	{
+		if(line.empty() || line[0] == '#')
+			continue;
+
+		std::istringstream headerStream(line);
+		long long imageId = -1;
+		headerStream >> imageId;
+
+		if(!std::getline(imagesIn, line))
+			break;		// Malformed file, one header line without its points line
+
+		std::istringstream pointsStream(line);
+		double x, y;
+		long long point3dId;
+		int idx = 0;
+		std::unordered_map<long long, int> &indexMap = pointIndexByImage[imageId];
+		while(pointsStream >> x >> y >> point3dId)
+			indexMap[point3dId] = idx++;
+	}
+	imagesIn.close();
+
+	std::ifstream points3DIn(std::string(points3DFN.GetFullPath().mb_str(wxConvLibc)));
+	if(!points3DIn.is_open())
+		return false;
+
+	std::ostringstream out;
+	while(std::getline(points3DIn, line))
+	{
+		if(line.empty() || line[0] == '#')
+		{
+			out << line << "\n";
+			continue;
+		}
+
+		// Split into tokens rather than parsing X/Y/Z/error as doubles, so
+		// re-writing the line cannot lose precision on the coordinates
+		std::vector<std::string> tokens;
+		{
+			std::istringstream lineStream(line);
+			std::string tok;
+			while(lineStream >> tok)
+				tokens.push_back(tok);
+		}
+		// POINT3D_ID, X, Y, Z, R, G, B, ERROR, then (IMAGE_ID, POINT2D_IDX) pairs
+		if(tokens.size() < 8 || ((tokens.size() - 8) % 2) != 0)
+		{
+			out << line << "\n";		// Not a track line we understand, leave as is
+			continue;
+		}
+
+		const long long point3dId = std::atoll(tokens[0].c_str());
+		out << tokens[0];
+		for(size_t i = 1; i < 8; i++)
+			out << " " << tokens[i];
+
+		for(size_t i = 8; i + 1 < tokens.size(); i += 2)
+		{
+			const long long imageId = std::atoll(tokens[i].c_str());
+			int fixedIdx = std::atoi(tokens[i + 1].c_str());		// Fallback if not found below
+
+			std::unordered_map<long long, std::unordered_map<long long, int>>::const_iterator imgIt
+				= pointIndexByImage.find(imageId);
+			if(imgIt != pointIndexByImage.end())
+			{
+				std::unordered_map<long long, int>::const_iterator idxIt = imgIt->second.find(point3dId);
+				if(idxIt != imgIt->second.end())
+					fixedIdx = idxIt->second;
+			}
+			out << " " << imageId << " " << fixedIdx;
+		}
+		out << "\n";
+	}
+	points3DIn.close();
+
+	std::ofstream points3DOut(std::string(points3DFN.GetFullPath().mb_str(wxConvLibc)), std::ios::trunc);
+	if(!points3DOut.is_open())
+		return false;
+	points3DOut << out.str();
+
+	return true;
+}
+
 void R3DDensificationProcess::runSingleCommand()
 {
 	if(!cmds_.IsEmpty())
@@ -404,6 +657,9 @@ void R3DDensificationProcess::runSingleCommand()
 		cmds_.RemoveAt(0);
 		wxString progressText = progressTexts_[0];
 		progressTexts_.RemoveAt(0);
+		currentStepName_ = !stepNames_.IsEmpty() ? stepNames_[0] : progressText;
+		if(!stepNames_.IsEmpty())
+			stepNames_.RemoveAt(0);
 		pMainFrame_->sendUpdateProgressBarEvent(-1.0f, progressText);
 
 		// Cleanup
@@ -419,5 +675,17 @@ void R3DDensificationProcess::runSingleCommand()
 #else
 		processId_ = wxExecute(cmdLine, wxEXEC_ASYNC, this);
 #endif
+
+		if(processId_ <= 0)
+		{
+			// OnTerminate is never called for a process that never started
+			isOK_ = false;
+			errorMessage_ = wxString::Format(wxT("%s could not be started."), currentStepName_.c_str());
+			cmds_.Clear();
+			progressTexts_.Clear();
+			stepNames_.Clear();
+			checkForClusters_ = false;
+			pMainFrame_->sendDensificationFinishedEvent();
+		}
 	}
 }

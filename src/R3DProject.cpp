@@ -977,6 +977,14 @@ bool R3DProject::getProjectPathsDns(R3DProjectPaths &paths, R3DProject::Densific
 		denseModelFN.SetFullName(pDensification->finalDenseModelName_);
 		paths.relativeDenseModelName_ = std::string(denseModelFN.GetFullPath().mb_str(wxConvLibc));
 	}
+	else if(pDensification->densificationType_ == R3DProject::DTCOLMAP)
+	{
+		// colmap_fused.ply is written directly into relativeDensificationPath_,
+		// the same flat layout DTMVE uses
+		wxFileName denseModelFN(wxString(paths.relativeDensificationPath_.c_str(), wxConvLibc), wxT(""));
+		denseModelFN.SetFullName(pDensification->finalDenseModelName_);
+		paths.relativeDenseModelName_ = std::string(denseModelFN.GetFullPath().mb_str(wxConvLibc));
+	}
 
 	return true;
 }
@@ -1461,7 +1469,8 @@ void R3DProject::prepareDensification(R3DProject::Densification *pDensification)
 #endif
 	}
 	else if(pDensification->densificationType_ == R3DProject::DTMVE
-		|| pDensification->densificationType_ == R3DProject::DTSMVS)
+		|| pDensification->densificationType_ == R3DProject::DTSMVS
+		|| pDensification->densificationType_ == R3DProject::DTCOLMAP)
 	{
 		wxString mveOutPath(paths.relativeDensificationPath_.c_str(), wxConvLibc);
 		if(!wxFileName::DirExists(mveOutPath))
@@ -1779,7 +1788,9 @@ R3DProject::Densification::Densification()
 	pmvsLevel_(1), pmvsCSize_(2), pmvsThreshold_(0.7f), pmvsWSize_(7),
 	pmvsMinImageNum_(3), mveScale_(0), mveFilterWidth_(5), state_(R3DProject::OSInvalid),
 	smvsInputScale_(1), smvsOutputScale_(2), smvsEnableShadingBasedOptimization_(false),
-	smvsEnableSemiGlobalMatching_(true), smvsAlpha_(1.0f)
+	smvsEnableSemiGlobalMatching_(true), smvsAlpha_(1.0f),
+	colmapMaxImageSize_(-1), colmapWindowRadius_(5), colmapGeomConsistency_(true),
+	colmapFilter_(true), colmapMaxReprojError_(2.0f)
 {
 }
 
@@ -1811,6 +1822,11 @@ R3DProject::Densification &R3DProject::Densification::copy(const R3DProject::Den
 	smvsEnableShadingBasedOptimization_ = o.smvsEnableShadingBasedOptimization_;
 	smvsEnableSemiGlobalMatching_ = o.smvsEnableSemiGlobalMatching_;
 	smvsAlpha_ = o.smvsAlpha_;
+	colmapMaxImageSize_ = o.colmapMaxImageSize_;
+	colmapWindowRadius_ = o.colmapWindowRadius_;
+	colmapGeomConsistency_ = o.colmapGeomConsistency_;
+	colmapFilter_ = o.colmapFilter_;
+	colmapMaxReprojError_ = o.colmapMaxReprojError_;
 	finalDenseModelName_ = o.finalDenseModelName_;
 	runningTime_ = o.runningTime_;
 	state_ = o.state_;
@@ -1991,13 +2007,21 @@ void R3DProject::Densification::serialize(Archive & ar, const unsigned int versi
 		ar & boost::serialization::make_nvp("smvsEnableSemiGlobalMatching", smvsEnableSemiGlobalMatching_);
 		ar & boost::serialization::make_nvp("smvsAlpha", smvsAlpha_);
 	}
+	if(version > 1)
+	{
+		ar & boost::serialization::make_nvp("colmapMaxImageSize", colmapMaxImageSize_);
+		ar & boost::serialization::make_nvp("colmapWindowRadius", colmapWindowRadius_);
+		ar & boost::serialization::make_nvp("colmapGeomConsistency", colmapGeomConsistency_);
+		ar & boost::serialization::make_nvp("colmapFilter", colmapFilter_);
+		ar & boost::serialization::make_nvp("colmapMaxReprojError", colmapMaxReprojError_);
+	}
 	ar & boost::serialization::make_nvp("finalDenseModelName", finalDenseModelName_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("orientation", orientation_);
 	ar & boost::serialization::make_nvp("Surfaces", surfaces_);
 }
-BOOST_CLASS_VERSION(R3DProject::Densification, 1)
+BOOST_CLASS_VERSION(R3DProject::Densification, 2)
 
 // Serialize Triangulation class
 template<class Archive>

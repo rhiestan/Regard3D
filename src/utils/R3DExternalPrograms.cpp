@@ -109,10 +109,26 @@ bool R3DExternalPrograms::initialize()
 			// The exports
 			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2PMVS"), executableExtension, openMVG2PMVSPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2MVE2"), executableExtension, openMVG2MVE2Path_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2Colmap"), executableExtension, openMVG2ColmapPath_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2Agisoft"), executableExtension, openMVG2AgisoftPath_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2WebGL"), executableExtension, openMVG2WebGLPath_);
+			checkExecutable(openMVGPath, wxT("openMVG_main_ConvertSfM_DataFormat"), executableExtension, convertSfMDataFormatPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2MESHLAB"), executableExtension, openMVG2MeshLabPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2NVM"), executableExtension, openMVG2NVMPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2CMPMVS"), executableExtension, openMVG2CMPMVSPath_);
 			checkExecutable(openMVGPath, wxT("openMVG_main_openMVG2openMVS"), executableExtension, openMVG2openMVSPath_);
+		}
+
+		// COLMAP, used for dense reconstruction as an alternative to CMVS/PMVS,
+		// MVE and SMVS. Optional while those remain available, so a missing
+		// directory must not fail the check below.
+		wxFileName colmapFN(exeFN);
+		colmapFN.AppendDir(wxT("colmap"));
+		if(colmapFN.DirExists())
+		{
+			const wxString colmapPath(colmapFN.GetPath(wxPATH_GET_VOLUME));
+			allPaths_.Add(colmapPath);
+			checkExecutable(colmapPath, wxT("colmap"), executableExtension, colmapPath_);
 		}
 
 		// Graphviz, used by OpenMVG's global SfM engine: it renders the graphs of

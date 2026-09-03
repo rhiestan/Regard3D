@@ -46,11 +46,16 @@ public:
 	void cancel();
 	bool getWasCancelled() const { return wasCancelled_; }
 
+	// Results, read by Regard3DMainFrame::OnDensificationFinished
+	bool getIsOK() const { return isOK_; }
+	const wxString &getErrorMessage() const { return errorMessage_; }
+
 protected:
 	virtual void OnTerminate(int pid, int status);
 
 	void runSingleCommand();
 	bool writePMVSOptions();
+	bool fixColmapPoints3DFile();
 
 private:
 	Regard3DMainFrame *pMainFrame_;
@@ -62,13 +67,27 @@ private:
 	wxExecuteEnv env_;
 #endif
 	wxArrayString cmds_, progressTexts_;
+	// Name of the executable behind each queued command, used to say which
+	// step failed; currentStepName_ is the one belonging to the command
+	// that is running (or just finished) at any given moment
+	wxArrayString stepNames_;
+	wxString currentStepName_;
 
 	bool checkForClusters_, wasCancelled_;
+	bool isOK_;
+	wxString errorMessage_;
 	// The parameters of the dialog have to go into the pmvs_options.txt that
 	// openMVG_main_openMVG2PMVS wrote, once it has run
 	bool writePMVSOptions_;
 	wxString relativePMVSOutPath_;
 	int numberOfClusters_;
+
+	// openMVG_main_openMVG2Colmap writes points3D.txt with each observation's
+	// raw feature index instead of the position Colmap expects within the
+	// image's own POINTS2D[] list (see fixColmapPoints3DFile()); patched once
+	// the export, the first command of the queue, has run
+	bool fixColmapSparseModel_;
+	wxString relativeColmapSparsePath_;
 };
 
 #endif

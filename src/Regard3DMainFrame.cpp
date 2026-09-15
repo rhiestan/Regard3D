@@ -1366,11 +1366,15 @@ void Regard3DMainFrame::OnComputeMatchesFinished( wxCommandEvent &event )
 }
 
 /**
- * openMVG_main_SfM has terminated.
+ * openMVG_main_SfM or colmap have terminated.
  *
- * What it wrote still has to be colorized and measured, which is library work,
- * so the triangulation thread finishes the job and both engines end up in
- * OnTriangulationFinished.
+ * What openMVG_main_SfM wrote still has to be colorized and measured, which is
+ * library work, so the triangulation thread finishes that job and both of
+ * those engines end up in OnTriangulationFinished.
+ *
+ * COLMAP needs none of that: its own last step (model_converter) already
+ * wrote FinalColorized.ply with the colors COLMAP extracted itself while
+ * mapping, so a COLMAP run finishes right here instead.
  */
 void Regard3DMainFrame::OnTriangulationProcessFinished( wxCommandEvent &event )
 {
@@ -1387,6 +1391,59 @@ void Regard3DMainFrame::OnTriangulationProcessFinished( wxCommandEvent &event )
 
 	delete pTriangulationProcess_;
 	pTriangulationProcess_ = NULL;
+
+	if(pTriangulation != NULL && pTriangulation->computeEngine_ == 2)
+	{
+		if(pProgressDialog_ != NULL)
+		{
+			pProgressDialog_->EndDialog();
+			delete pProgressDialog_;
+			pProgressDialog_ = NULL;
+		}
+
+		R3DProjectPaths paths;
+		project_.getProjectPathsTri(paths, pTriangulation);
+
+		if(isOK)
+		{
+			wxString runTimeStr;
+			if(runTime.GetHours() > 0)
+				runTimeStr = runTime.Format(wxT("%H:%M:%S.%l"));
+			else
+				runTimeStr = runTime.Format(wxT("%M:%S.%l"));
+			pTriangulation->runningTime_ = runTimeStr;
+
+			pTriangulation->state_ = R3DProject::OSFinished;
+			project_.save();
+
+			wxFileName modelName(wxString(paths.relativeOutPath_.c_str(), *wxConvCurrent), wxT("FinalColorized.ply"));
+			if(modelName.FileExists())
+			{
+				load3DModel(modelName.GetFullPath());
+				setProjectTreeItemBold(pTriangulation->id_);
+			}
+			else
+			{
+				setProjectTreeItemBold(-1);
+				wxMessageBox(wxT("Error: Result file not found"),
+					wxT("Show triangulated points"), wxICON_ERROR | wxOK, this);
+			}
+			updateProjectDetails();
+			// COLMAP writes no HTML report; leave the button pointing at nothing
+			htmlReportFilename_.Clear();
+		}
+		else
+		{
+			project_.removeTriangulation(pTriangulation);
+			project_.save();
+			project_.populateTreeControl(pProjectTreeCtrl_);
+
+			if(!wasCancelled)		// The user pressed Abort, they know
+				wxMessageBox(errorMessage,
+					wxT("Triangulation"), wxICON_ERROR | wxOK, this);
+		}
+		return;
+	}
 
 	if(pR3DTriangulationThread_ != NULL)
 		delete pR3DTriangulationThread_;
@@ -2279,6 +2336,21 @@ void Regard3DMainFrame::updateProjectDetails()
 					params.Append(wxT("/Matching method: "));
 					params.Append(R3DOpenMVGOptions::matcherName(omvg.nearestMatchingMethod_));
 				}
+				else if(pComputeMatches->computeEngine_ == 2)
+				{
+					static const wxChar *kColmapCameraModels[] = {
+						wxT("SIMPLE_PINHOLE"), wxT("PINHOLE"), wxT("SIMPLE_RADIAL"),
+						wxT("RADIAL"), wxT("OPENCV")
+					};
+					const R3DColmapMatchingParams &colmap = pComputeMatches->colmapParams_;
+					const int camIdx = (colmap.cameraModel_ >= 0
+						&& colmap.cameraModel_ < static_cast<int>(WXSIZEOF(kColmapCameraModels)))
+						? colmap.cameraModel_ : 2;
+					params = wxString::Format(wxT("COLMAP/Camera model: %s/Matcher: %s/Max features: %d"),
+						kColmapCameraModels[camIdx],
+						colmap.matcherType_ == 1 ? wxT("Sequential") : wxT("Exhaustive"),
+						colmap.maxNumFeatures_);
+				}
 				else
 				{
 					if(!pComputeMatches->featureDetector_.IsEmpty())
@@ -2329,7 +2401,13 @@ void Regard3DMainFrame::updateProjectDetails()
 			if(pTriangulation != NULL)
 			{
 				name = pTriangulation->name_;
-				if(pTriangulation->version_ == R3DProject::R3DTV_0_7)
+				if(pTriangulation->computeEngine_ == 2)
+				{
+					// COLMAP's mapper runs with its own defaults; none of
+					// Regard3D's triangulation parameters below apply to it
+					params = wxT("COLMAP mapper (default settings)");
+				}
+				else if(pTriangulation->version_ == R3DProject::R3DTV_0_7)
 				{
 					if(pTriangulation->global_)
 					{
@@ -2662,6 +2740,11 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 			featureDetector = R3DOpenMVGOptions::describerName(dlgResults.openMVG_.describerMethod_);
 			descriptorExtractor = featureDetector;
 		}
+		else if(dlgResults.engine_ == 2)
+		{
+			featureDetector = wxT("COLMAP SIFT");
+			descriptorExtractor = featureDetector;
+		}
 		else
 		{
 			for(const auto &kd : params.keypointDetectorList_)
@@ -2673,7 +2756,7 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 		}
 		int newID = project_.addComputeMatches(pPictureSet, featureDetector, descriptorExtractor,
 			keypointSensitivity, keypointMatchingRatio, cameraModel, matchingAlgorithm,
-			dlgResults.engine_, dlgResults.openMVG_);
+			dlgResults.engine_, dlgResults.openMVG_, dlgResults.colmap_);
 		if(newID >= 0)
 		{
 			project_.populateTreeControl(pProjectTreeCtrl_);
@@ -2691,12 +2774,15 @@ void Regard3DMainFrame::addComputeMatches(R3DProject::PictureSet *pPictureSet)
 			return;
 		pComputeMatches->state_ = R3DProject::OSRunning;
 
-		if(dlgResults.engine_ == 1)
+		if(dlgResults.engine_ == 1 || dlgResults.engine_ == 2)
 		{
-			// The OpenMVG executables need the matches directory emptied and
-			// sfm_data.bin written before they start. That is slow, so it runs
-			// in a thread; R3DComputeMatchesProcess is started afterwards, from
-			// OnSmallTaskFinished, because wxExecute needs the main thread.
+			// Both external-tool engines need the matches directory emptied
+			// and the images imported before they start (COLMAP reads them
+			// straight from the picture set's image directory, same as
+			// OpenMVG; only OpenMVG additionally needs sfm_data.bin). That is
+			// slow, so it runs in a thread; R3DComputeMatchesProcess is
+			// started afterwards, from OnSmallTaskFinished, because wxExecute
+			// needs the main thread.
 			if(pR3DSmallTasksThread_ != NULL)
 				delete pR3DSmallTasksThread_;
 			pR3DSmallTasksThread_ = new R3DSmallTasksThread();
@@ -2821,10 +2907,10 @@ void Regard3DMainFrame::triangulate(R3DProject::ComputeMatches *pComputeMatches)
 		clear3DModel();
 		setProjectTreeItemBold(-1);
 
-		if(dlgResults.engine_ == 1)
+		if(dlgResults.engine_ == 1 || dlgResults.engine_ == 2)
 		{
-			// openMVG_main_SfM does the reconstruction; the thread takes over
-			// afterwards, in OnTriangulationProcessFinished
+			// openMVG_main_SfM or colmap does the reconstruction; either way
+			// OnTriangulationProcessFinished takes over once it terminates
 			pTriangulationProcess_ = new R3DTriangulationProcess(this);
 			pTriangulationProcess_->runTriangulationProcess(pTriangulation);
 		}
@@ -2861,7 +2947,10 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 {
 	R3DProjectPaths paths;
 	project_.getProjectPathsTri(paths, pTriangulation);
-	if(!OpenMVGHelper::hasTriSfM_DataFile(paths))
+	// A COLMAP-native triangulation has its own sparse model instead of
+	// sfm_data.bin (see R3DDensificationProcess), so it never has to pass
+	// this check, which only guards against pre-0.8 project files.
+	if(pTriangulation->computeEngine_ != 2 && !OpenMVGHelper::hasTriSfM_DataFile(paths))
 	{
 		wxMessageBox(wxT("This triangulation has been created with a Regard3D version before 0.8.\nPlease create a triangulation with the current version\nand rerun the densification."),
 			wxT("Densification error"), wxICON_ERROR | wxOK);
@@ -2869,6 +2958,7 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 	}
 
 	Regard3DDensificationDialog dlg(this);
+	dlg.setColmapOnly(pTriangulation->computeEngine_ == 2);
 	if(dlg.ShowModal() == wxID_OK)
 	{
 		int newID = project_.addDensification(pTriangulation);
@@ -2907,13 +2997,17 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 		if(pDensification->densificationType_ == R3DProject::R3DDensificationType::DTCOLMAP)
 		{
 			R3DExternalPrograms &extPrograms = R3DExternalPrograms::getInstance();
+			// A COLMAP-native triangulation already has its own sparse model,
+			// so densification skips openMVG_main_openMVG2Colmap entirely (see
+			// R3DDensificationProcess) and does not need it installed.
+			const bool nativeColmapTriangulation = (pTriangulation->computeEngine_ == 2);
 			// COLMAP's dense stereo (patch_match_stereo) has no CPU
 			// implementation - it requires an NVIDIA/CUDA GPU and the
 			// colmap_cuda build unconditionally; colmap_nocuda can only ever
 			// fail at that step, so it doesn't count as "COLMAP available"
 			// here even if it is installed.
 			if(extPrograms.getColmapCudaPath().IsEmpty()
-				|| extPrograms.getOpenMVG2ColmapPath().IsEmpty())
+				|| (!nativeColmapTriangulation && extPrograms.getOpenMVG2ColmapPath().IsEmpty()))
 			{
 				wxMessageBox(wxT("COLMAP (CUDA build) was not found.\n\n")
 					wxT("COLMAP's dense reconstruction step has no CPU fallback, so it needs\n")
@@ -3009,7 +3103,9 @@ void Regard3DMainFrame::createSurface(R3DProject::Densification *pDensification)
 {
 	R3DProjectPaths paths;
 	project_.getProjectPathsDns(paths, pDensification);
-	if(!OpenMVGHelper::hasTriSfM_DataFile(paths))
+	// Same exemption as createDensePointcloud(): a COLMAP-native triangulation
+	// has no sfm_data.bin by design, not because it predates 0.8.
+	if(paths.triangulationEngine_ != 2 && !OpenMVGHelper::hasTriSfM_DataFile(paths))
 	{
 		wxMessageBox(wxT("This triangulation has been created with a Regard3D version before 0.8.\nPlease create a triangulation with the current version\nand rerun the densification."),
 			wxT("Surface generation error"), wxICON_ERROR | wxOK);

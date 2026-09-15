@@ -51,6 +51,9 @@ struct R3DComputeMatchesDialogResults
 
 	// OpenMVG engine
 	R3DOpenMVGMatchingParams openMVG_;
+
+	// COLMAP engine
+	R3DColmapMatchingParams colmap_;
 };
 
 class Regard3DComputeMatchesDialog: public Regard3DComputeMatchesDialogBase
@@ -78,6 +81,10 @@ protected:
 	bool readOpenMVGPage();
 	void updateOpenMVGDescriberDependencies();
 	void updateOpenMVGPairModeDependencies();
+
+	bool checkColmapExecutables();
+	void initializeColmapPage();
+	bool readColmapPage();
 	bool readNumericField(wxTextCtrl *pTextCtrl, const wxString &name,
 		double minValue, double maxValue, double &value);
 

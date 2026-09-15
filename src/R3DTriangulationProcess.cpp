@@ -36,7 +36,7 @@ namespace
 
 R3DTriangulationProcess::R3DTriangulationProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame), pTriangulation_(NULL),
-	processId_(0), isOK_(true), wasCancelled_(false)
+	processId_(0), stepCount_(0), stepsDone_(0), isOK_(true), wasCancelled_(false)
 {
 }
 
@@ -109,6 +109,22 @@ bool R3DTriangulationProcess::runTriangulationProcess(R3DProject::Triangulation 
 		env_.env = envVars;
 	}
 #endif
+
+	if(pTriangulation->computeEngine_ == 2)
+	{
+		if(!buildColmapCommandList(paths_))
+		{
+			finish();
+			return false;
+		}
+
+		stepCount_ = static_cast<int>(cmds_.GetCount());
+		stepsDone_ = 0;
+
+		runSingleCommand();
+
+		return (processId_ > 0);
+	}
 
 	if(!buildCommand(paths_))
 	{
@@ -230,6 +246,115 @@ bool R3DTriangulationProcess::buildCommand(const R3DProjectPaths &paths)
 	return true;
 }
 
+/**
+ * COLMAP variant: mapper reconstructs from the database a COLMAP ComputeMatches
+ * wrote, then model_converter turns its sparse model into FinalColorized.ply -
+ * COLMAP extracted point colors itself while mapping, so this is directly the
+ * file Regard3DMainFrame looks for after a triangulation finishes, whichever
+ * engine produced it.
+ *
+ * mapper always writes below output_path/<model id>, numbering from 0; model 0
+ * is what Regard3D uses. A scene that does not form one connected
+ * reconstruction can end up with no model 0 at all, which model_converter then
+ * fails on - caught the same way any other step failing is, by its exit code.
+ */
+bool R3DTriangulationProcess::buildColmapCommandList(const R3DProjectPaths &paths)
+{
+	R3DExternalPrograms &progs = R3DExternalPrograms::getInstance();
+	const wxString colmapExe(progs.getBestColmapPath());
+	if(colmapExe.IsEmpty())
+	{
+		isOK_ = false;
+		errorMessage_ = wxT("COLMAP was not found.\n\n")
+			wxT("Please put colmap.exe into the subdirectory \"colmap_cuda\" and/or\n")
+			wxT("\"colmap_nocuda\" of the external tools directory, or use a\n")
+			wxT("different triangulation engine.");
+		return false;
+	}
+
+	const wxString databasePath(quoted(wxString(paths.relativeColmapDatabaseFilename_.c_str(), wxConvLibc)));
+	const wxString imagePath(quoted(wxString(paths.relativeImagePath_.c_str(), wxConvLibc)));
+
+	wxFileName modelPathFN(wxString(paths.relativeColmapModelPath_.c_str(), wxConvLibc), wxEmptyString);
+	if(!modelPathFN.DirExists())
+#if wxCHECK_VERSION(2, 9, 0)
+		wxFileName::Mkdir(modelPathFN.GetPath(wxPATH_GET_VOLUME), wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+#else
+		wxFileName::Mkdir(modelPathFN.GetPath(wxPATH_GET_VOLUME), 0777, wxPATH_MKDIR_FULL);
+#endif
+	const wxString modelPath(quoted(modelPathFN.GetPath(wxPATH_GET_VOLUME)));
+
+	wxFileName model0FN(modelPathFN);
+	model0FN.AppendDir(wxT("0"));
+	const wxString model0Path(quoted(model0FN.GetPath(wxPATH_GET_VOLUME)));
+
+	wxFileName finalPlyFN(wxString(paths.relativeOutPath_.c_str(), wxConvLibc), wxT("FinalColorized.ply"));
+	const wxString finalPlyPath(quoted(finalPlyFN.GetFullPath()));
+
+	cmds_.Clear();
+	progressTexts_.Clear();
+	stepNames_.Clear();
+
+	cmds_.Add(quoted(colmapExe) + wxT(" mapper")
+		+ wxT(" --database_path ") + databasePath
+		+ wxT(" --image_path ") + imagePath
+		+ wxT(" --output_path ") + modelPath);
+	progressTexts_.Add(wxT("Reconstructing scene (COLMAP)"));
+	stepNames_.Add(wxT("colmap mapper"));
+
+	cmds_.Add(quoted(colmapExe) + wxT(" model_converter")
+		+ wxT(" --input_path ") + model0Path
+		+ wxT(" --output_path ") + finalPlyPath
+		+ wxT(" --output_type PLY"));
+	progressTexts_.Add(wxT("Exporting model (COLMAP)"));
+	stepNames_.Add(wxT("colmap model_converter"));
+
+	return true;
+}
+
+void R3DTriangulationProcess::runSingleCommand()
+{
+	if(cmds_.IsEmpty())
+		return;
+
+	Redirect();	// Redirect I/O, hide console window
+
+	wxString cmdLine = cmds_[0];
+	cmds_.RemoveAt(0);
+	wxString progressText = progressTexts_[0];
+	progressTexts_.RemoveAt(0);
+	currentStepName_ = stepNames_[0];
+	stepNames_.RemoveAt(0);
+
+	const float progress = (stepCount_ > 0
+		? static_cast<float>(stepsDone_) / static_cast<float>(stepCount_) : 0.0f);
+	pMainFrame_->sendUpdateProgressBarEvent(progress, progressText);
+
+	if(GetInputStream() != NULL)
+		delete GetInputStream();
+	if(GetErrorStream() != NULL)
+		delete GetErrorStream();
+	if(GetOutputStream() != NULL)
+		delete GetOutputStream();
+	SetPipeStreams(NULL, NULL, NULL);
+#if wxCHECK_VERSION(2, 9, 0)
+	processId_ = wxExecute(cmdLine, wxEXEC_ASYNC, this, &env_);
+#else
+	processId_ = wxExecute(cmdLine, wxEXEC_ASYNC, this);
+#endif
+
+	if(processId_ <= 0)
+	{
+		isOK_ = false;
+		errorMessage_ = wxString::Format(wxT("%s could not be started."),
+			currentStepName_.c_str());
+		cmds_.Clear();
+		progressTexts_.Clear();
+		stepNames_.Clear();
+		finish();
+	}
+}
+
 void R3DTriangulationProcess::readConsoleOutput()
 {
 	// Forwarded to std::cout/std::cerr, where the console output window picks
@@ -271,6 +396,11 @@ void R3DTriangulationProcess::cancel()
 
 	wasCancelled_ = true;
 
+	// Whatever is still queued would run on data the killed tool never wrote
+	cmds_.Clear();
+	progressTexts_.Clear();
+	stepNames_.Clear();
+
 	// wxKILL_CHILDREN in case the tool started helpers of its own
 	wxProcess::Kill(processId_, wxSIGKILL, wxKILL_CHILDREN);
 }
@@ -281,6 +411,49 @@ void R3DTriangulationProcess::OnTerminate(int pid, int status)
 
 	// This process is gone; cancel() must not kill a recycled pid
 	processId_ = 0;
+
+	const bool isColmap = (pTriangulation_ != NULL && pTriangulation_->computeEngine_ == 2);
+
+	if(isColmap)
+	{
+		stepsDone_++;
+
+		if(wasCancelled_)
+		{
+			isOK_ = false;
+			errorMessage_ = wxT("Aborted.");
+		}
+		else if(status != 0)
+		{
+			isOK_ = false;
+			errorMessage_ = wxString::Format(
+				wxT("%s returned with error code %d.\n\nPlease check the console output for details."),
+				currentStepName_.c_str(), status);
+			cmds_.Clear();
+			progressTexts_.Clear();
+			stepNames_.Clear();
+		}
+
+		if(cmds_.IsEmpty())
+		{
+			if(isOK_)
+			{
+				wxFileName finalPlyFN(wxString(paths_.relativeOutPath_.c_str(), wxConvLibc), wxT("FinalColorized.ply"));
+				finalPlyFN.MakeAbsolute(paths_.absoluteProjectPath_);
+				if(!finalPlyFN.FileExists())
+				{
+					isOK_ = false;
+					errorMessage_ = wxT("COLMAP wrote no reconstruction.\n\n")
+						wxT("Please check the console output for details.");
+				}
+			}
+			finish();
+		}
+		else
+			runSingleCommand();
+
+		return;
+	}
 
 	if(wasCancelled_)
 	{

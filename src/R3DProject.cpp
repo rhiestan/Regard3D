@@ -432,7 +432,8 @@ int R3DProject::clonePictureSet(R3DProject::PictureSet *pPictureSet)
 int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 	const wxString &featureDetector, const wxString &descriptorExtractor,
 	float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm,
-	int computeEngine, const R3DOpenMVGMatchingParams &openMVGParams)
+	int computeEngine, const R3DOpenMVGMatchingParams &openMVGParams,
+	const R3DColmapMatchingParams &colmapParams)
 {
 	if(pPictureSet == NULL)
 		return -1;
@@ -455,6 +456,7 @@ int R3DProject::addComputeMatches(R3DProject::PictureSet *pPictureSet,
 	cm.matchingAlgorithm_ = matchingAlgorithm;
 	cm.computeEngine_ = computeEngine;
 	cm.openMVGParams_ = openMVGParams;
+	cm.colmapParams_ = colmapParams;
 	cm.state_ = OSInvalid;
 	pPictureSet->computeMatches_.push_back(cm);
 
@@ -817,6 +819,7 @@ bool R3DProject::getProjectPathsCM(R3DProjectPaths &paths, R3DProject::ComputeMa
 	paths.triangulationId_ = 0;			// Not needed/not known for compute matches step
 	paths.densificationId_ = 0;
 	paths.surfaceId_ = 0;
+	paths.triangulationEngine_ = -1;		// Not needed/not known for compute matches step
 	paths.absoluteProjectPath_ = projectPath_;
 
 	wxString pictureSetPathRunning = wxString( pPictureSet->getBasePathname().c_str(), wxConvLibc)
@@ -876,6 +879,10 @@ bool R3DProject::getProjectPathsCM(R3DProjectPaths &paths, R3DProject::ComputeMa
 	matchesHFN.SetFullName(wxT("matches.h.txt"));
 	paths.matchesHFilename_ = std::string(matchesHFN.GetFullPath().mb_str(wxConvLibc));
 
+	wxFileName colmapDatabaseFN(matchesPathFN);
+	colmapDatabaseFN.SetFullName(wxT("database.db"));
+	paths.relativeColmapDatabaseFilename_ = std::string(colmapDatabaseFN.GetFullPath().mb_str(wxConvLibc));
+
 	return true;
 }
 
@@ -924,6 +931,11 @@ bool R3DProject::getProjectPathsTri(R3DProjectPaths &paths, R3DProject::Triangul
 	// below its -o, which is why the out path is what it is passed
 	outPathMVESceneDirFN.AppendDir(wxT("MVE"));
 	paths.relativeMVESceneDir_  = std::string(outPathMVESceneDirFN.GetPath(wxPATH_GET_VOLUME).mb_str(wxConvLibc));
+
+	paths.triangulationEngine_ = pTriangulation->computeEngine_;
+	wxFileName colmapModelFN(outPathFN);
+	colmapModelFN.AppendDir(wxT("colmap_sparse"));
+	paths.relativeColmapModelPath_ = std::string(colmapModelFN.GetPath(wxPATH_GET_VOLUME).mb_str(wxConvLibc));
 
 	return true;
 }
@@ -1678,6 +1690,12 @@ R3DOpenMVGTriangulationParams::R3DOpenMVGTriangulationParams()
 {
 }
 
+R3DColmapMatchingParams::R3DColmapMatchingParams()
+	// COLMAP's own defaults: SIMPLE_RADIAL, exhaustive_matcher, 8192 features
+	: cameraModel_(2), singleCamera_(false), maxNumFeatures_(8192), matcherType_(0)
+{
+}
+
 R3DProject::ComputeMatches::ComputeMatches()
 	: Object(), threshold_(0), distRatio_(0),
 	cameraModel_(3), matchingAlgorithm_(0),
@@ -1708,6 +1726,7 @@ R3DProject::ComputeMatches &R3DProject::ComputeMatches::copy(const R3DProject::C
 	matchingAlgorithm_ = o.matchingAlgorithm_;
 	computeEngine_ = o.computeEngine_;
 	openMVGParams_ = o.openMVGParams_;
+	colmapParams_ = o.colmapParams_;
 	state_ = o.state_;
 	numberOfKeypoints_ = o.numberOfKeypoints_;
 	runningTime_ = o.runningTime_;
@@ -2121,6 +2140,15 @@ void R3DOpenMVGTriangulationParams::serialize(Archive & ar, const unsigned int W
 	ar & boost::serialization::make_nvp("matchesFile", matchesFile_);
 }
 
+template<class Archive>
+void R3DColmapMatchingParams::serialize(Archive & ar, const unsigned int WXUNUSED(version))
+{
+	ar & boost::serialization::make_nvp("cameraModel", cameraModel_);
+	ar & boost::serialization::make_nvp("singleCamera", singleCamera_);
+	ar & boost::serialization::make_nvp("maxNumFeatures", maxNumFeatures_);
+	ar & boost::serialization::make_nvp("matcherType", matcherType_);
+}
+
 // Serialize ComputeMatches class
 template<class Archive>
 void R3DProject::ComputeMatches::serialize(Archive & ar, const unsigned int version)
@@ -2149,12 +2177,14 @@ void R3DProject::ComputeMatches::serialize(Archive & ar, const unsigned int vers
 		// always uses the current version.
 		computeEngine_ = 0;
 	}
+	if(version > 3)
+		ar & boost::serialization::make_nvp("colmapParams", colmapParams_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("numberOfKeypoints", numberOfKeypoints_);
 	ar & boost::serialization::make_nvp("Triangulations", triangulations_);
 }
-BOOST_CLASS_VERSION(R3DProject::ComputeMatches, 3)
+BOOST_CLASS_VERSION(R3DProject::ComputeMatches, 4)
 
 // Serialize PictureSet class
 template<class Archive>

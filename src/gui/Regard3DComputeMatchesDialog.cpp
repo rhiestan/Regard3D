@@ -124,6 +124,7 @@ void Regard3DComputeMatchesDialog::OnInitDialog( wxInitDialogEvent& event )
 	pCameraModelChoice_->SetSelection(cameraModel_ - 1);
 
 	initializeOpenMVGPage();
+	initializeColmapPage();
 
 	// OpenMVG is the default, but only where its executables are installed
 	if(results_.engine_ == 1 && !openMVGCoreToolsPresent())
@@ -172,6 +173,14 @@ void Regard3DComputeMatchesDialog::OnOKButtonClick(wxCommandEvent& event)
 				return;
 
 			if(!readOpenMVGPage())
+				return;
+		}
+		else if(results_.engine_ == 2)
+		{
+			if(!checkColmapExecutables())
+				return;
+
+			if(!readColmapPage())
 				return;
 		}
 
@@ -447,6 +456,50 @@ bool Regard3DComputeMatchesDialog::readOpenMVGPage()
 	}
 
 	results_.openMVG_ = p;
+	return true;
+}
+
+/**
+ * COLMAP is only ever run from colmap_cuda/ or colmap_nocuda/ (see
+ * R3DExternalPrograms), whichever is installed - feature extraction and
+ * matching have a working CPU path, unlike densification's patch_match_stereo.
+ */
+bool Regard3DComputeMatchesDialog::checkColmapExecutables()
+{
+	if(!R3DExternalPrograms::getInstance().getBestColmapPath().IsEmpty())
+		return true;
+
+	wxMessageBox(wxT("COLMAP was not found.\n\n")
+		wxT("Please put colmap.exe into the subdirectory \"colmap_cuda\" and/or\n")
+		wxT("\"colmap_nocuda\" of the external tools directory next to Regard3D,\n")
+		wxT("or use a different matching engine."),
+		wxT("COLMAP executables not found"), wxICON_ERROR | wxOK, this);
+	return false;
+}
+
+void Regard3DComputeMatchesDialog::initializeColmapPage()
+{
+	const R3DColmapMatchingParams &p = results_.colmap_;
+
+	setChoiceSelection(pColmapCMCameraModelChoice_, p.cameraModel_);
+	pColmapCMSingleCameraCheckBox_->SetValue(p.singleCamera_);
+	pColmapCMMatcherChoice_->SetSelection(p.matcherType_);
+	pColmapCMMaxFeaturesTextCtrl_->SetValue(wxString::Format(wxT("%d"), p.maxNumFeatures_));
+}
+
+bool Regard3DComputeMatchesDialog::readColmapPage()
+{
+	R3DColmapMatchingParams p;
+	double value = 0;
+
+	p.cameraModel_ = pColmapCMCameraModelChoice_->GetCurrentSelection();
+	p.singleCamera_ = pColmapCMSingleCameraCheckBox_->GetValue();
+	p.matcherType_ = pColmapCMMatcherChoice_->GetCurrentSelection();
+	if(!readNumericField(pColmapCMMaxFeaturesTextCtrl_, wxT("Max number of features"), 100, 1000000, value))
+		return false;
+	p.maxNumFeatures_ = static_cast<int>(value);
+
+	results_.colmap_ = p;
 	return true;
 }
 

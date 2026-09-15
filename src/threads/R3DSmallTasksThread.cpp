@@ -212,8 +212,11 @@ wxThread::ExitCode R3DSmallTasksThread::Entry()
 			pProject->importAllImages(paths);
 
 			// The OpenMVG executables read the scene from this file; the library
-			// engine writes it too, inside R3DComputeMatches::computeMatches
-			pProject->writeSfmData(paths, pComputeMatches_->cameraModel_);
+			// engine writes it too, inside R3DComputeMatches::computeMatches.
+			// COLMAP reads the images directly and builds its own database, so
+			// it needs none of this.
+			if(pComputeMatches_->computeEngine_ != 2)
+				pProject->writeSfmData(paths, pComputeMatches_->cameraModel_);
 		}
 	}
 

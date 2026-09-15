@@ -37,7 +37,14 @@ class Regard3DMainFrame;
  * alike. openMVG_main_SfM writes sfm_data.bin, cloud_and_poses.ply and
  * SfMReconstruction_Report.html into the triangulation's out directory; the
  * colorized model Regard3D displays is produced afterwards, by
- * R3DSmallTasksThread::finishTriangulation.
+ * R3DTriangulationThread::finishExternalTriangulation.
+ *
+ * When R3DProject::Triangulation::computeEngine_ is 2 (COLMAP), this instead
+ * chains colmap mapper (reads the database a COLMAP ComputeMatches wrote,
+ * writes a sparse model) and colmap model_converter (turns that model into
+ * FinalColorized.ply directly - COLMAP extracts point colors itself, so there
+ * is no separate colorization step the way there is for OpenMVG). Regard3DMainFrame
+ * finishes a COLMAP run right here, without R3DTriangulationThread.
  */
 class R3DTriangulationProcess : public wxProcess
 {
@@ -67,6 +74,8 @@ protected:
 	virtual void OnTerminate(int pid, int status);
 
 	bool buildCommand(const R3DProjectPaths &paths);
+	bool buildColmapCommandList(const R3DProjectPaths &paths);
+	void runSingleCommand();
 	void finish();
 
 private:
@@ -79,7 +88,14 @@ private:
 #if wxCHECK_VERSION(2, 9, 2)
 	wxExecuteEnv env_;
 #endif
+	// openMVG_main_SfM: a single command, run directly
 	wxString cmd_;
+	// COLMAP: mapper + model_converter, chained the way
+	// R3DComputeMatchesProcess chains its steps. Empty for the OpenMVG engine.
+	wxArrayString cmds_, progressTexts_;
+	wxArrayString stepNames_;
+	wxString currentStepName_;
+	int stepCount_, stepsDone_;
 
 	bool isOK_, wasCancelled_;
 	wxString errorMessage_;

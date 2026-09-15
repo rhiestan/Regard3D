@@ -29,13 +29,18 @@ namespace
 }
 
 Regard3DDensificationDialog::Regard3DDensificationDialog(wxWindow *pParent)
-	: Regard3DDensificationDialogBase(pParent)
+	: Regard3DDensificationDialogBase(pParent), colmapOnly_(false)
 {
 	maxImage_ = wxString(wxT("100"));
 }
 
 Regard3DDensificationDialog::~Regard3DDensificationDialog()
 {
+}
+
+void Regard3DDensificationDialog::setColmapOnly(bool colmapOnly)
+{
+	colmapOnly_ = colmapOnly;
 }
 
 void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensification)
@@ -83,7 +88,22 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 {
 	wxDialog::OnInitDialog(event);	// Call base class to initalize validators
 
-	pDensificationMethodChoicebook_->SetSelection(0);
+	if(colmapOnly_)
+	{
+		// Page 3 is COLMAP (see getResults()); lock the selector on it instead
+		// of the whole control, so the COLMAP page's own controls stay usable
+		pDensificationMethodChoicebook_->SetSelection(3);
+		wxWindow *pChoiceCtrl = pDensificationMethodChoicebook_->GetChoiceCtrl();
+		if(pChoiceCtrl != NULL)
+		{
+			pChoiceCtrl->Enable(false);
+			pChoiceCtrl->SetToolTip(wxT("This triangulation was computed by COLMAP, so only COLMAP ")
+				wxT("can densify it: CMVS/PMVS, MVE and SMVS all need an OpenMVG ")
+				wxT("reconstruction, which this triangulation does not have."));
+		}
+	}
+	else
+		pDensificationMethodChoicebook_->SetSelection(0);
 
 	pMaxImageTextCtrl_->SetValue(wxT("100"));
 	//TransferDataToWindow();

@@ -101,6 +101,33 @@ struct R3DOpenMVGTriangulationParams
 	int matchesFile_;			// 0: pick from the SfM engine
 };
 
+/**
+ * Parameters for COLMAP's feature_extractor and matcher commands.
+ *
+ * COLMAP's own triangulation step (mapper) needs none of its own: it just
+ * reads the database these two write, so there is no equivalent triangulation
+ * params struct.
+ */
+struct R3DColmapMatchingParams
+{
+	R3DColmapMatchingParams();
+
+	friend class boost::serialization::access;
+	template<class Archive>
+	void serialize(Archive & ar, const unsigned int version);
+
+	// colmap feature_extractor --ImageReader.camera_model. Index into the
+	// small table Regard3DComputeMatchesDialog keeps (SIMPLE_PINHOLE,
+	// PINHOLE, SIMPLE_RADIAL, RADIAL, OPENCV).
+	int cameraModel_;
+	// --ImageReader.single_camera: all images share one camera/calibration
+	bool singleCamera_;
+	// --SiftExtraction.max_num_features
+	int maxNumFeatures_;
+	// 0: exhaustive_matcher, 1: sequential_matcher
+	int matcherType_;
+};
+
 struct R3DProjectPaths
 {
 	wxString absoluteProjectPath_;
@@ -124,6 +151,17 @@ struct R3DProjectPaths
 	std::string relativeDenseModelName_;
 	std::string relativeDensificationPath_;
 	std::string relativeSurfacePath_;
+	// database.db that colmap feature_extractor/matcher write to, set at the
+	// ComputeMatches level
+	std::string relativeColmapDatabaseFilename_;
+	// Directory colmap mapper writes its sparse model(s) into, set at the
+	// Triangulation level. The reconstruction itself lands in "0" below it
+	// (COLMAP's own convention); only used when triangulationEngine_ == 2.
+	std::string relativeColmapModelPath_;
+	// Copy of Triangulation::computeEngine_, so code holding only the paths
+	// (R3DDensificationProcess) can tell whether the sparse model above is a
+	// native COLMAP one, without re-fetching the Triangulation object.
+	int triangulationEngine_;
 
 	int pictureSetId_, computeMatchesId_, triangulationId_;
 	int densificationId_, surfaceId_;
@@ -342,8 +380,11 @@ public:
 		bool refineIntrinsics_;
 		int rotAveraging_, transAveraging_;
 		bool useGPSInfo_;
-		// Which engine computed this: 0 the built-in one, 1 openMVG_main_SfM.
-		// Same numbering as pTriEngineRadioBox_ in the dialog.
+		// Which engine computed this: 0 the built-in one, 1 openMVG_main_SfM,
+		// 2 colmap mapper. Same numbering as pTriEngineRadioBox_ in the dialog.
+		// COLMAP triangulation only reads a database a COLMAP ComputeMatches
+		// wrote, so engine 2 here requires the parent ComputeMatches to have
+		// computeEngine_ == 2 as well; there is no cross-engine path.
 		int computeEngine_;
 		R3DOpenMVGTriangulationParams openMVGParams_;
 		R3DObjectState state_;
@@ -376,9 +417,11 @@ public:
 		float threshold_, distRatio_;
 		int cameraModel_, matchingAlgorithm_;
 		// Which engine computed this: 0 the built-in one, 1 the OpenMVG
-		// executables. Same numbering as the pages of the dialog's choicebook.
+		// executables, 2 the COLMAP executables. Same numbering as the pages
+		// of the dialog's choicebook.
 		int computeEngine_;
 		R3DOpenMVGMatchingParams openMVGParams_;
+		R3DColmapMatchingParams colmapParams_;
 		R3DObjectState state_;
 		std::vector<int> numberOfKeypoints_;
 		wxString runningTime_;
@@ -448,7 +491,8 @@ public:
 	int addComputeMatches(R3DProject::PictureSet *pPictureSet,
 		const wxString &featureDetector, const wxString &descriptorExtractor,
 		float keypointSensitivity, float keypointMatchingRatio, int cameraModel, int matchingAlgorithm,
-		int computeEngine = 1, const R3DOpenMVGMatchingParams &openMVGParams = R3DOpenMVGMatchingParams());
+		int computeEngine = 1, const R3DOpenMVGMatchingParams &openMVGParams = R3DOpenMVGMatchingParams(),
+		const R3DColmapMatchingParams &colmapParams = R3DColmapMatchingParams());
 	int addTriangulation(R3DProject::ComputeMatches *pComputeMatches, size_t initialImageIndexA, size_t initialImageIndexB,
 		R3DTriangulationAlgorithm algorithm, int rotAveraging, int transAveraging, bool refineIntrinsics, bool useGPSInfo, R3DTriangulationInitialization triInitialization,
 		int computeEngine = 1, const R3DOpenMVGTriangulationParams &openMVGParams = R3DOpenMVGTriangulationParams());

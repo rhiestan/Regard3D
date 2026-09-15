@@ -1286,6 +1286,72 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	pOpenMVGMatchingPanel_->Layout();
 	bSizerOpenMVGMatching->Fit( pOpenMVGMatchingPanel_ );
 	pMatchingEngineChoicebook_->AddPage( pOpenMVGMatchingPanel_, wxT("OpenMVG"), false );
+	pColmapCMPanel_ = new wxPanel( pMatchingEngineChoicebook_, ID_COLMAPCMPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bSizerColmapCM;
+	bSizerColmapCM = new wxBoxSizer( wxVERTICAL );
+
+	wxStaticBoxSizer* sbSizerColmapCM;
+	sbSizerColmapCM = new wxStaticBoxSizer( new wxStaticBox( pColmapCMPanel_, wxID_ANY, wxT("COLMAP (feature_extractor + matcher)") ), wxVERTICAL );
+
+	wxFlexGridSizer* fgSizerColmapCM;
+	fgSizerColmapCM = new wxFlexGridSizer( 4, 2, 0, 0 );
+	fgSizerColmapCM->AddGrowableCol( 1 );
+	fgSizerColmapCM->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizerColmapCM->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_staticTextColmapCM1 = new wxStaticText( sbSizerColmapCM->GetStaticBox(), wxID_ANY, wxT("Camera model:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmapCM1->Wrap( -1 );
+	fgSizerColmapCM->Add( m_staticTextColmapCM1, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pColmapCMCameraModelChoice_Choices[] = { wxT("SIMPLE_PINHOLE"), wxT("PINHOLE"), wxT("SIMPLE_RADIAL"), wxT("RADIAL"), wxT("OPENCV") };
+	int pColmapCMCameraModelChoice_NChoices = sizeof( pColmapCMCameraModelChoice_Choices ) / sizeof( wxString );
+	pColmapCMCameraModelChoice_ = new wxChoice( sbSizerColmapCM->GetStaticBox(), ID_COLMAPCMCAMERAMODELCHOICE, wxDefaultPosition, wxDefaultSize, pColmapCMCameraModelChoice_NChoices, pColmapCMCameraModelChoice_Choices, 0 );
+	pColmapCMCameraModelChoice_->SetSelection( 2 );
+	pColmapCMCameraModelChoice_->SetToolTip( wxT("The camera model colmap feature_extractor assumes (--ImageReader.camera_model). SIMPLE_RADIAL is COLMAP's own default and works for most cameras; use OPENCV for strong lens distortion.") );
+
+	fgSizerColmapCM->Add( pColmapCMCameraModelChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextColmapCM2 = new wxStaticText( sbSizerColmapCM->GetStaticBox(), wxID_ANY, wxT("Matcher:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmapCM2->Wrap( -1 );
+	fgSizerColmapCM->Add( m_staticTextColmapCM2, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pColmapCMMatcherChoice_Choices[] = { wxT("Exhaustive"), wxT("Sequential") };
+	int pColmapCMMatcherChoice_NChoices = sizeof( pColmapCMMatcherChoice_Choices ) / sizeof( wxString );
+	pColmapCMMatcherChoice_ = new wxChoice( sbSizerColmapCM->GetStaticBox(), ID_COLMAPCMMATCHERCHOICE, wxDefaultPosition, wxDefaultSize, pColmapCMMatcherChoice_NChoices, pColmapCMMatcherChoice_Choices, 0 );
+	pColmapCMMatcherChoice_->SetSelection( 0 );
+	pColmapCMMatcherChoice_->SetToolTip( wxT("Which colmap matcher runs: exhaustive_matcher tries every image pair, the safe choice for an unordered set of photos; sequential_matcher only matches nearby images, much faster for a video or a sequence shot in order.") );
+
+	fgSizerColmapCM->Add( pColmapCMMatcherChoice_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextColmapCM3 = new wxStaticText( sbSizerColmapCM->GetStaticBox(), wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmapCM3->Wrap( -1 );
+	fgSizerColmapCM->Add( m_staticTextColmapCM3, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	pColmapCMSingleCameraCheckBox_ = new wxCheckBox( sbSizerColmapCM->GetStaticBox(), ID_COLMAPCMSINGLECAMERACHECKBOX, wxT("All images share one camera"), wxDefaultPosition, wxDefaultSize, 0 );
+	pColmapCMSingleCameraCheckBox_->SetToolTip( wxT("All photos were taken with the same camera and lens, so colmap can assume one shared intrinsic calibration (--ImageReader.single_camera) instead of estimating one per image.") );
+
+	fgSizerColmapCM->Add( pColmapCMSingleCameraCheckBox_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextColmapCM4 = new wxStaticText( sbSizerColmapCM->GetStaticBox(), wxID_ANY, wxT("Max features:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmapCM4->Wrap( -1 );
+	fgSizerColmapCM->Add( m_staticTextColmapCM4, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	pColmapCMMaxFeaturesTextCtrl_ = new wxTextCtrl( sbSizerColmapCM->GetStaticBox(), ID_COLMAPCMMAXFEATURESTEXTCTRL, wxT("8192"), wxDefaultPosition, wxDefaultSize, 0 );
+	pColmapCMMaxFeaturesTextCtrl_->SetToolTip( wxT("Maximum number of SIFT features colmap extracts per image (--SiftExtraction.max_num_features).") );
+
+	fgSizerColmapCM->Add( pColmapCMMaxFeaturesTextCtrl_, 0, wxEXPAND | wxALL, 3 );
+
+
+	sbSizerColmapCM->Add( fgSizerColmapCM, 1, wxEXPAND | wxALL, 3 );
+
+
+	bSizerColmapCM->Add( sbSizerColmapCM, 0, wxEXPAND | wxALL, 3 );
+
+
+	pColmapCMPanel_->SetSizer( bSizerColmapCM );
+	pColmapCMPanel_->Layout();
+	bSizerColmapCM->Fit( pColmapCMPanel_ );
+	pMatchingEngineChoicebook_->AddPage( pColmapCMPanel_, wxT("COLMAP"), false );
 	bSizer36->Add( pMatchingEngineChoicebook_, 1, wxEXPAND | wxALL, 3 );
 
 	wxStaticBoxSizer* sbSizer22;
@@ -1352,7 +1418,7 @@ Regard3DTriangulationDialogBase::Regard3DTriangulationDialogBase( wxWindow* pare
 	wxBoxSizer* bSizer55;
 	bSizer55 = new wxBoxSizer( wxVERTICAL );
 
-	wxString pTriEngineRadioBox_Choices[] = { wxT("Regard3D (built-in)"), wxT("OpenMVG (external programs)") };
+	wxString pTriEngineRadioBox_Choices[] = { wxT("Regard3D (built-in)"), wxT("OpenMVG (external programs)"), wxT("COLMAP (external programs)") };
 	int pTriEngineRadioBox_NChoices = sizeof( pTriEngineRadioBox_Choices ) / sizeof( wxString );
 	pTriEngineRadioBox_ = new wxRadioBox( sbSizer4->GetStaticBox(), ID_TRIENGINERADIOBOX, wxT("Triangulation engine"), wxDefaultPosition, wxDefaultSize, pTriEngineRadioBox_NChoices, pTriEngineRadioBox_Choices, 2, wxRA_SPECIFY_COLS );
 	pTriEngineRadioBox_->SetSelection( 1 );

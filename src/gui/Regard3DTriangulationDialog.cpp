@@ -215,6 +215,43 @@ bool Regard3DTriangulationDialog::isOpenMVGSfMPossible(wxString& reason)
 }
 
 /**
+ * Whether colmap mapper could run on this compute matches node.
+ *
+ * It reads the database colmap feature_extractor/matcher wrote; a node
+ * computed by the built-in engine or by OpenMVG has no such database, so
+ * mapper cannot reconstruct it - there is no converter between COLMAP's
+ * database and OpenMVG's matches files in either direction.
+ */
+bool Regard3DTriangulationDialog::isColmapTriangulationPossible(wxString& reason)
+{
+   if (pComputeMatches_ == NULL || pComputeMatches_->computeEngine_ != 2)
+   {
+      reason = wxT("These matches were not computed by COLMAP, which is the only ")
+         wxT("engine that can read them for colmap mapper. Compute the matches ")
+         wxT("with the COLMAP engine to be able to use it here.");
+      return false;
+   }
+
+   if (R3DExternalPrograms::getInstance().getBestColmapPath().IsEmpty())
+   {
+      reason = wxT("COLMAP was not found. Please put colmap.exe into the ")
+         wxT("\"colmap_cuda\" and/or \"colmap_nocuda\" directory next to Regard3D.");
+      return false;
+   }
+
+   wxFileName databaseFN(wxString(paths_.relativeColmapDatabaseFilename_.c_str(), wxConvLibc));
+   databaseFN.MakeAbsolute(pProject_->getProjectPath());
+   if (!databaseFN.FileExists())
+   {
+      reason = wxT("No COLMAP database was found; the matches step may not have ")
+         wxT("finished successfully.");
+      return false;
+   }
+
+   return true;
+}
+
+/**
  * The tooltips a wxRadioBox entry needs, which the .fbp cannot express.
  *
  * wxFormBuilder gives a control one tooltip; saying why a single greyed out
@@ -262,6 +299,23 @@ void Regard3DTriangulationDialog::readOpenMVGOptions()
  */
 void Regard3DTriangulationDialog::updateEngineDependencies()
 {
+   // COLMAP mapper runs with its own defaults; none of the OpenMVG SfM
+   // algorithm/refinement options below apply to it
+   const bool isColmap = (pTriEngineRadioBox_->GetSelection() == 2);
+   pTriangulationChoicebook_->Enable(!isColmap);
+   pTRefineCameraIntrinsicsCheckBox_->Enable(!isColmap);
+   pIncrSFMInitRadioBox_->Enable(!isColmap);
+   if (isColmap)
+   {
+      pOMVGIntrinsicRefinementChoice_->Enable(false);
+      pOMVGExtrinsicRefinementChoice_->Enable(false);
+      pOMVGTriangulationMethodChoice_->Enable(false);
+      pOMVGResectionMethodChoice_->Enable(false);
+      pOMVGSfMCameraModelChoice_->Enable(false);
+      pOMVGMatchesFileChoice_->Enable(false);
+      return;
+   }
+
    const int page = pTriangulationChoicebook_->GetSelection();
    // Page 0 is INCREMENTALV2, page 1 INCREMENTAL, page 2 GLOBAL
    const bool incremental = (page == 0 || page == 1);
@@ -317,6 +371,34 @@ void Regard3DTriangulationDialog::OnInitDialog(wxInitDialogEvent& event)
       // Say why, rather than offering a choice that cannot be taken
       pTriEngineRadioBox_->Enable(1, false);
       pTriEngineRadioBox_->SetItemToolTip(1, reason);
+      results_.engine_ = 0;
+   }
+
+   wxString colmapReason;
+   const bool isColmapAvailable = isColmapTriangulationPossible(colmapReason);
+   if (!isColmapAvailable)
+   {
+      pTriEngineRadioBox_->Enable(2, false);
+      pTriEngineRadioBox_->SetItemToolTip(2, colmapReason);
+   }
+   if (pComputeMatches_ != NULL && pComputeMatches_->computeEngine_ == 2)
+   {
+      // The matches only exist as a COLMAP database: neither the built-in
+      // engine nor openMVG_main_SfM can read it, so COLMAP mapper is the only
+      // real choice here
+      pTriEngineRadioBox_->Enable(0, false);
+      pTriEngineRadioBox_->SetItemToolTip(0,
+         wxT("These matches were computed by COLMAP; the built-in engine cannot read its database."));
+      pTriEngineRadioBox_->Enable(1, false);
+      pTriEngineRadioBox_->SetItemToolTip(1,
+         wxT("These matches were computed by COLMAP; openMVG_main_SfM cannot read its database."));
+      if (isColmapAvailable)
+         results_.engine_ = 2;
+   }
+   else if (results_.engine_ == 2)
+   {
+      // A project file from a build that offered COLMAP here, reopened on
+      // matches that were not computed by it
       results_.engine_ = 0;
    }
    pTriEngineRadioBox_->SetSelection(results_.engine_);

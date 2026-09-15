@@ -91,6 +91,7 @@ protected:
 	void checkForPreviewImage();
 
 	bool isOpenMVGSfMPossible(wxString &reason);
+	bool isColmapTriangulationPossible(wxString &reason);
 	void setItemToolTips();
 	void initializeOpenMVGOptions();
 	void readOpenMVGOptions();

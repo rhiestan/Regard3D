@@ -51,6 +51,14 @@ public:
 	// a signal about the driver, not about whether colmap_cuda/ is installed;
 	// callers wanting a runnable path should also check getColmapCudaPath().
 	bool hasCudaDriver() { return cudaDriverDetected_; }
+	// Whichever COLMAP build is installed, preferring colmap_cuda; empty if
+	// neither is. Unlike densification, feature extraction/matching and the
+	// mapper all have a working CPU path in COLMAP, so either build is a
+	// legitimate choice for those steps.
+	const wxString &getBestColmapPath()
+	{
+		return colmapCudaPath_.IsEmpty() ? colmapNoCudaPath_ : colmapCudaPath_;
+	}
 	// Directory holding the Graphviz tools, empty when they are not installed
 	const wxString &getGraphvizPath() { return graphvizPath_; }
 

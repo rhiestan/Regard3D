@@ -677,6 +677,11 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 			ID_OMVGESSENTIALCHECKBOX,
 			ID_OMVGHOMOGRAPHYCHECKBOX,
 			ID_OMVGGUIDEDMATCHINGCHECKBOX,
+			ID_COLMAPCMPANEL,
+			ID_COLMAPCMCAMERAMODELCHOICE,
+			ID_COLMAPCMMATCHERCHOICE,
+			ID_COLMAPCMSINGLECAMERACHECKBOX,
+			ID_COLMAPCMMAXFEATURESTEXTCTRL,
 			ID_CAMERAMODELCHOICE
 		};
 
@@ -719,6 +724,15 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		wxCheckBox* pOMVGEssentialCheckBox_;
 		wxCheckBox* pOMVGHomographyCheckBox_;
 		wxCheckBox* pOMVGGuidedMatchingCheckBox_;
+		wxPanel* pColmapCMPanel_;
+		wxStaticText* m_staticTextColmapCM1;
+		wxChoice* pColmapCMCameraModelChoice_;
+		wxStaticText* m_staticTextColmapCM2;
+		wxChoice* pColmapCMMatcherChoice_;
+		wxStaticText* m_staticTextColmapCM3;
+		wxCheckBox* pColmapCMSingleCameraCheckBox_;
+		wxStaticText* m_staticTextColmapCM4;
+		wxTextCtrl* pColmapCMMaxFeaturesTextCtrl_;
 		wxChoice* pCameraModelChoice_;
 		wxStdDialogButtonSizer* m_sdbSizer3;
 		wxButton* m_sdbSizer3OK;

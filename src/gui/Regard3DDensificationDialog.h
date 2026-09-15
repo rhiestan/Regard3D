@@ -28,6 +28,13 @@ public:
 	Regard3DDensificationDialog(wxWindow *pParent);
 	virtual ~Regard3DDensificationDialog();
 
+	// Call before ShowModal() when the triangulation this densifies is
+	// COLMAP-native: only colmap image_undistorter/patch_match_stereo/
+	// stereo_fusion can read its sparse model, so CMVS/PMVS, MVE and SMVS -
+	// which all need an OpenMVG sfm_data.bin/export that was never written -
+	// are locked out instead of offered as choices that would only fail.
+	void setColmapOnly(bool colmapOnly);
+
 	void getResults(R3DProject::Densification *pDensification);
 
 protected:
@@ -63,6 +70,8 @@ protected:
 	void updateColmapUseCudaCheckBox();
 
 private:
+	bool colmapOnly_;
+
 	DECLARE_EVENT_TABLE()
 };
 

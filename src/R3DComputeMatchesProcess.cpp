@@ -171,6 +171,9 @@ bool R3DComputeMatchesProcess::runComputeMatchesProcess(R3DProject::ComputeMatch
  */
 bool R3DComputeMatchesProcess::buildCommandList(const R3DProjectPaths &paths)
 {
+	if(pComputeMatches_->computeEngine_ == 2)
+		return buildColmapCommandList(paths);
+
 	const R3DOpenMVGMatchingParams &params = pComputeMatches_->openMVGParams_;
 	R3DExternalPrograms &progs = R3DExternalPrograms::getInstance();
 
@@ -284,6 +287,73 @@ bool R3DComputeMatchesProcess::buildCommandList(const R3DProjectPaths &paths)
 		wxFileName outputFN(paths.absoluteMatchesPath_, models[i].file_);
 		expectedOutputs_.Add(outputFN.GetFullPath());
 	}
+
+	return true;
+}
+
+/**
+ * COLMAP variant: feature_extractor and one of the matchers, both writing
+ * into the same database.db (COLMAP's own interchange format - there are no
+ * separate .feat/.desc/matches.* files the way OpenMVG has).
+ */
+bool R3DComputeMatchesProcess::buildColmapCommandList(const R3DProjectPaths &paths)
+{
+	// Index into this table is R3DColmapMatchingParams::cameraModel_, kept in
+	// step with the choice in Regard3DComputeMatchesDialog's COLMAP page.
+	static const wxChar *kCameraModels[] = {
+		wxT("SIMPLE_PINHOLE"), wxT("PINHOLE"), wxT("SIMPLE_RADIAL"),
+		wxT("RADIAL"), wxT("OPENCV")
+	};
+
+	const R3DColmapMatchingParams &params = pComputeMatches_->colmapParams_;
+	R3DExternalPrograms &progs = R3DExternalPrograms::getInstance();
+
+	const wxString colmapExe(progs.getBestColmapPath());
+	if(colmapExe.IsEmpty())
+	{
+		isOK_ = false;
+		errorMessage_ = wxT("COLMAP was not found.\n\n")
+			wxT("Please put colmap.exe into the subdirectory \"colmap_cuda\" and/or\n")
+			wxT("\"colmap_nocuda\" of the external tools directory, or use a\n")
+			wxT("different matching engine.");
+		return false;
+	}
+	// Feature extraction and matching both have a working CPU path in COLMAP
+	// (unlike densification's patch_match_stereo), so use the GPU only when
+	// the build we picked is actually the CUDA one.
+	const bool useGpu = (colmapExe == progs.getColmapCudaPath());
+
+	const wxString databasePath(quoted(wxString(paths.relativeColmapDatabaseFilename_.c_str(), wxConvLibc)));
+	const wxString imagePath(quoted(wxString(paths.relativeImagePath_.c_str(), wxConvLibc)));
+	const int cameraModelIndex = (params.cameraModel_ >= 0
+		&& params.cameraModel_ < static_cast<int>(WXSIZEOF(kCameraModels))) ? params.cameraModel_ : 2;
+
+	cmds_.Clear();
+	progressTexts_.Clear();
+	stepNames_.Clear();
+	expectedOutputs_.Clear();
+
+	cmds_.Add(quoted(colmapExe) + wxT(" feature_extractor")
+		+ wxT(" --database_path ") + databasePath
+		+ wxT(" --image_path ") + imagePath
+		+ wxT(" --ImageReader.camera_model ") + kCameraModels[cameraModelIndex]
+		+ wxString::Format(wxT(" --ImageReader.single_camera %d"), params.singleCamera_ ? 1 : 0)
+		+ wxString::Format(wxT(" --FeatureExtraction.use_gpu %d"), useGpu ? 1 : 0)
+		+ wxString::Format(wxT(" --SiftExtraction.max_num_features %d"), params.maxNumFeatures_));
+	progressTexts_.Add(wxT("Extracting features (COLMAP)"));
+	stepNames_.Add(wxT("colmap feature_extractor"));
+
+	const wxString matcherCmd(params.matcherType_ == 1
+		? wxT("sequential_matcher") : wxT("exhaustive_matcher"));
+	cmds_.Add(quoted(colmapExe) + wxT(" ") + matcherCmd
+		+ wxT(" --database_path ") + databasePath
+		+ wxString::Format(wxT(" --FeatureMatching.use_gpu %d"), useGpu ? 1 : 0));
+	progressTexts_.Add(wxT("Matching features (COLMAP)"));
+	stepNames_.Add(wxT("colmap ") + matcherCmd);
+
+	wxFileName databaseFN(wxString(paths.relativeColmapDatabaseFilename_.c_str(), wxConvLibc));
+	databaseFN.MakeAbsolute(paths.absoluteProjectPath_);
+	expectedOutputs_.Add(databaseFN.GetFullPath());
 
 	return true;
 }

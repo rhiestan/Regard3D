@@ -77,6 +77,7 @@ protected:
 
 	void runSingleCommand();
 	bool buildCommandList(const R3DProjectPaths &paths);
+	bool buildColmapCommandList(const R3DProjectPaths &paths);
 	void finish();
 	void collectKeypointCounts(std::vector<int> &numberOfKeypoints);
 

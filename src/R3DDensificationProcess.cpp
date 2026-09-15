@@ -249,18 +249,35 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 	}
 	else if(pDensification->densificationType_ == R3DProject::DTCOLMAP)
 	{
-		// COLMAP is driven entirely through its own CLI, in four steps:
+		// COLMAP is driven entirely through its own CLI. Normally in four steps:
 		//   openMVG_main_openMVG2Colmap  -> cameras.txt/images.txt/points3D.txt (a sparse model)
 		//   colmap image_undistorter    -> undistorted images + a binary sparse model
 		//   colmap patch_match_stereo   -> per-image depth/normal maps (needs a CUDA GPU)
 		//   colmap stereo_fusion        -> colmap_fused.ply
+		// When the triangulation itself already ran COLMAP's mapper (see
+		// R3DProject::Triangulation::computeEngine_), its sparse model is used
+		// directly and the export step is skipped - there is nothing to
+		// convert, and nothing to patch either (fixColmapPoints3DFile exists
+		// only to work around a units quirk of the OpenMVG export).
+		const bool nativeColmapTriangulation = (paths.triangulationEngine_ == 2);
 		const wxString densificationDir(paths.relativeDensificationPath_.c_str(), wxConvLibc);
 		const wxString imagePath(quoted(wxString(paths.relativeImagePath_.c_str(), wxConvLibc)));
-		wxFileName sparseFN(densificationDir, wxEmptyString);
-		sparseFN.AppendDir(wxT("colmap_sparse"));
-		relativeColmapSparsePath_ = sparseFN.GetPath(wxPATH_GET_VOLUME);
-		const wxString sparsePath(quoted(relativeColmapSparsePath_));
-		fixColmapSparseModel_ = true;
+		wxString sparsePath;
+		if(nativeColmapTriangulation)
+		{
+			wxFileName nativeSparseFN(wxString(paths.relativeColmapModelPath_.c_str(), wxConvLibc), wxEmptyString);
+			nativeSparseFN.AppendDir(wxT("0"));
+			sparsePath = quoted(nativeSparseFN.GetPath(wxPATH_GET_VOLUME));
+			fixColmapSparseModel_ = false;
+		}
+		else
+		{
+			wxFileName sparseFN(densificationDir, wxEmptyString);
+			sparseFN.AppendDir(wxT("colmap_sparse"));
+			relativeColmapSparsePath_ = sparseFN.GetPath(wxPATH_GET_VOLUME);
+			sparsePath = quoted(relativeColmapSparsePath_);
+			fixColmapSparseModel_ = true;
+		}
 		wxFileName denseFN(densificationDir, wxEmptyString);
 		denseFN.AppendDir(wxT("colmap_dense"));
 		const wxString densePath(quoted(denseFN.GetPath(wxPATH_GET_VOLUME)));
@@ -289,11 +306,14 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 		// this upfront before the process is even created).
 		const wxString colmapExe = extPrograms.getColmapCudaPath();
 
-		cmds_.Add(quoted(openMVG2ColmapExe)
-			+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
-			+ wxT(" -o ") + sparsePath);
-		progressTexts_.Add(wxT("Exporting project to Colmap"));
-		stepNames_.Add(wxT("openMVG_main_openMVG2Colmap"));
+		if(!nativeColmapTriangulation)
+		{
+			cmds_.Add(quoted(openMVG2ColmapExe)
+				+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+				+ wxT(" -o ") + sparsePath);
+			progressTexts_.Add(wxT("Exporting project to Colmap"));
+			stepNames_.Add(wxT("openMVG_main_openMVG2Colmap"));
+		}
 
 		cmds_.Add(quoted(colmapExe) + wxT(" image_undistorter")
 			+ wxT(" --image_path ") + imagePath

@@ -1029,7 +1029,8 @@ class Regard3DDensificationDialogBase : public wxDialog
 			ID_COLMAPGEOMCONSISTENCYCHECKBOX,
 			ID_COLMAPFILTERCHECKBOX,
 			ID_COLMAPMAXREPROJERRORTEXTCTRL,
-			ID_COLMAPMAXREPROJERRORSLIDER
+			ID_COLMAPMAXREPROJERRORSLIDER,
+			ID_COLMAPUSECUDACHECKBOX
 		};
 
 		wxPanel* pDensificationPanel_;
@@ -1092,6 +1093,8 @@ class Regard3DDensificationDialogBase : public wxDialog
 		wxStaticText* m_staticTextColmap5;
 		wxTextCtrl* pColmapMaxReprojErrorTextCtrl_;
 		wxSlider* pColmapMaxReprojErrorSlider_;
+		wxStaticText* m_staticTextColmap6;
+		wxCheckBox* pColmapUseCudaCheckBox_;
 		wxStdDialogButtonSizer* pStdDialogButtonSizer_;
 		wxButton* pStdDialogButtonSizer_OK;
 		wxButton* pStdDialogButtonSizer_Cancel;

@@ -23,7 +23,48 @@
 
 #include <wx/stdpaths.h>
 
+#if defined(R3D_WIN32)
+#include <windows.h>
+#elif defined(R3D_LINUX) || defined(R3D_MACOSX)
+#include <dlfcn.h>
+#endif
+
 R3DExternalPrograms R3DExternalPrograms::instance_;
+
+namespace
+{
+	// Cheap proxy for "an NVIDIA display driver with CUDA support is
+	// installed": the CUDA driver API library ships with the display driver
+	// itself (not with any particular CUDA toolkit release), so its mere
+	// presence is a good signal without Regard3D having to link against CUDA
+	// or parse driver/device properties. It can't guarantee the installed
+	// driver is new enough for the colmap_cuda build actually shipped, so
+	// this stays an auto-detection default, never the only way to choose.
+	bool probeCudaDriver()
+	{
+#if defined(R3D_WIN32)
+		HMODULE hMod = ::LoadLibraryW(L"nvcuda.dll");
+		if(hMod != NULL)
+		{
+			::FreeLibrary(hMod);
+			return true;
+		}
+		return false;
+#elif defined(R3D_LINUX) || defined(R3D_MACOSX)
+		void *pHandle = dlopen("libcuda.so.1", RTLD_LAZY | RTLD_LOCAL);
+		if(pHandle == NULL)
+			pHandle = dlopen("libcuda.so", RTLD_LAZY | RTLD_LOCAL);
+		if(pHandle != NULL)
+		{
+			dlclose(pHandle);
+			return true;
+		}
+		return false;
+#else
+		return false;
+#endif
+	}
+}
 
 
 bool R3DExternalPrograms::initialize()
@@ -120,16 +161,32 @@ bool R3DExternalPrograms::initialize()
 		}
 
 		// COLMAP, used for dense reconstruction as an alternative to CMVS/PMVS,
-		// MVE and SMVS. Optional while those remain available, so a missing
-		// directory must not fail the check below.
-		wxFileName colmapFN(exeFN);
-		colmapFN.AppendDir(wxT("colmap"));
-		if(colmapFN.DirExists())
+		// MVE and SMVS. Shipped as two separate builds since patch_match_stereo
+		// needs a CUDA GPU: colmap_cuda/ (GPU-accelerated) and colmap_nocuda/
+		// (CPU-only, slower but runs everywhere). Optional while CMVS/PMVS/MVE/
+		// SMVS remain available, so a missing directory must not fail the check
+		// below; which one is actually used is decided per-project (see
+		// R3DProject::Densification::colmapUseCuda_), defaulting to whichever
+		// this detects as available.
+		wxFileName colmapCudaFN(exeFN);
+		colmapCudaFN.AppendDir(wxT("colmap_cuda"));
+		if(colmapCudaFN.DirExists())
 		{
-			const wxString colmapPath(colmapFN.GetPath(wxPATH_GET_VOLUME));
-			allPaths_.Add(colmapPath);
-			checkExecutable(colmapPath, wxT("colmap"), executableExtension, colmapPath_);
+			const wxString colmapCudaPath(colmapCudaFN.GetPath(wxPATH_GET_VOLUME));
+			allPaths_.Add(colmapCudaPath);
+			checkExecutable(colmapCudaPath, wxT("colmap"), executableExtension, colmapCudaPath_);
 		}
+
+		wxFileName colmapNoCudaFN(exeFN);
+		colmapNoCudaFN.AppendDir(wxT("colmap_nocuda"));
+		if(colmapNoCudaFN.DirExists())
+		{
+			const wxString colmapNoCudaPath(colmapNoCudaFN.GetPath(wxPATH_GET_VOLUME));
+			allPaths_.Add(colmapNoCudaPath);
+			checkExecutable(colmapNoCudaPath, wxT("colmap"), executableExtension, colmapNoCudaPath_);
+		}
+
+		cudaDriverDetected_ = probeCudaDriver();
 
 		// Graphviz, used by OpenMVG's global SfM engine: it renders the graphs of
 		// its HTML report by calling std::system("neato ..."), which searches PATH.
@@ -159,7 +216,7 @@ bool R3DExternalPrograms::initialize()
 }
 
 R3DExternalPrograms::R3DExternalPrograms()
-	: initialized_(false)
+	: initialized_(false), cudaDriverDetected_(false)
 {
 }
 

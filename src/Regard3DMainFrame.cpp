@@ -2904,19 +2904,29 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 			return;
 		}
 
-		if(pDensification->densificationType_ == R3DProject::R3DDensificationType::DTCOLMAP
-			&& (R3DExternalPrograms::getInstance().getColmapPath().IsEmpty()
-				|| R3DExternalPrograms::getInstance().getOpenMVG2ColmapPath().IsEmpty()))
+		if(pDensification->densificationType_ == R3DProject::R3DDensificationType::DTCOLMAP)
 		{
-			wxMessageBox(wxT("COLMAP was not found.\n\n")
-				wxT("Please put colmap.exe into the subdirectory \"colmap\" of the external\n")
-				wxT("tools directory, and openMVG_main_openMVG2Colmap into its \"openmvg\"\n")
-				wxT("subdirectory, or use a different densification method."),
-				wxT("Regard3D error"), wxOK | wxICON_ERROR);
-			project_.removeDensification(pDensification);
-			project_.save();
-			project_.populateTreeControl(pProjectTreeCtrl_);
-			return;
+			R3DExternalPrograms &extPrograms = R3DExternalPrograms::getInstance();
+			// COLMAP's dense stereo (patch_match_stereo) has no CPU
+			// implementation - it requires an NVIDIA/CUDA GPU and the
+			// colmap_cuda build unconditionally; colmap_nocuda can only ever
+			// fail at that step, so it doesn't count as "COLMAP available"
+			// here even if it is installed.
+			if(extPrograms.getColmapCudaPath().IsEmpty()
+				|| extPrograms.getOpenMVG2ColmapPath().IsEmpty())
+			{
+				wxMessageBox(wxT("COLMAP (CUDA build) was not found.\n\n")
+					wxT("COLMAP's dense reconstruction step has no CPU fallback, so it needs\n")
+					wxT("an NVIDIA/CUDA GPU and the CUDA build of COLMAP. Please put colmap.exe\n")
+					wxT("into the subdirectory \"colmap_cuda\" of the external tools directory,\n")
+					wxT("and openMVG_main_openMVG2Colmap into its \"openmvg\" subdirectory,\n")
+					wxT("or use a different densification method (CMVS/PMVS, MVE or SMVS)."),
+					wxT("Regard3D error"), wxOK | wxICON_ERROR);
+				project_.removeDensification(pDensification);
+				project_.save();
+				project_.populateTreeControl(pProjectTreeCtrl_);
+				return;
+			}
 		}
 
 		pDensification->state_ = R3DProject::OSRunning;

@@ -19,6 +19,7 @@
 
 #include "CommonIncludes.h"
 #include "Regard3DDensificationDialog.h"
+#include "R3DExternalPrograms.h"
 
 namespace
 {
@@ -75,6 +76,7 @@ void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensifi
 	pDensification->colmapGeomConsistency_ = pColmapGeomConsistencyCheckBox_->GetValue();
 	pDensification->colmapFilter_ = pColmapFilterCheckBox_->GetValue();
 	pDensification->colmapMaxReprojError_ = static_cast<float>(pColmapMaxReprojErrorSlider_->GetValue()) * 0.1f;
+	pDensification->colmapUseCuda_ = pColmapUseCudaCheckBox_->GetValue();
 }
 
 void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
@@ -104,6 +106,7 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 	updateColmapMaxImageSizeText();
 	updateColmapWindowRadiusText();
 	updateColmapMaxReprojErrorText();
+	updateColmapUseCudaCheckBox();
 
 	Fit();
 	CenterOnParent();
@@ -259,6 +262,22 @@ void Regard3DDensificationDialog::updateColmapMaxReprojErrorText()
 	int sliderValue = pColmapMaxReprojErrorSlider_->GetValue();
 	pColmapMaxReprojErrorTextCtrl_->SetValue( wxString::Format( wxT("%g"),
 		static_cast<float>(sliderValue)*0.1f ) );
+}
+
+// COLMAP's dense stereo (patch_match_stereo) has no CPU implementation - it
+// requires an NVIDIA/CUDA GPU and the colmap_cuda build unconditionally, even
+// a "without GPU support" build of COLMAP just fails at runtime rather than
+// falling back to the CPU. So there is nothing to actually choose here: this
+// checkbox is a disabled status indicator, always reflecting whether COLMAP
+// densification can run at all (colmap_cuda installed, ideally with a CUDA
+// driver detected too - see R3DExternalPrograms::hasCudaDriver()).
+void Regard3DDensificationDialog::updateColmapUseCudaCheckBox()
+{
+	R3DExternalPrograms &extPrograms = R3DExternalPrograms::getInstance();
+	const bool hasCudaBuild = !extPrograms.getColmapCudaPath().IsEmpty();
+
+	pColmapUseCudaCheckBox_->SetValue(hasCudaBuild && extPrograms.hasCudaDriver());
+	pColmapUseCudaCheckBox_->Enable(false);
 }
 
 BEGIN_EVENT_TABLE( Regard3DDensificationDialog, Regard3DDensificationDialogBase )

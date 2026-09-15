@@ -1790,7 +1790,7 @@ R3DProject::Densification::Densification()
 	smvsInputScale_(1), smvsOutputScale_(2), smvsEnableShadingBasedOptimization_(false),
 	smvsEnableSemiGlobalMatching_(true), smvsAlpha_(1.0f),
 	colmapMaxImageSize_(-1), colmapWindowRadius_(5), colmapGeomConsistency_(true),
-	colmapFilter_(true), colmapMaxReprojError_(2.0f)
+	colmapFilter_(true), colmapMaxReprojError_(2.0f), colmapUseCuda_(true)
 {
 }
 
@@ -1827,6 +1827,7 @@ R3DProject::Densification &R3DProject::Densification::copy(const R3DProject::Den
 	colmapGeomConsistency_ = o.colmapGeomConsistency_;
 	colmapFilter_ = o.colmapFilter_;
 	colmapMaxReprojError_ = o.colmapMaxReprojError_;
+	colmapUseCuda_ = o.colmapUseCuda_;
 	finalDenseModelName_ = o.finalDenseModelName_;
 	runningTime_ = o.runningTime_;
 	state_ = o.state_;
@@ -2015,13 +2016,17 @@ void R3DProject::Densification::serialize(Archive & ar, const unsigned int versi
 		ar & boost::serialization::make_nvp("colmapFilter", colmapFilter_);
 		ar & boost::serialization::make_nvp("colmapMaxReprojError", colmapMaxReprojError_);
 	}
+	if(version > 2)
+	{
+		ar & boost::serialization::make_nvp("colmapUseCuda", colmapUseCuda_);
+	}
 	ar & boost::serialization::make_nvp("finalDenseModelName", finalDenseModelName_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("orientation", orientation_);
 	ar & boost::serialization::make_nvp("Surfaces", surfaces_);
 }
-BOOST_CLASS_VERSION(R3DProject::Densification, 2)
+BOOST_CLASS_VERSION(R3DProject::Densification, 3)
 
 // Serialize Triangulation class
 template<class Archive>

@@ -39,7 +39,18 @@ public:
 	const wxString &getCMPMVSPath() { return cmpmvsPath_; }
 	const wxString &getSMVSReconPath() { return smvsreconPath_; }
 	const wxString &getSMVSReconSSE41Path() { return smvsreconSSE41Path; }
-	const wxString &getColmapPath() { return colmapPath_; }
+	// COLMAP is shipped as two separate builds (colmap_cuda/ and colmap_nocuda/);
+	// empty when the corresponding directory wasn't found next to the executable.
+	// Note: colmap_nocuda cannot run densification - COLMAP's dense stereo
+	// (patch_match_stereo) has no CPU implementation and hard-fails at runtime
+	// even in a "without GPU support" build. colmap_nocuda is only useful for
+	// COLMAP subcommands that don't need dense stereo.
+	const wxString &getColmapCudaPath() { return colmapCudaPath_; }
+	const wxString &getColmapNoCudaPath() { return colmapNoCudaPath_; }
+	// True if an NVIDIA/CUDA driver was detected on this machine. This is only
+	// a signal about the driver, not about whether colmap_cuda/ is installed;
+	// callers wanting a runnable path should also check getColmapCudaPath().
+	bool hasCudaDriver() { return cudaDriverDetected_; }
 	// Directory holding the Graphviz tools, empty when they are not installed
 	const wxString &getGraphvizPath() { return graphvizPath_; }
 
@@ -78,7 +89,8 @@ private:
 	wxString dmreconPath_, scene2psetPath_, fssreconPath_, meshcleanPath_;
 	wxString cmpmvsPath_;
 	wxString smvsreconPath_, smvsreconSSE41Path;
-	wxString colmapPath_;
+	wxString colmapCudaPath_, colmapNoCudaPath_;
+	bool cudaDriverDetected_;
 	wxString graphvizPath_;
 	wxString computeFeaturesPath_, computeFeaturesOpenCVPath_;
 	wxString pairGeneratorPath_, computeMatchesPath_, geometricFilterPath_;

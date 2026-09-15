@@ -2078,7 +2078,7 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	sbSizerColmap = new wxStaticBoxSizer( new wxStaticBox( pColmapReconParamsPanel_, wxID_ANY, wxT("Parameters for COLMAP dense reconstruction") ), wxVERTICAL );
 
 	wxFlexGridSizer* fgSizerColmap;
-	fgSizerColmap = new wxFlexGridSizer( 5, 3, 0, 0 );
+	fgSizerColmap = new wxFlexGridSizer( 6, 3, 0, 0 );
 	fgSizerColmap->AddGrowableCol( 2 );
 	fgSizerColmap->SetFlexibleDirection( wxHORIZONTAL );
 	fgSizerColmap->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
@@ -2144,6 +2144,19 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	pColmapMaxReprojErrorSlider_->SetToolTip( wxT("Maximum reprojection error, in pixels, allowed when fusing depth maps into the point cloud (StereoFusion max_reproj_error). Lower values give a cleaner but sparser cloud.") );
 
 	fgSizerColmap->Add( pColmapMaxReprojErrorSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+
+	m_staticTextColmap6 = new wxStaticText( sbSizerColmap->GetStaticBox(), wxID_ANY, wxT("Use CUDA (GPU):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextColmap6->Wrap( -1 );
+	fgSizerColmap->Add( m_staticTextColmap6, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pColmapUseCudaCheckBox_ = new wxCheckBox( sbSizerColmap->GetStaticBox(), ID_COLMAPUSECUDACHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pColmapUseCudaCheckBox_->SetValue(true);
+	pColmapUseCudaCheckBox_->SetToolTip( wxT("Whether an NVIDIA/CUDA GPU and the CUDA build of COLMAP were detected (read-only). COLMAP's dense reconstruction has no CPU fallback, so this must be checked for COLMAP densification to work; if it isn't, use a different densification method.") );
+
+	fgSizerColmap->Add( pColmapUseCudaCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+
+	fgSizerColmap->Add( 0, 0, 1, wxEXPAND, 5 );
 
 
 	sbSizerColmap->Add( fgSizerColmap, 1, wxEXPAND, 3 );

@@ -60,6 +60,7 @@ protected:
 	void updateColmapMaxImageSizeText();
 	void updateColmapWindowRadiusText();
 	void updateColmapMaxReprojErrorText();
+	void updateColmapUseCudaCheckBox();
 
 private:
 	DECLARE_EVENT_TABLE()

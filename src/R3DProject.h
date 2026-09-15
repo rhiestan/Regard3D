@@ -282,6 +282,12 @@ public:
 		bool colmapGeomConsistency_;
 		bool colmapFilter_;
 		float colmapMaxReprojError_;
+		// Informational only: whether a CUDA GPU + the colmap_cuda build were
+		// detected when the dialog was last confirmed (see
+		// R3DExternalPrograms::hasCudaDriver()/getColmapCudaPath()). COLMAP's
+		// dense stereo has no CPU fallback, so densification always runs
+		// colmap_cuda regardless of this value - there is nothing to choose.
+		bool colmapUseCuda_;
 		wxString finalDenseModelName_;
 		wxString runningTime_;
 

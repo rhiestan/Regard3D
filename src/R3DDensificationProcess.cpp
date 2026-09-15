@@ -277,8 +277,17 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 		if(pDensification->colmapMaxImageSize_ > 0)
 			maxImageSizePMArg = wxString::Format(wxT(" --PatchMatchStereo.max_image_size %d"), pDensification->colmapMaxImageSize_);
 
-		const wxString openMVG2ColmapExe = R3DExternalPrograms::getInstance().getOpenMVG2ColmapPath();
-		const wxString colmapExe = R3DExternalPrograms::getInstance().getColmapPath();
+		R3DExternalPrograms &extPrograms = R3DExternalPrograms::getInstance();
+		const wxString openMVG2ColmapExe = extPrograms.getOpenMVG2ColmapPath();
+
+		// COLMAP's patch_match_stereo has no CPU implementation - it hard-fails
+		// at runtime even in a "without GPU support" build ("Dense stereo
+		// reconstruction requires CUDA, which is not available on your
+		// system."), so colmap_nocuda can never actually densify. Always use
+		// colmap_cuda; if it's missing, the generic "could not be started"
+		// error a few steps down catches it (Regard3DMainFrame also checks
+		// this upfront before the process is even created).
+		const wxString colmapExe = extPrograms.getColmapCudaPath();
 
 		cmds_.Add(quoted(openMVG2ColmapExe)
 			+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))

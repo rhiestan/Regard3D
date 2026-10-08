@@ -36,7 +36,7 @@ namespace
 
 R3DSurfaceGenProcess::R3DSurfaceGenProcess(Regard3DMainFrame *pMainFrame)
 	: wxProcess(pMainFrame), pMainFrame_(pMainFrame),
-	processId_(0), wasCancelled_(false)
+	processId_(0), wasCancelled_(false), isOK_(true)
 {
 }
 
@@ -106,46 +106,53 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 	}
 #endif
 
-	cmds_.Clear();
-	progressTexts_.Clear();
+	clearCommands();
+	absoluteProjectPath_ = paths.absoluteProjectPath_;
+
+	R3DExternalPrograms &extPrograms = R3DExternalPrograms::getInstance();
+	wxString relativeSurfacePath(paths.relativeSurfacePath_.c_str(), wxConvLibc);
+	relativeSurfacePath_ = relativeSurfacePath;
+	wxString relativeSurfaceFilename;		// Used for texturing
+
+	// texrecon is the only tool here reading the MVE scene: FSSR and Poisson
+	// take the dense point cloud, OpenMVS its own scene. Not exporting it when
+	// it isn't needed also matters for a COLMAP-native triangulation, which
+	// has no sfm_data.bin to export it from.
+	const bool useTexrecon = (pSurface->colorizationType_ == R3DProject::CTTextures
+		&& pSurface->surfaceType_ != R3DProject::STOpenMVS);
 
 	// The MVE scene is written by openMVG_main_openMVG2MVE2, which creates the
 	// "MVE" directory below its -o. Only once: densification and surface
 	// generation share the scene, and it is expensive to write.
-	if(!wxFileName::DirExists(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc)))
+	if(useTexrecon && !wxFileName::DirExists(wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc)))
 	{
-		cmds_.Add(quoted(R3DExternalPrograms::getInstance().getOpenMVG2MVE2Path())
+		addCommand(quoted(extPrograms.getOpenMVG2MVE2Path())
 			+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
-			+ wxT(" -o ") + quoted(wxString(paths.relativeOutPath_.c_str(), wxConvLibc)));
-		progressTexts_.Add(wxT("Exporting project to MVE"));
+			+ wxT(" -o ") + quoted(wxString(paths.relativeOutPath_.c_str(), wxConvLibc)),
+			wxT("Exporting project to MVE"), wxT("openMVG_main_openMVG2MVE2"));
 	}
-
-	wxString relativeSurfacePath(paths.relativeSurfacePath_.c_str(), wxConvLibc);
-	wxString relativeSurfaceFilename;		// Used for texturing
 
 	if(pSurface->surfaceType_ == R3DProject::STPoissonRecon)
 	{
-		wxString poissonReconExe = R3DExternalPrograms::getInstance().getPoissonReconPath();
-		wxString surfaceTrimmerExe = R3DExternalPrograms::getInstance().getSurfaceTrimmerPath();
-		wxString texreconExe = R3DExternalPrograms::getInstance().getTexReconPath();
+		wxString poissonReconExe = extPrograms.getPoissonReconPath();
+		wxString surfaceTrimmerExe = extPrograms.getSurfaceTrimmerPath();
 
 		wxString poissonReconCmd = poissonReconExe + wxT(" --in ") + wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc)
 			+ wxT(" --out ") + relativeSurfacePath + wxT("/model_surface.ply")
-			+ wxString::Format(wxT(" --depth %d --pointWeight %g --samplesPerNode %g"), 
+			+ wxString::Format(wxT(" --depth %d --pointWeight %g --samplesPerNode %g"),
 			pSurface->poissonDepth_, pSurface->poissonPointWeight_, pSurface->poissonSamplesPerNode_);
 		if(pSurface->poissonTrimThreshold_ > 0)
 			poissonReconCmd.Append(wxT(" --density"));
 		poissonReconCmd.Append(wxT(" --verbose"));
-		cmds_.Add(poissonReconCmd);
-		progressTexts_.Add(wxT("Generating surface (PoissonRecon)"));
+		addCommand(poissonReconCmd, wxT("Generating surface (PoissonRecon)"), wxT("PoissonRecon"));
 		wxString surfaceFilename(wxT("model_surface.ply"));
 
 		if(pSurface->poissonTrimThreshold_ > 0)
 		{
-			cmds_.Add(surfaceTrimmerExe + wxT(" --in ") + relativeSurfacePath + wxT("/model_surface.ply ") 
+			addCommand(surfaceTrimmerExe + wxT(" --in ") + relativeSurfacePath + wxT("/model_surface.ply ")
 				+ wxString::Format(wxT("--trim %g"), pSurface->poissonTrimThreshold_)
-				+ wxT(" --out ") + relativeSurfacePath + wxT("/model_surface_trim.ply"));
-			progressTexts_.Add(wxT("Trimming surface"));
+				+ wxT(" --out ") + relativeSurfacePath + wxT("/model_surface_trim.ply"),
+				wxT("Trimming surface"), wxT("SurfaceTrimmer"));
 			surfaceFilename = wxT("model_surface_trim.ply");
 		}
 
@@ -162,37 +169,100 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 	}
 	else if(pSurface->surfaceType_ == R3DProject::STFSSRecon)
 	{
-		wxString fssReconExe = R3DExternalPrograms::getInstance().getFSSReconPath();
-		wxString meshcleanExe = R3DExternalPrograms::getInstance().getMeshCleanPath();
+		wxString fssReconExe = extPrograms.getFSSReconPath();
+		wxString meshcleanExe = extPrograms.getMeshCleanPath();
 
 		wxString surfaceModelName(wxT("surface_model.ply"));
 		wxString cleanedSurfaceModelName(wxT("surface_clean_model.ply"));
 		wxFileName surfaceModelFN(wxString(paths.relativeSurfacePath_.c_str(), wxConvLibc), surfaceModelName);
 		wxFileName cleanedSurfaceModelFN(wxString(paths.relativeSurfacePath_.c_str(), wxConvLibc), cleanedSurfaceModelName);
 
-		cmds_.Add(fssReconExe + wxString::Format(wxT(" --scale-factor=%g --refine-octree=%d "),
+		addCommand(fssReconExe + wxString::Format(wxT(" --scale-factor=%g --refine-octree=%d "),
 			pSurface->fssrScaleFactorMultiplier_, pSurface->fssrRefineOctreeLevels_)
 			+ wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc)
 			+ wxT(" ")
-			+ surfaceModelFN.GetFullPath());
-		progressTexts_.Add(wxT("Generating surface (FSSR)"));
+			+ surfaceModelFN.GetFullPath(),
+			wxT("Generating surface (FSSR)"), wxT("fssrecon"));
 
-		cmds_.Add(meshcleanExe + wxString::Format(wxT(" --threshold=%g --component-size=%d "),
+		addCommand(meshcleanExe + wxString::Format(wxT(" --threshold=%g --component-size=%d "),
 			pSurface->fssrConfidenceThreshold_, pSurface->fssrMinComponentSize_)
 			+ surfaceModelFN.GetFullPath()
 			+ wxT(" ")
-			+ cleanedSurfaceModelFN.GetFullPath());
-		progressTexts_.Add(wxT("Cleaning mesh (FSSR)"));
+			+ cleanedSurfaceModelFN.GetFullPath(),
+			wxT("Cleaning mesh (FSSR)"), wxT("meshclean"));
 
 		relativeSurfaceFilename = cleanedSurfaceModelFN.GetFullPath();
 
 		// Used only in case of colored vertices
 		pSurface->finalSurfaceFilename_ = cleanedSurfaceModelName;
 	}
-
-	if(pSurface->colorizationType_ == R3DProject::CTTextures)
+	else if(pSurface->surfaceType_ == R3DProject::STOpenMVS)
 	{
-		wxString texreconExe = R3DExternalPrograms::getInstance().getTexReconPath();
+		// Meshes the scene_dense.mvs/.ply DensifyPointCloud wrote (DTOPENMVS
+		// only, see Regard3DSurfaceDialog): ReconstructMesh needs the
+		// visibility information stored with each point, which no other
+		// densification's point cloud has. Like the densification, all of
+		// this runs in the project directory, see R3DDensificationProcess.
+		const wxString densificationDir(paths.relativeDensificationPath_.c_str(), wxConvLibc);
+		const wxString denseSceneFilename(wxFileName(densificationDir, wxT("scene_dense.mvs")).GetFullPath());
+
+		wxString surfaceFilename(wxT("model_surface.ply"));
+		const wxString meshFilename(wxFileName(relativeSurfacePath, surfaceFilename).GetFullPath());
+		addCommand(quoted(extPrograms.getReconstructMeshPath())
+			+ wxT(" -i ") + quoted(denseSceneFilename)
+			+ wxT(" -p ") + quoted(wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc))
+			+ wxT(" -o ") + quoted(meshFilename)
+			// Read with the C locale, so not wxString::Format
+			+ wxT(" --min-point-distance ") + wxString::FromCDouble(pSurface->openMVSMinPointDistance_, 2)
+			+ wxString::Format(wxT(" --smooth %d"), pSurface->openMVSSmoothIterations_),
+			wxT("Generating surface (OpenMVS)"), wxT("ReconstructMesh"),
+			meshFilename);		// Exits with 0 on an empty mesh, without writing it
+
+		if(pSurface->openMVSRefineMesh_)
+		{
+			// Refining at full resolution can take hours where the depth maps
+			// were computed at a fraction of it, so use the same scale
+			int resolutionLevel = 1;
+			R3DProject::Object *pObject = pProject->getObjectByTypeAndID(
+				R3DProject::R3DTreeItem::TypeDensification, pSurface->parentId_);
+			R3DProject::Densification *pDensification = dynamic_cast<R3DProject::Densification *>(pObject);
+			if(pDensification != NULL)
+				resolutionLevel = pDensification->openMVSResolutionLevel_;
+
+			surfaceFilename = wxT("model_surface_refine.ply");
+			const wxString refinedMeshFilename(wxFileName(relativeSurfacePath, surfaceFilename).GetFullPath());
+			addCommand(quoted(extPrograms.getRefineMeshPath())
+				+ wxT(" -i ") + quoted(denseSceneFilename)
+				+ wxT(" -m ") + quoted(meshFilename)
+				+ wxT(" -o ") + quoted(refinedMeshFilename)
+				+ wxString::Format(wxT(" --resolution-level %d"), resolutionLevel),
+				wxT("Refining surface (OpenMVS)"), wxT("RefineMesh"),
+				refinedMeshFilename);
+		}
+
+		relativeSurfaceFilename = wxFileName(relativeSurfacePath, surfaceFilename).GetFullPath();
+		// Used only in case of colored vertices, as above
+		pSurface->finalSurfaceFilename_ = surfaceFilename;
+	}
+
+	if(pSurface->colorizationType_ == R3DProject::CTTextures
+		&& pSurface->surfaceType_ == R3DProject::STOpenMVS)
+	{
+		const wxString densificationDir(paths.relativeDensificationPath_.c_str(), wxConvLibc);
+		addCommand(quoted(extPrograms.getTextureMeshPath())
+			+ wxT(" -i ") + quoted(wxFileName(densificationDir, wxT("scene_dense.mvs")).GetFullPath())
+			+ wxT(" -m ") + quoted(relativeSurfaceFilename)
+			+ wxT(" -o ") + quoted(wxFileName(relativeSurfacePath, wxT("model_surface_text.obj")).GetFullPath())
+			+ wxT(" --export-type obj")
+			+ wxString::Format(wxT(" --global-seam-leveling %d --local-seam-leveling %d"),
+				(pSurface->textGlobalSeamLeveling_ ? 1 : 0), (pSurface->textLocalSeamLeveling_ ? 1 : 0)),
+			wxT("Generating texture (OpenMVS)"), wxT("TextureMesh"));
+
+		pSurface->finalSurfaceFilename_ = wxT("model_surface_text.obj");
+	}
+	else if(pSurface->colorizationType_ == R3DProject::CTTextures)
+	{
+		wxString texreconExe = extPrograms.getTexReconPath();
 
 		wxString texreconCmd(texreconExe + wxT(" "));
 		if(pSurface->textGeometricVisibilityTest_ == false)
@@ -211,8 +281,7 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 			+ relativeSurfaceFilename + wxT(" ")
 			+ relativeSurfacePath + wxT("/model_surface_text");
 
-		cmds_.Add(texreconCmd);
-		progressTexts_.Add(wxT("Generating texture (texrecon)"));
+		addCommand(texreconCmd, wxT("Generating texture (texrecon)"), wxT("texrecon"));
 
 		pSurface->finalSurfaceFilename_ = wxT("model_surface_text.obj");
 	}
@@ -221,9 +290,36 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 		// No external program, this case is handled in Regard3DMainFrame::OnSurfaceGenFinished
 	}
 
+	if(cmds_.IsEmpty())
+	{
+		// Nothing was queued, so OnTerminate would never run and the progress
+		// dialog would otherwise sit there forever
+		isOK_ = false;
+		errorMessage_ = wxT("This surface generation method is not implemented.");
+		pMainFrame_->sendSurfaceGenFinishedEvent();
+		return false;
+	}
+
 	runSingleCommand();
 
 	return (processId_ > 0);
+}
+
+void R3DSurfaceGenProcess::addCommand(const wxString &cmd, const wxString &progressText,
+	const wxString &stepName, const wxString &requiredOutput)
+{
+	cmds_.Add(cmd);
+	progressTexts_.Add(progressText);
+	stepNames_.Add(stepName);
+	requiredOutputs_.Add(requiredOutput);
+}
+
+void R3DSurfaceGenProcess::clearCommands()
+{
+	cmds_.Clear();
+	progressTexts_.Clear();
+	stepNames_.Clear();
+	requiredOutputs_.Clear();
 }
 
 void R3DSurfaceGenProcess::readConsoleOutput()
@@ -280,8 +376,7 @@ void R3DSurfaceGenProcess::cancel()
 	wasCancelled_ = true;
 
 	// Whatever is still queued would run on data the killed tool never wrote
-	cmds_.Clear();
-	progressTexts_.Clear();
+	clearCommands();
 
 	// wxKILL_CHILDREN in case the tool started helpers of its own
 	wxProcess::Kill(processId_, wxSIGKILL, wxKILL_CHILDREN);
@@ -293,6 +388,43 @@ void R3DSurfaceGenProcess::OnTerminate(int pid, int status)
 
 	// This process is gone; cancel() must not kill a recycled pid
 	processId_ = 0;
+
+	if(R3DExternalPrograms::isOpenMVSTool(currentStepName_))
+		R3DExternalPrograms::collectOpenMVSLog(absoluteProjectPath_, currentStepName_, relativeSurfacePath_);
+
+	// Stop at the first failing step instead of running the remaining ones
+	// on data it never wrote, which only piles on unrelated errors
+	bool stepFailed = false;
+	if(wasCancelled_)
+	{
+		isOK_ = false;
+		errorMessage_ = wxT("Aborted.");
+	}
+	else if(status != 0)
+	{
+		stepFailed = true;
+		isOK_ = false;
+		errorMessage_ = wxString::Format(
+			wxT("%s returned with error code %d.\n\nPlease check the console output for details."),
+			currentStepName_.c_str(), status);
+	}
+	else if(!currentRequiredOutput_.IsEmpty())
+	{
+		wxFileName requiredOutputFN(currentRequiredOutput_);
+		requiredOutputFN.MakeAbsolute(absoluteProjectPath_);
+		if(!requiredOutputFN.FileExists())
+		{
+			stepFailed = true;
+			isOK_ = false;
+			errorMessage_ = wxString::Format(
+				wxT("%s did not produce a surface.\n\nThe dense point cloud may have too few points; ")
+				wxT("please check the console output for details."),
+				currentStepName_.c_str());
+		}
+	}
+
+	if(stepFailed)
+		clearCommands();
 
 	if(cmds_.IsEmpty())
 		pMainFrame_->sendSurfaceGenFinishedEvent();
@@ -310,6 +442,10 @@ void R3DSurfaceGenProcess::runSingleCommand()
 		cmds_.RemoveAt(0);
 		wxString progressText = progressTexts_[0];
 		progressTexts_.RemoveAt(0);
+		currentStepName_ = stepNames_[0];
+		stepNames_.RemoveAt(0);
+		currentRequiredOutput_ = requiredOutputs_[0];
+		requiredOutputs_.RemoveAt(0);
 		pMainFrame_->sendUpdateProgressBarEvent(-1.0f, progressText);
 
 		// Cleanup
@@ -325,5 +461,14 @@ void R3DSurfaceGenProcess::runSingleCommand()
 #else
 		processId_ = wxExecute(cmdLine, wxEXEC_ASYNC, this);
 #endif
+
+		if(processId_ <= 0)
+		{
+			// OnTerminate is never called for a process that never started
+			isOK_ = false;
+			errorMessage_ = wxString::Format(wxT("%s could not be started."), currentStepName_.c_str());
+			clearCommands();
+			pMainFrame_->sendSurfaceGenFinishedEvent();
+		}
 	}
 }

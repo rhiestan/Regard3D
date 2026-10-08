@@ -80,6 +80,50 @@ public:
 	const wxString &getOpenMVG2CMPMVSPath() { return openMVG2CMPMVSPath_; }
 	const wxString &getOpenMVG2openMVSPath() { return openMVG2openMVSPath_; }
 
+	// OpenMVS command line tools (openmvs/), not shipped with Regard3D: each is
+	// empty when it is not installed, so every caller has to check before
+	// offering the step that needs it.
+	const wxString &getInterfaceCOLMAPPath() { return interfaceCOLMAPPath_; }
+	const wxString &getDensifyPointCloudPath() { return densifyPointCloudPath_; }
+	const wxString &getReconstructMeshPath() { return reconstructMeshPath_; }
+	const wxString &getRefineMeshPath() { return refineMeshPath_; }
+	const wxString &getTextureMeshPath() { return textureMeshPath_; }
+
+	/**
+	 * Whether an OpenMVS densification of a triangulation can run.
+	 *
+	 * The scene gets into OpenMVS in one of two ways: an OpenMVG triangulation
+	 * through openMVG_main_openMVG2openMVS, a COLMAP-native one through
+	 * colmap image_undistorter + InterfaceCOLMAP (either COLMAP build will do,
+	 * undistortion has a CPU path). If not, reason says what is missing.
+	 */
+	bool isOpenMVSDensificationPossible(bool colmapTriangulation, wxString &reason);
+
+	/**
+	 * Moves the log file an OpenMVS tool wrote into targetDir, echoing it to
+	 * std::cout first.
+	 *
+	 * OpenMVS writes nothing to a redirected stdout, everything goes into
+	 * "<tool>-<unique>.log" in its working folder instead - the project
+	 * directory, since that is what all project paths are relative to. Echoing
+	 * it makes it show up in the console output window like every other tool's
+	 * output, moving it keeps the project directory clean.
+	 */
+	static void collectOpenMVSLog(const wxString &workingDir, const wxString &toolName,
+		const wxString &targetDir);
+	static bool isOpenMVSTool(const wxString &stepName);
+
+	/**
+	 * Deletes depth maps DensifyPointCloud left in its working folder.
+	 *
+	 * They are named depth0000.dmap etc. without any reference to the scene,
+	 * and DensifyPointCloud reuses whatever it finds there instead of
+	 * recomputing it. --remove-dmaps cleans up after a successful run, this
+	 * after an aborted or failed one, so the next densification cannot pick
+	 * up another scene's depth maps.
+	 */
+	static void removeOpenMVSDepthMaps(const wxString &workingDir);
+
 	const wxArrayString &getAllPaths() { return allPaths_; }
 
 	static R3DExternalPrograms &getInstance() { return instance_; }
@@ -113,6 +157,8 @@ private:
 	wxString openMVG2NVMPath_;
 	wxString openMVG2CMPMVSPath_;
 	wxString openMVG2openMVSPath_;
+	wxString interfaceCOLMAPPath_, densifyPointCloudPath_;
+	wxString reconstructMeshPath_, refineMeshPath_, textureMeshPath_;
 	wxArrayString allPaths_;
 
 	static R3DExternalPrograms instance_;

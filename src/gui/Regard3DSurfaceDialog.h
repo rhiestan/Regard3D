@@ -28,7 +28,9 @@ public:
 	Regard3DSurfaceDialog(wxWindow *pParent);
 	virtual ~Regard3DSurfaceDialog();
 
-	void setParams(R3DProject::Densification *pDensification);
+	// colmapTriangulation: the densification's triangulation is COLMAP-native,
+	// so there is no sfm_data.bin to export the MVE scene texrecon needs from
+	void setParams(R3DProject::Densification *pDensification, bool colmapTriangulation);
 	void getResults(R3DProject::Surface *pSurface);
 
 protected:
@@ -44,6 +46,8 @@ protected:
 	virtual void OnFSSRMinComponentSizeSliderScroll( wxScrollEvent& event );
 	virtual void OnColorizationMethodRadioBox( wxCommandEvent& event );
 	virtual void OnColVertNumberOfNeighboursSliderScroll( wxScrollEvent& event );
+	virtual void OnOpenMVSMinPointDistanceSliderScroll( wxScrollEvent& event );
+	virtual void OnOpenMVSSmoothIterationsSliderScroll( wxScrollEvent& event );
 
 	void enableSurfaceGenWidgets();
 	void enableColorizationWidgets();
@@ -56,9 +60,18 @@ protected:
 	void updateFSSRConfidenceThresholdText();
 	void updateFSSRMinComponentSizeText();
 	void updateColVertNumberOfNeighboursText();
+	void updateOpenMVSMinPointDistanceText();
+	void updateOpenMVSSmoothIterationsText();
+	bool isTexturingPossible(wxString &reason);
 
 private:
-	bool enablePoisson_, enableFSSR_;
+	bool enablePoisson_, enableFSSR_, enableOpenMVS_;
+	bool colmapTriangulation_;
+	wxString openMVSReason_;
+	// Selection of pSurfaceGenerationMethodRadioBox_ the widgets were last
+	// set up for, to only change the seam leveling defaults when switching
+	// to or from OpenMVS (-1 before the first time)
+	int lastSurfaceMethod_;
 	int fssrRefineOctreeLevels_;
 	float fssrScaleFactorMultiplier_;
 	float fssrConfidenceThreshold_;

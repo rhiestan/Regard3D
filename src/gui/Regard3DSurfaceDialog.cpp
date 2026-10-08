@@ -19,11 +19,13 @@
 
 #include "CommonIncludes.h"
 #include "Regard3DSurfaceDialog.h"
+#include "R3DExternalPrograms.h"
 
 
 Regard3DSurfaceDialog::Regard3DSurfaceDialog(wxWindow *pParent)
 	: Regard3DSurfaceDialogBase(pParent),
-	enablePoisson_(true), enableFSSR_(false),
+	enablePoisson_(true), enableFSSR_(false), enableOpenMVS_(false),
+	colmapTriangulation_(false), lastSurfaceMethod_(-1),
 	fssrRefineOctreeLevels_(0),
 	fssrScaleFactorMultiplier_(1.0f),
 	fssrConfidenceThreshold_(1.0f),
@@ -35,8 +37,9 @@ Regard3DSurfaceDialog::~Regard3DSurfaceDialog()
 {
 }
 
-void Regard3DSurfaceDialog::setParams(R3DProject::Densification *pDensification)
+void Regard3DSurfaceDialog::setParams(R3DProject::Densification *pDensification, bool colmapTriangulation)
 {
+	colmapTriangulation_ = colmapTriangulation;
 	if(pDensification != NULL)
 	{
 		if(pDensification->densificationType_ == R3DProject::DTCMVSPMVS)
@@ -50,15 +53,30 @@ void Regard3DSurfaceDialog::setParams(R3DProject::Densification *pDensification)
 			enablePoisson_ = true;
 			enableFSSR_ = true;
 		}
+		else if(pDensification->densificationType_ == R3DProject::DTOPENMVS)
+		{
+			// ReconstructMesh needs the scene_dense.mvs only DensifyPointCloud
+			// writes; the point cloud also has normals, so Poisson works too
+			enablePoisson_ = true;
+			enableFSSR_ = false;
+			enableOpenMVS_ = !R3DExternalPrograms::getInstance().getReconstructMeshPath().IsEmpty();
+			if(!enableOpenMVS_)
+				openMVSReason_ = wxT("ReconstructMesh (OpenMVS) was not found in the \"openmvs\" ")
+					wxT("subdirectory of the external tools directory.");
+		}
 	}
+	if(pDensification == NULL || pDensification->densificationType_ != R3DProject::DTOPENMVS)
+		openMVSReason_ = wxT("OpenMVS can only mesh a point cloud that OpenMVS densified.");
 }
 
 void Regard3DSurfaceDialog::getResults(R3DProject::Surface *pSurface)
 {
 	if(pSurfaceGenerationMethodRadioBox_->GetSelection() == 0)
 		pSurface->surfaceType_ = R3DProject::STPoissonRecon;
-	else
+	else if(pSurfaceGenerationMethodRadioBox_->GetSelection() == 1)
 		pSurface->surfaceType_ = R3DProject::STFSSRecon;
+	else
+		pSurface->surfaceType_ = R3DProject::STOpenMVS;
 
 	pSurface->poissonDepth_ = pPoissonDepthSlider_->GetValue();
 	pSurface->poissonSamplesPerNode_ = static_cast<float>(pPoissonSamplesPerNodeSlider_->GetValue())/10.0f;
@@ -69,6 +87,11 @@ void Regard3DSurfaceDialog::getResults(R3DProject::Surface *pSurface)
 	pSurface->fssrScaleFactorMultiplier_ = fssrScaleFactorMultiplier_;
 	pSurface->fssrConfidenceThreshold_ = fssrConfidenceThreshold_;
 	pSurface->fssrMinComponentSize_ = fssrMinComponentSize_;
+
+	pSurface->openMVSMinPointDistance_ = static_cast<float>(pOpenMVSMinPointDistanceSlider_->GetValue())/10.0f;
+	pSurface->openMVSSmoothIterations_ = pOpenMVSSmoothIterationsSlider_->GetValue();
+	pSurface->openMVSRefineMesh_ = pOpenMVSRefineMeshCheckBox_->GetValue()
+		&& pOpenMVSRefineMeshCheckBox_->IsEnabled();
 
 	if(pColorizationMethodRadioBox_->GetSelection() == 0)
 		pSurface->colorizationType_ = R3DProject::CTColoredVertices;
@@ -95,10 +118,17 @@ void Regard3DSurfaceDialog::OnInitDialog( wxInitDialogEvent& event )
 	else
 		pSurfaceGenerationMethodRadioBox_->Enable(1, false);
 
-	enableSurfaceGenWidgets();
-	enableColorizationWidgets();
+	if(enableOpenMVS_)
+		pSurfaceGenerationMethodRadioBox_->Select(2);
+	else
+	{
+		pSurfaceGenerationMethodRadioBox_->Enable(2, false);
+		pSurfaceGenerationMethodRadioBox_->SetItemToolTip(2, openMVSReason_);
+	}
 
 	pColorizationMethodRadioBox_->Select(0);
+
+	enableSurfaceGenWidgets();		// Calls enableColorizationWidgets()
 
 	updatePoissonDepthText();
 	updateSamplesPerNodeText();
@@ -109,6 +139,8 @@ void Regard3DSurfaceDialog::OnInitDialog( wxInitDialogEvent& event )
 	updateFSSRConfidenceThresholdText();
 	updateFSSRMinComponentSizeText();
 	updateColVertNumberOfNeighboursText();
+	updateOpenMVSMinPointDistanceText();
+	updateOpenMVSSmoothIterationsText();
 
 	Fit();
 	CenterOnParent();
@@ -169,9 +201,51 @@ void Regard3DSurfaceDialog::OnColVertNumberOfNeighboursSliderScroll( wxScrollEve
 	updateColVertNumberOfNeighboursText();
 }
 
+void Regard3DSurfaceDialog::OnOpenMVSMinPointDistanceSliderScroll( wxScrollEvent& event )
+{
+	updateOpenMVSMinPointDistanceText();
+}
+
+void Regard3DSurfaceDialog::OnOpenMVSSmoothIterationsSliderScroll( wxScrollEvent& event )
+{
+	updateOpenMVSSmoothIterationsText();
+}
+
+/**
+ * Whether the selected surface generation method can be textured.
+ *
+ * OpenMVS textures with TextureMesh from its own scene; the others with
+ * texrecon from an MVE scene exported from sfm_data.bin, which a
+ * COLMAP-native triangulation does not have.
+ */
+bool Regard3DSurfaceDialog::isTexturingPossible(wxString &reason)
+{
+	R3DExternalPrograms &extPrograms = R3DExternalPrograms::getInstance();
+	if(pSurfaceGenerationMethodRadioBox_->GetSelection() == 2)
+	{
+		if(extPrograms.getTextureMeshPath().IsEmpty())
+		{
+			reason = wxT("TextureMesh (OpenMVS) was not found in the \"openmvs\" ")
+				wxT("subdirectory of the external tools directory.");
+			return false;
+		}
+		return true;
+	}
+
+	if(colmapTriangulation_)
+	{
+		reason = wxT("texrecon needs an OpenMVG reconstruction, and this triangulation was computed ")
+			wxT("by COLMAP. Densify it with OpenMVS to get textures.");
+		return false;
+	}
+	return true;
+}
+
 void Regard3DSurfaceDialog::enableSurfaceGenWidgets()
 {
 	bool isPoisson = (pSurfaceGenerationMethodRadioBox_->GetSelection() == 0);
+	bool isFSSR = (pSurfaceGenerationMethodRadioBox_->GetSelection() == 1);
+	bool isOpenMVS = (pSurfaceGenerationMethodRadioBox_->GetSelection() == 2);
 	pPoissonDepthTextCtrl_->Enable(isPoisson);
 	pPoissonDepthSlider_->Enable(isPoisson);
 	pPoissonSamplesPerNodeTextCtrl_->Enable(isPoisson);
@@ -180,14 +254,52 @@ void Regard3DSurfaceDialog::enableSurfaceGenWidgets()
 	pPoissonPointWeightSlider_->Enable(isPoisson);
 	pPoissonTrimThresholdTextCtrl_->Enable(isPoisson);
 	pPoissonTrimThresholdSlider_->Enable(isPoisson);
-	pFSSRRefineOctreeLevelsTextCtrl_->Enable(!isPoisson);
-	pFSSRRefineOctreeLevelsSlider_->Enable(!isPoisson);
-	pFSSRScaleFactorMultiplierTextCtrl_->Enable(!isPoisson);
-	pFSSRScaleFactorMultiplierSlider_->Enable(!isPoisson);
-	pFSSRConfidenceThresholdTextCtrl_->Enable(!isPoisson);
-	pFSSRConfidenceThresholdSlider_->Enable(!isPoisson);
-	pFSSRMinComponentSizeTextCtrl_->Enable(!isPoisson);
-	pFSSRMinComponentSizeSlider_->Enable(!isPoisson);
+	pFSSRRefineOctreeLevelsTextCtrl_->Enable(isFSSR);
+	pFSSRRefineOctreeLevelsSlider_->Enable(isFSSR);
+	pFSSRScaleFactorMultiplierTextCtrl_->Enable(isFSSR);
+	pFSSRScaleFactorMultiplierSlider_->Enable(isFSSR);
+	pFSSRConfidenceThresholdTextCtrl_->Enable(isFSSR);
+	pFSSRConfidenceThresholdSlider_->Enable(isFSSR);
+	pFSSRMinComponentSizeTextCtrl_->Enable(isFSSR);
+	pFSSRMinComponentSizeSlider_->Enable(isFSSR);
+	pOpenMVSMinPointDistanceTextCtrl_->Enable(isOpenMVS);
+	pOpenMVSMinPointDistanceSlider_->Enable(isOpenMVS);
+	pOpenMVSSmoothIterationsTextCtrl_->Enable(isOpenMVS);
+	pOpenMVSSmoothIterationsSlider_->Enable(isOpenMVS);
+	const bool hasRefineMesh = !R3DExternalPrograms::getInstance().getRefineMeshPath().IsEmpty();
+	pOpenMVSRefineMeshCheckBox_->Enable(isOpenMVS && hasRefineMesh);
+	if(!hasRefineMesh)
+		pOpenMVSRefineMeshCheckBox_->SetToolTip(wxT("RefineMesh (OpenMVS) was not found in the ")
+			wxT("\"openmvs\" subdirectory of the external tools directory."));
+
+	// Which texturing tool would run depends on the method
+	wxString texturingReason;
+	const bool texturingPossible = isTexturingPossible(texturingReason);
+	if(!texturingPossible && pColorizationMethodRadioBox_->GetSelection() == 1)
+		pColorizationMethodRadioBox_->Select(0);
+	pColorizationMethodRadioBox_->Enable(1, texturingPossible);
+	pColorizationMethodRadioBox_->SetItemToolTip(1, texturingReason);
+
+	// TextureMesh's seam leveling (global and local alike) turns large parts
+	// of the texture atlas black in OpenMVS 2.4.0 - reproduced on several
+	// data sets, the same mesh textures cleanly without it. So it starts out
+	// switched off for OpenMVS, but stays selectable for builds without the
+	// problem. Only on switching method, so the user's own choice sticks.
+	const int surfaceMethod = pSurfaceGenerationMethodRadioBox_->GetSelection();
+	if(surfaceMethod != lastSurfaceMethod_ && (isOpenMVS || lastSurfaceMethod_ == 2))
+	{
+		const wxString seamToolTip(isOpenMVS
+			? wxT("Off by default for OpenMVS: in OpenMVS 2.4.0, TextureMesh's seam leveling ")
+				wxT("turns large parts of the texture black.")
+			: wxT(""));
+		pTextGlobalSeamLevCheckBox_->SetValue(!isOpenMVS);
+		pTextLocalSeamLevCheckBox_->SetValue(!isOpenMVS);
+		pTextGlobalSeamLevCheckBox_->SetToolTip(seamToolTip);
+		pTextLocalSeamLevCheckBox_->SetToolTip(seamToolTip);
+	}
+	lastSurfaceMethod_ = surfaceMethod;
+
+	enableColorizationWidgets();
 }
 
 void Regard3DSurfaceDialog::enableColorizationWidgets()
@@ -197,8 +309,10 @@ void Regard3DSurfaceDialog::enableColorizationWidgets()
 	pColVertNumberOfNeighboursTextCtrl_->Enable(isColVert);
 	pColVertNumberOfNeighboursSlider_->Enable(isColVert);
 
-	pTextOutlierRemovalChoice_->Enable(!isColVert);
-	pTextGeomVisTestCheckBox_->Enable(!isColVert);
+	// texrecon only, TextureMesh has neither
+	const bool isOpenMVS = (pSurfaceGenerationMethodRadioBox_->GetSelection() == 2);
+	pTextOutlierRemovalChoice_->Enable(!isColVert && !isOpenMVS);
+	pTextGeomVisTestCheckBox_->Enable(!isColVert && !isOpenMVS);
 	pTextGlobalSeamLevCheckBox_->Enable(!isColVert);
 	pTextLocalSeamLevCheckBox_->Enable(!isColVert);
 }
@@ -278,6 +392,21 @@ void Regard3DSurfaceDialog::updateColVertNumberOfNeighboursText()
 {
 	int sliderValue = pColVertNumberOfNeighboursSlider_->GetValue();
 	pColVertNumberOfNeighboursTextCtrl_->SetValue( wxString::Format( wxT("%d"), sliderValue ) );
+}
+
+void Regard3DSurfaceDialog::updateOpenMVSMinPointDistanceText()
+{
+	int sliderValue = pOpenMVSMinPointDistanceSlider_->GetValue();
+	pOpenMVSMinPointDistanceTextCtrl_->SetValue( sliderValue > 0
+		? wxString::Format( wxT("%g px"), static_cast<float>(sliderValue)/10.0f )
+		: wxString(wxT("Off")) );
+}
+
+void Regard3DSurfaceDialog::updateOpenMVSSmoothIterationsText()
+{
+	int sliderValue = pOpenMVSSmoothIterationsSlider_->GetValue();
+	pOpenMVSSmoothIterationsTextCtrl_->SetValue( sliderValue > 0
+		? wxString::Format( wxT("%d"), sliderValue ) : wxString(wxT("Off")) );
 }
 
 BEGIN_EVENT_TABLE( Regard3DSurfaceDialog, Regard3DSurfaceDialogBase )

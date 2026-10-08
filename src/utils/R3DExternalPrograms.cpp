@@ -22,6 +22,10 @@
 #include "Regard3DSettings.h"
 
 #include <wx/stdpaths.h>
+#include <wx/dir.h>
+#include <wx/ffile.h>
+
+#include <iostream>
 
 #if defined(R3D_WIN32)
 #include <windows.h>
@@ -188,6 +192,23 @@ bool R3DExternalPrograms::initialize()
 
 		cudaDriverDetected_ = probeCudaDriver();
 
+		// OpenMVS, for densification and for meshing/texturing a dense point
+		// cloud it computed. Not shipped with Regard3D, so a missing directory
+		// must not fail the check below; whatever is missing is simply not
+		// offered (see isOpenMVSDensificationPossible()).
+		wxFileName openMVSFN(exeFN);
+		openMVSFN.AppendDir(wxT("openmvs"));
+		if(openMVSFN.DirExists())
+		{
+			const wxString openMVSPath(openMVSFN.GetPath(wxPATH_GET_VOLUME));
+			allPaths_.Add(openMVSPath);
+			checkExecutable(openMVSPath, wxT("InterfaceCOLMAP"), executableExtension, interfaceCOLMAPPath_);
+			checkExecutable(openMVSPath, wxT("DensifyPointCloud"), executableExtension, densifyPointCloudPath_);
+			checkExecutable(openMVSPath, wxT("ReconstructMesh"), executableExtension, reconstructMeshPath_);
+			checkExecutable(openMVSPath, wxT("RefineMesh"), executableExtension, refineMeshPath_);
+			checkExecutable(openMVSPath, wxT("TextureMesh"), executableExtension, textureMeshPath_);
+		}
+
 		// Graphviz, used by OpenMVG's global SfM engine: it renders the graphs of
 		// its HTML report by calling std::system("neato ..."), which searches PATH.
 		// Purely optional, so a missing gv directory must not fail the check below.
@@ -222,6 +243,89 @@ R3DExternalPrograms::R3DExternalPrograms()
 
 R3DExternalPrograms::~R3DExternalPrograms()
 {
+}
+
+bool R3DExternalPrograms::isOpenMVSDensificationPossible(bool colmapTriangulation, wxString &reason)
+{
+	wxArrayString missing;
+	if(densifyPointCloudPath_.IsEmpty())
+		missing.Add(wxT("DensifyPointCloud (OpenMVS)"));
+	if(colmapTriangulation)
+	{
+		if(interfaceCOLMAPPath_.IsEmpty())
+			missing.Add(wxT("InterfaceCOLMAP (OpenMVS)"));
+		if(getBestColmapPath().IsEmpty())
+			missing.Add(wxT("colmap (for image_undistorter)"));
+	}
+	else if(openMVG2openMVSPath_.IsEmpty())
+		missing.Add(wxT("openMVG_main_openMVG2openMVS"));
+
+	if(missing.IsEmpty())
+		return true;
+
+	reason = wxT("Not found: ");
+	for(size_t i = 0; i < missing.GetCount(); i++)
+		reason += (i > 0 ? wxT(", ") : wxT("")) + missing[i];
+	return false;
+}
+
+bool R3DExternalPrograms::isOpenMVSTool(const wxString &stepName)
+{
+	return stepName == wxT("InterfaceCOLMAP") || stepName == wxT("DensifyPointCloud")
+		|| stepName == wxT("ReconstructMesh") || stepName == wxT("RefineMesh")
+		|| stepName == wxT("TextureMesh");
+}
+
+void R3DExternalPrograms::collectOpenMVSLog(const wxString &workingDir, const wxString &toolName,
+	const wxString &targetDir)
+{
+	wxDir dir(workingDir);
+	if(!dir.IsOpened())
+		return;
+
+	wxArrayString logFilenames;
+	wxString filename;
+	bool cont = dir.GetFirst(&filename, toolName + wxT("-*.log"), wxDIR_FILES);
+	while(cont)
+	{
+		logFilenames.Add(filename);
+		cont = dir.GetNext(&filename);
+	}
+
+	for(size_t i = 0; i < logFilenames.GetCount(); i++)
+	{
+		const wxFileName logFN(workingDir, logFilenames[i]);
+		{
+			wxFFile logFile(logFN.GetFullPath(), wxT("rb"));
+			wxString content;
+			if(logFile.IsOpened() && logFile.ReadAll(&content, wxConvUTF8))
+				std::cout << content.ToStdString() << std::flush;
+		}
+
+		wxFileName targetFN(targetDir, logFilenames[i]);
+		targetFN.MakeAbsolute(workingDir);
+		if(!wxRenameFile(logFN.GetFullPath(), targetFN.GetFullPath(), true))
+			wxRemoveFile(logFN.GetFullPath());
+	}
+}
+
+void R3DExternalPrograms::removeOpenMVSDepthMaps(const wxString &workingDir)
+{
+	wxDir dir(workingDir);
+	if(!dir.IsOpened())
+		return;
+
+	wxArrayString depthMapFilenames;
+	wxString filename;
+	bool cont = dir.GetFirst(&filename, wxT("depth*.dmap"), wxDIR_FILES);
+	while(cont)
+	{
+		depthMapFilenames.Add(filename);
+		cont = dir.GetNext(&filename);
+	}
+
+	for(size_t i = 0; i < depthMapFilenames.GetCount(); i++)
+		wxRemoveFile(wxFileName(workingDir, depthMapFilenames[i]).GetFullPath());
 }
 
 bool R3DExternalPrograms::checkExecutable(const wxString &path, const wxString &name, const wxString &extension,

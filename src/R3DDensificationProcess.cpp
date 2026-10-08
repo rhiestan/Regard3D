@@ -119,6 +119,8 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 #endif
 
 	relativePMVSOutPath_ = wxString( paths.relativePMVSOutPath_.c_str(), wxConvLibc );
+	absoluteProjectPath_ = paths.absoluteProjectPath_;
+	relativeDensificationPath_ = wxString( paths.relativeDensificationPath_.c_str(), wxConvLibc );
 
 	cmds_.Clear();
 	progressTexts_.Clear();
@@ -348,6 +350,77 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification 
 
 		pDensification->finalDenseModelName_ = outputModelFilename;
 	}
+	else if(pDensification->densificationType_ == R3DProject::DTOPENMVS)
+	{
+		// The scene gets into OpenMVS in one of two ways:
+		//   OpenMVG triangulation:  openMVG_main_openMVG2openMVS -> scene.mvs + undistorted images
+		//   COLMAP-native one:      colmap image_undistorter -> PINHOLE cameras + undistorted images,
+		//                           InterfaceCOLMAP -> scene.mvs (it reads only undistorted models)
+		// then DensifyPointCloud -> scene_dense.mvs + scene_dense.ply. The
+		// .mvs is kept: OpenMVS meshing (see R3DSurfaceGenProcess) needs it.
+		//
+		// All of them run in the project directory, and OpenMVS resolves the
+		// image names stored in the .mvs against its working folder, which is
+		// what the export stores them relative to - so no -w here, even
+		// though that makes the tools put their logs and depth maps there.
+		R3DExternalPrograms &extPrograms = R3DExternalPrograms::getInstance();
+		const bool nativeColmapTriangulation = (paths.triangulationEngine_ == 2);
+		const wxString densificationDir(relativeDensificationPath_);
+		const wxString sceneFilename(wxFileName(densificationDir, wxT("scene.mvs")).GetFullPath());
+		const wxString denseSceneFilename(wxFileName(densificationDir, wxT("scene_dense.mvs")).GetFullPath());
+		const wxString outputModelFilename(wxT("scene_dense.ply"));
+
+		if(nativeColmapTriangulation)
+		{
+			wxFileName nativeSparseFN(wxString(paths.relativeColmapModelPath_.c_str(), wxConvLibc), wxEmptyString);
+			nativeSparseFN.AppendDir(wxT("0"));
+			wxFileName undistortedFN(densificationDir, wxEmptyString);
+			undistortedFN.AppendDir(wxT("colmap_undistorted"));
+			const wxString undistortedPath(undistortedFN.GetPath(wxPATH_GET_VOLUME));
+
+			cmds_.Add(quoted(extPrograms.getBestColmapPath()) + wxT(" image_undistorter")
+				+ wxT(" --image_path ") + quoted(wxString(paths.relativeImagePath_.c_str(), wxConvLibc))
+				+ wxT(" --input_path ") + quoted(nativeSparseFN.GetPath(wxPATH_GET_VOLUME))
+				+ wxT(" --output_path ") + quoted(undistortedPath)
+				+ wxT(" --output_type COLMAP"));
+			progressTexts_.Add(wxT("Undistorting images (COLMAP)"));
+			stepNames_.Add(wxT("colmap image_undistorter"));
+
+			// Its --image-folder is relative to -i, and the default "images/"
+			// is exactly where image_undistorter put them
+			cmds_.Add(quoted(extPrograms.getInterfaceCOLMAPPath())
+				+ wxT(" -i ") + quoted(undistortedPath)
+				+ wxT(" -o ") + quoted(sceneFilename));
+			progressTexts_.Add(wxT("Exporting project to OpenMVS"));
+			stepNames_.Add(wxT("InterfaceCOLMAP"));
+		}
+		else
+		{
+			wxFileName undistortedFN(densificationDir, wxEmptyString);
+			undistortedFN.AppendDir(wxT("undistorted"));
+			cmds_.Add(quoted(extPrograms.getOpenMVG2openMVSPath())
+				+ wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+				+ wxT(" -o ") + quoted(sceneFilename)
+				+ wxT(" -d ") + quoted(undistortedFN.GetPath(wxPATH_GET_VOLUME)));
+			progressTexts_.Add(wxT("Exporting project to OpenMVS"));
+			stepNames_.Add(wxT("openMVG_main_openMVG2openMVS"));
+		}
+
+		// --remove-dmaps: the depth maps would otherwise stay behind in the
+		// project directory (see R3DExternalPrograms::removeOpenMVSDepthMaps)
+		R3DExternalPrograms::removeOpenMVSDepthMaps(absoluteProjectPath_);
+		cmds_.Add(quoted(extPrograms.getDensifyPointCloudPath())
+			+ wxT(" -i ") + quoted(sceneFilename)
+			+ wxT(" -o ") + quoted(denseSceneFilename)
+			+ wxString::Format(wxT(" --resolution-level %d"), pDensification->openMVSResolutionLevel_)
+			+ wxString::Format(wxT(" --number-views %d"), pDensification->openMVSNumberViews_)
+			+ wxString::Format(wxT(" --number-views-fuse %d"), pDensification->openMVSNumberViewsFuse_)
+			+ wxT(" --remove-dmaps 1"));
+		progressTexts_.Add(wxT("Densify point cloud (OpenMVS)"));
+		stepNames_.Add(wxT("DensifyPointCloud"));
+
+		pDensification->finalDenseModelName_ = outputModelFilename;
+	}
 
 	if(cmds_.IsEmpty())
 	{
@@ -452,6 +525,14 @@ void R3DDensificationProcess::OnTerminate(int pid, int status)
 		errorMessage_ = wxString::Format(
 			wxT("%s returned with error code %d.\n\nPlease check the console output for details."),
 			currentStepName_.c_str(), status);
+	}
+
+	if(R3DExternalPrograms::isOpenMVSTool(currentStepName_))
+	{
+		R3DExternalPrograms::collectOpenMVSLog(absoluteProjectPath_, currentStepName_,
+			relativeDensificationPath_);
+		if(currentStepName_ == wxT("DensifyPointCloud"))
+			R3DExternalPrograms::removeOpenMVSDepthMaps(absoluteProjectPath_);
 	}
 
 	if(writePMVSOptions_)

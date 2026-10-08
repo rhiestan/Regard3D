@@ -996,6 +996,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 		void _wxFB_OnColmapMaxImageSizeSliderScroll( wxScrollEvent& event ){ OnColmapMaxImageSizeSliderScroll( event ); }
 		void _wxFB_OnColmapWindowRadiusSliderScroll( wxScrollEvent& event ){ OnColmapWindowRadiusSliderScroll( event ); }
 		void _wxFB_OnColmapMaxReprojErrorSliderScroll( wxScrollEvent& event ){ OnColmapMaxReprojErrorSliderScroll( event ); }
+		void _wxFB_OnOpenMVSResolutionLevelSliderScroll( wxScrollEvent& event ){ OnOpenMVSResolutionLevelSliderScroll( event ); }
+		void _wxFB_OnOpenMVSNumberViewsSliderScroll( wxScrollEvent& event ){ OnOpenMVSNumberViewsSliderScroll( event ); }
+		void _wxFB_OnOpenMVSNumberViewsFuseSliderScroll( wxScrollEvent& event ){ OnOpenMVSNumberViewsFuseSliderScroll( event ); }
 
 
 	protected:
@@ -1044,7 +1047,14 @@ class Regard3DDensificationDialogBase : public wxDialog
 			ID_COLMAPFILTERCHECKBOX,
 			ID_COLMAPMAXREPROJERRORTEXTCTRL,
 			ID_COLMAPMAXREPROJERRORSLIDER,
-			ID_COLMAPUSECUDACHECKBOX
+			ID_COLMAPUSECUDACHECKBOX,
+			ID_OPENMVSRECONPARAMSPANEL,
+			ID_OPENMVSRESOLUTIONLEVELTEXTCTRL,
+			ID_OPENMVSRESOLUTIONLEVELSLIDER,
+			ID_OPENMVSNUMBERVIEWSTEXTCTRL,
+			ID_OPENMVSNUMBERVIEWSSLIDER,
+			ID_OPENMVSNUMBERVIEWSFUSETEXTCTRL,
+			ID_OPENMVSNUMBERVIEWSFUSESLIDER
 		};
 
 		wxPanel* pDensificationPanel_;
@@ -1109,6 +1119,16 @@ class Regard3DDensificationDialogBase : public wxDialog
 		wxSlider* pColmapMaxReprojErrorSlider_;
 		wxStaticText* m_staticTextColmap6;
 		wxCheckBox* pColmapUseCudaCheckBox_;
+		wxPanel* pOpenMVSReconParamsPanel_;
+		wxStaticText* m_staticTextOpenMVS1;
+		wxTextCtrl* pOpenMVSResolutionLevelTextCtrl_;
+		wxSlider* pOpenMVSResolutionLevelSlider_;
+		wxStaticText* m_staticTextOpenMVS2;
+		wxTextCtrl* pOpenMVSNumberViewsTextCtrl_;
+		wxSlider* pOpenMVSNumberViewsSlider_;
+		wxStaticText* m_staticTextOpenMVS3;
+		wxTextCtrl* pOpenMVSNumberViewsFuseTextCtrl_;
+		wxSlider* pOpenMVSNumberViewsFuseSlider_;
 		wxStdDialogButtonSizer* pStdDialogButtonSizer_;
 		wxButton* pStdDialogButtonSizer_OK;
 		wxButton* pStdDialogButtonSizer_Cancel;
@@ -1129,6 +1149,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 		virtual void OnColmapMaxImageSizeSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnColmapWindowRadiusSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnColmapMaxReprojErrorSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnOpenMVSResolutionLevelSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnOpenMVSNumberViewsSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnOpenMVSNumberViewsFuseSliderScroll( wxScrollEvent& event ) = 0;
 
 
 	public:
@@ -1159,6 +1182,8 @@ class Regard3DSurfaceDialogBase : public wxDialog
 		void _wxFB_OnFSSRScaleFactorMultiplierSliderScroll( wxScrollEvent& event ){ OnFSSRScaleFactorMultiplierSliderScroll( event ); }
 		void _wxFB_OnFSSRConfidenceThresholdSliderScroll( wxScrollEvent& event ){ OnFSSRConfidenceThresholdSliderScroll( event ); }
 		void _wxFB_OnFSSRMinComponentSizeSliderScroll( wxScrollEvent& event ){ OnFSSRMinComponentSizeSliderScroll( event ); }
+		void _wxFB_OnOpenMVSMinPointDistanceSliderScroll( wxScrollEvent& event ){ OnOpenMVSMinPointDistanceSliderScroll( event ); }
+		void _wxFB_OnOpenMVSSmoothIterationsSliderScroll( wxScrollEvent& event ){ OnOpenMVSSmoothIterationsSliderScroll( event ); }
 		void _wxFB_OnColorizationMethodRadioBox( wxCommandEvent& event ){ OnColorizationMethodRadioBox( event ); }
 		void _wxFB_OnColVertNumberOfNeighboursSliderScroll( wxScrollEvent& event ){ OnColVertNumberOfNeighboursSliderScroll( event ); }
 
@@ -1187,6 +1212,11 @@ class Regard3DSurfaceDialogBase : public wxDialog
 			ID_FSSRCONFIDENCETHRESHOLDSLIDER,
 			ID_FSSRMINCOMPONENTSIZETEXTCTRL,
 			ID_FSSRMINCOMPONENTSIZESLIDER,
+			ID_OPENMVSMINPOINTDISTANCETEXTCTRL,
+			ID_OPENMVSMINPOINTDISTANCESLIDER,
+			ID_OPENMVSSMOOTHITERATIONSTEXTCTRL,
+			ID_OPENMVSSMOOTHITERATIONSSLIDER,
+			ID_OPENMVSREFINEMESHCHECKBOX,
 			ID_PCOLORIZATIONMETHODRADIOBOX_,
 			ID_COLVERTPARAMSBOXSIZER,
 			ID_COLVERTNUMBEROFNEIGHBOURSTEXTCTRL,
@@ -1225,6 +1255,15 @@ class Regard3DSurfaceDialogBase : public wxDialog
 		wxStaticText* m_staticText58;
 		wxTextCtrl* pFSSRMinComponentSizeTextCtrl_;
 		wxSlider* pFSSRMinComponentSizeSlider_;
+		wxStaticBoxSizer* pOpenMVSParamsBoxSizer_;
+		wxStaticText* m_staticTextOpenMVSSurf1;
+		wxTextCtrl* pOpenMVSMinPointDistanceTextCtrl_;
+		wxSlider* pOpenMVSMinPointDistanceSlider_;
+		wxStaticText* m_staticTextOpenMVSSurf2;
+		wxTextCtrl* pOpenMVSSmoothIterationsTextCtrl_;
+		wxSlider* pOpenMVSSmoothIterationsSlider_;
+		wxStaticText* m_staticTextOpenMVSSurf3;
+		wxCheckBox* pOpenMVSRefineMeshCheckBox_;
 		wxRadioBox* pColorizationMethodRadioBox_;
 		wxStaticBoxSizer* pColVertParamsBoxSizer_;
 		wxStaticText* m_staticText51;
@@ -1254,6 +1293,8 @@ class Regard3DSurfaceDialogBase : public wxDialog
 		virtual void OnFSSRScaleFactorMultiplierSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnFSSRConfidenceThresholdSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnFSSRMinComponentSizeSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnOpenMVSMinPointDistanceSliderScroll( wxScrollEvent& event ) = 0;
+		virtual void OnOpenMVSSmoothIterationsSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnColorizationMethodRadioBox( wxCommandEvent& event ) = 0;
 		virtual void OnColVertNumberOfNeighboursSliderScroll( wxScrollEvent& event ) = 0;
 

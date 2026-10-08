@@ -229,7 +229,8 @@ public:
 	enum R3DSurfaceType
 	{
 		STPoissonRecon = 0,
-		STFSSRecon
+		STFSSRecon,
+		STOpenMVS		// ReconstructMesh (+ RefineMesh), only on a DTOPENMVS densification
 	};
 	enum R3DColorizationType
 	{
@@ -270,6 +271,12 @@ public:
 		bool textGeometricVisibilityTest_;
 		bool textGlobalSeamLeveling_;
 		bool textLocalSeamLeveling_;
+		// STOpenMVS: ReconstructMesh --min-point-distance/--smooth, and whether
+		// RefineMesh runs afterwards. Textures come from TextureMesh, which
+		// shares the two seam leveling flags above with texrecon.
+		float openMVSMinPointDistance_;
+		int openMVSSmoothIterations_;
+		bool openMVSRefineMesh_;
 		wxString finalSurfaceFilename_;
 		wxString runningTime_;
 		R3DObjectState state_;
@@ -281,7 +288,8 @@ public:
 		DTMVE,
 		DTCMPMVS,
 		DTSMVS,
-		DTCOLMAP
+		DTCOLMAP,
+		DTOPENMVS
 	};
 
 	/**
@@ -326,6 +334,10 @@ public:
 		// dense stereo has no CPU fallback, so densification always runs
 		// colmap_cuda regardless of this value - there is nothing to choose.
 		bool colmapUseCuda_;
+		// DensifyPointCloud --resolution-level/--number-views/--number-views-fuse
+		int openMVSResolutionLevel_;
+		int openMVSNumberViews_;
+		int openMVSNumberViewsFuse_;
 		wxString finalDenseModelName_;
 		wxString runningTime_;
 

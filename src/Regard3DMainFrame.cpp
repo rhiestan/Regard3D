@@ -1608,22 +1608,28 @@ void Regard3DMainFrame::OnSurfaceGenFinished( wxCommandEvent &event )
 {
 	R3DProject::Surface *pSurface = NULL;
 	bool wasCancelled = false;
+	bool wasOK = true;
+	wxString errorMessage;
 	if(pR3DSurfaceGenProcess_ != NULL)
 	{
 		pR3DSurfaceGenProcess_->readConsoleOutput();	// Consume all output
 		pSurface = pR3DSurfaceGenProcess_->getSurface();
 		pSurface->runningTime_ = pR3DSurfaceGenProcess_->getRuntimeStr();
 		wasCancelled = pR3DSurfaceGenProcess_->getWasCancelled();
+		wasOK = pR3DSurfaceGenProcess_->getIsOK();
+		errorMessage = pR3DSurfaceGenProcess_->getErrorMessage();
 
 		delete pR3DSurfaceGenProcess_;
 		pR3DSurfaceGenProcess_ = NULL;
 	}
 
 	wxString surfaceModelFilename(pSurface->finalSurfaceFilename_);
-	// Nothing to colorize after an abort, the surface was never written
+	// Nothing to colorize after an abort or a failed step, the surface was
+	// never written. FSSR meshes come with vertex colors, the others don't.
 	if(pSurface->colorizationType_ == R3DProject::CTColoredVertices
-		&& pSurface->surfaceType_ == R3DProject::STPoissonRecon
-		&& !wasCancelled)
+		&& (pSurface->surfaceType_ == R3DProject::STPoissonRecon
+			|| pSurface->surfaceType_ == R3DProject::STOpenMVS)
+		&& !wasCancelled && wasOK)
 	{
 		if(pProgressDialog_ != NULL)
 			pProgressDialog_->Update(80, wxT("Colorizing vertices"));
@@ -1651,7 +1657,7 @@ void Regard3DMainFrame::OnSurfaceGenFinished( wxCommandEvent &event )
 
 	// Load generated model
 	wxFileName surfaceModelFN(wxString(paths.relativeSurfacePath_.c_str(), wxConvLibc), surfaceModelFilename);
-	if(surfaceModelFN.FileExists() && !wasCancelled)
+	if(surfaceModelFN.FileExists() && !wasCancelled && wasOK)
 	{
 		pSurface->state_ = R3DProject::OSFinished;
 		project_.save();
@@ -1663,8 +1669,13 @@ void Regard3DMainFrame::OnSurfaceGenFinished( wxCommandEvent &event )
 	else
 	{
 		if(!wasCancelled)		// The user pressed Abort, they know
-			wxMessageBox(wxT("No generated model found.\nPlease check console output for errors."),
+		{
+			// A tool can exit 0 and still not have written the model, so
+			// fall back to the generic message when there is no specific one
+			wxMessageBox(!errorMessage.IsEmpty() ? errorMessage
+					: wxT("No generated model found.\nPlease check console output for errors."),
 				wxT("Surface generation"), wxICON_ERROR | wxOK, this);
+		}
 
 		project_.removeSurface(pSurface);
 		project_.save();
@@ -2525,6 +2536,8 @@ void Regard3DMainFrame::updateProjectDetails()
 					type = wxString(wxT("SMVS"));
 				else if(pDensification->densificationType_ == R3DProject::DTCOLMAP)
 					type = wxString(wxT("COLMAP"));
+				else if(pDensification->densificationType_ == R3DProject::DTOPENMVS)
+					type = wxString(wxT("OpenMVS"));
 				else
 					type = wxString(wxT("Unknown"));
 
@@ -2556,6 +2569,12 @@ void Regard3DMainFrame::updateProjectDetails()
 						(pDensification->colmapGeomConsistency_ ? wxT("yes") : wxT("no")),
 						(pDensification->colmapFilter_ ? wxT("yes") : wxT("no")),
 						pDensification->colmapMaxReprojError_);
+				}
+				else if(pDensification->densificationType_ == R3DProject::DTOPENMVS)
+				{
+					params.Printf(wxT("Resolution level: %d Number of views: %d Min. views for fusion: %d"),
+						pDensification->openMVSResolutionLevel_, pDensification->openMVSNumberViews_,
+						pDensification->openMVSNumberViewsFuse_);
 				}
 				runningTime = pDensification->runningTime_;
 			}
@@ -2592,6 +2611,13 @@ void Regard3DMainFrame::updateProjectDetails()
 					params.Printf(wxT("Levels: %d Scale factor mult: %g Confidence threshold: %g Min component size: %d"),
 						pSurface->fssrRefineOctreeLevels_, pSurface->fssrScaleFactorMultiplier_,
 						pSurface->fssrConfidenceThreshold_, pSurface->fssrMinComponentSize_);
+				}
+				else if(pSurface->surfaceType_ == R3DProject::STOpenMVS)
+				{
+					type = wxString(wxT("OpenMVS mesh reconstruction"));
+					params.Printf(wxT("Min. point distance: %g Smoothing iterations: %d Refined: %s"),
+						pSurface->openMVSMinPointDistance_, pSurface->openMVSSmoothIterations_,
+						(pSurface->openMVSRefineMesh_ ? wxT("yes") : wxT("no")));
 				}
 				else
 					type = wxString(wxT("Unknown"));
@@ -2958,7 +2984,7 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 	}
 
 	Regard3DDensificationDialog dlg(this);
-	dlg.setColmapOnly(pTriangulation->computeEngine_ == 2);
+	dlg.setColmapTriangulation(pTriangulation->computeEngine_ == 2);
 	if(dlg.ShowModal() == wxID_OK)
 	{
 		int newID = project_.addDensification(pTriangulation);
@@ -3015,6 +3041,23 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 					wxT("into the subdirectory \"colmap_cuda\" of the external tools directory,\n")
 					wxT("and openMVG_main_openMVG2Colmap into its \"openmvg\" subdirectory,\n")
 					wxT("or use a different densification method (CMVS/PMVS, MVE or SMVS)."),
+					wxT("Regard3D error"), wxOK | wxICON_ERROR);
+				project_.removeDensification(pDensification);
+				project_.save();
+				project_.populateTreeControl(pProjectTreeCtrl_);
+				return;
+			}
+		}
+
+		if(pDensification->densificationType_ == R3DProject::R3DDensificationType::DTOPENMVS)
+		{
+			// The dialog only offers OpenMVS when this holds; checked again
+			// here so a densification never starts with a tool missing
+			wxString reason;
+			if(!R3DExternalPrograms::getInstance().isOpenMVSDensificationPossible(
+				pTriangulation->computeEngine_ == 2, reason))
+			{
+				wxMessageBox(wxT("OpenMVS densification is not available.\n\n") + reason,
 					wxT("Regard3D error"), wxOK | wxICON_ERROR);
 				project_.removeDensification(pDensification);
 				project_.save();
@@ -3113,7 +3156,7 @@ void Regard3DMainFrame::createSurface(R3DProject::Densification *pDensification)
 	}
 
 	Regard3DSurfaceDialog dlg(this);
-	dlg.setParams(pDensification);
+	dlg.setParams(pDensification, paths.triangulationEngine_ == 2);
 	if(dlg.ShowModal() == wxID_OK)
 	{
 		int newID = project_.addSurface(pDensification);
@@ -3147,7 +3190,7 @@ void Regard3DMainFrame::createSurface(R3DProject::Densification *pDensification)
 
 		project_.prepareSurface(pSurface);
 
-		pProgressDialog_->Pulse(wxT("Exporting project to MVE"));
+		pProgressDialog_->Pulse(wxT("Generating surface"));
 
 		if(pR3DSmallTasksThread_ != NULL)
 			delete pR3DSmallTasksThread_;

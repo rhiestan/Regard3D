@@ -989,10 +989,11 @@ bool R3DProject::getProjectPathsDns(R3DProjectPaths &paths, R3DProject::Densific
 		denseModelFN.SetFullName(pDensification->finalDenseModelName_);
 		paths.relativeDenseModelName_ = std::string(denseModelFN.GetFullPath().mb_str(wxConvLibc));
 	}
-	else if(pDensification->densificationType_ == R3DProject::DTCOLMAP)
+	else if(pDensification->densificationType_ == R3DProject::DTCOLMAP
+		|| pDensification->densificationType_ == R3DProject::DTOPENMVS)
 	{
-		// colmap_fused.ply is written directly into relativeDensificationPath_,
-		// the same flat layout DTMVE uses
+		// colmap_fused.ply/scene_dense.ply are written directly into
+		// relativeDensificationPath_, the same flat layout DTMVE uses
 		wxFileName denseModelFN(wxString(paths.relativeDensificationPath_.c_str(), wxConvLibc), wxT(""));
 		denseModelFN.SetFullName(pDensification->finalDenseModelName_);
 		paths.relativeDenseModelName_ = std::string(denseModelFN.GetFullPath().mb_str(wxConvLibc));
@@ -1482,7 +1483,8 @@ void R3DProject::prepareDensification(R3DProject::Densification *pDensification)
 	}
 	else if(pDensification->densificationType_ == R3DProject::DTMVE
 		|| pDensification->densificationType_ == R3DProject::DTSMVS
-		|| pDensification->densificationType_ == R3DProject::DTCOLMAP)
+		|| pDensification->densificationType_ == R3DProject::DTCOLMAP
+		|| pDensification->densificationType_ == R3DProject::DTOPENMVS)
 	{
 		wxString mveOutPath(paths.relativeDensificationPath_.c_str(), wxConvLibc);
 		if(!wxFileName::DirExists(mveOutPath))
@@ -1809,7 +1811,8 @@ R3DProject::Densification::Densification()
 	smvsInputScale_(1), smvsOutputScale_(2), smvsEnableShadingBasedOptimization_(false),
 	smvsEnableSemiGlobalMatching_(true), smvsAlpha_(1.0f),
 	colmapMaxImageSize_(-1), colmapWindowRadius_(5), colmapGeomConsistency_(true),
-	colmapFilter_(true), colmapMaxReprojError_(2.0f), colmapUseCuda_(true)
+	colmapFilter_(true), colmapMaxReprojError_(2.0f), colmapUseCuda_(true),
+	openMVSResolutionLevel_(1), openMVSNumberViews_(5), openMVSNumberViewsFuse_(2)
 {
 }
 
@@ -1847,6 +1850,9 @@ R3DProject::Densification &R3DProject::Densification::copy(const R3DProject::Den
 	colmapFilter_ = o.colmapFilter_;
 	colmapMaxReprojError_ = o.colmapMaxReprojError_;
 	colmapUseCuda_ = o.colmapUseCuda_;
+	openMVSResolutionLevel_ = o.openMVSResolutionLevel_;
+	openMVSNumberViews_ = o.openMVSNumberViews_;
+	openMVSNumberViewsFuse_ = o.openMVSNumberViewsFuse_;
 	finalDenseModelName_ = o.finalDenseModelName_;
 	runningTime_ = o.runningTime_;
 	state_ = o.state_;
@@ -1872,6 +1878,7 @@ R3DProject::Surface::Surface()
 	colorizationType_(R3DProject::CTTextures), colVertNumNeighbours_(3),
 	textOutlierRemovalType_(0), textGeometricVisibilityTest_(true),
 	textGlobalSeamLeveling_(true), textLocalSeamLeveling_(true),
+	openMVSMinPointDistance_(1.5f), openMVSSmoothIterations_(2), openMVSRefineMesh_(false),
 	state_(R3DProject::OSInvalid)
 {
 }
@@ -1903,6 +1910,9 @@ R3DProject::Surface &R3DProject::Surface::copy(const R3DProject::Surface &o)
 	textGeometricVisibilityTest_ = o.textGeometricVisibilityTest_;
 	textGlobalSeamLeveling_ = o.textGlobalSeamLeveling_;
 	textLocalSeamLeveling_ = o.textLocalSeamLeveling_;
+	openMVSMinPointDistance_ = o.openMVSMinPointDistance_;
+	openMVSSmoothIterations_ = o.openMVSSmoothIterations_;
+	openMVSRefineMesh_ = o.openMVSRefineMesh_;
 	finalSurfaceFilename_ = o.finalSurfaceFilename_;
 	runningTime_ = o.runningTime_;
 	state_ = o.state_;
@@ -1993,12 +2003,18 @@ void R3DProject::Surface::serialize(Archive & ar, const unsigned int version)
 	ar & boost::serialization::make_nvp("textGeometricVisibilityTest", textGeometricVisibilityTest_);
 	ar & boost::serialization::make_nvp("textGlobalSeamLeveling", textGlobalSeamLeveling_);
 	ar & boost::serialization::make_nvp("textLocalSeamLeveling", textLocalSeamLeveling_);
+	if(version > 0)
+	{
+		ar & boost::serialization::make_nvp("openMVSMinPointDistance", openMVSMinPointDistance_);
+		ar & boost::serialization::make_nvp("openMVSSmoothIterations", openMVSSmoothIterations_);
+		ar & boost::serialization::make_nvp("openMVSRefineMesh", openMVSRefineMesh_);
+	}
 	ar & boost::serialization::make_nvp("finalSurfaceFilename", finalSurfaceFilename_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("orientation", orientation_);
 }
-//BOOST_CLASS_VERSION(R3DProject::Surface, 1)
+BOOST_CLASS_VERSION(R3DProject::Surface, 1)
 
 // Serialize Densification class
 template<class Archive>
@@ -2039,13 +2055,19 @@ void R3DProject::Densification::serialize(Archive & ar, const unsigned int versi
 	{
 		ar & boost::serialization::make_nvp("colmapUseCuda", colmapUseCuda_);
 	}
+	if(version > 3)
+	{
+		ar & boost::serialization::make_nvp("openMVSResolutionLevel", openMVSResolutionLevel_);
+		ar & boost::serialization::make_nvp("openMVSNumberViews", openMVSNumberViews_);
+		ar & boost::serialization::make_nvp("openMVSNumberViewsFuse", openMVSNumberViewsFuse_);
+	}
 	ar & boost::serialization::make_nvp("finalDenseModelName", finalDenseModelName_);
 	ar & boost::serialization::make_nvp("runningTime", runningTime_);
 	ar & boost::serialization::make_nvp("state", state_);
 	ar & boost::serialization::make_nvp("orientation", orientation_);
 	ar & boost::serialization::make_nvp("Surfaces", surfaces_);
 }
-BOOST_CLASS_VERSION(R3DProject::Densification, 3)
+BOOST_CLASS_VERSION(R3DProject::Densification, 4)
 
 // Serialize Triangulation class
 template<class Archive>

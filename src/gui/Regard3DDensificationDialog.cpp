@@ -29,7 +29,7 @@ namespace
 }
 
 Regard3DDensificationDialog::Regard3DDensificationDialog(wxWindow *pParent)
-	: Regard3DDensificationDialogBase(pParent), colmapOnly_(false)
+	: Regard3DDensificationDialogBase(pParent), colmapTriangulation_(false)
 {
 	maxImage_ = wxString(wxT("100"));
 }
@@ -38,21 +38,26 @@ Regard3DDensificationDialog::~Regard3DDensificationDialog()
 {
 }
 
-void Regard3DDensificationDialog::setColmapOnly(bool colmapOnly)
+void Regard3DDensificationDialog::setColmapTriangulation(bool colmapTriangulation)
 {
-	colmapOnly_ = colmapOnly;
+	colmapTriangulation_ = colmapTriangulation;
 }
 
 void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensification)
 {
-	if(pDensificationMethodChoicebook_->GetSelection() == 0)
+	// By page rather than by index: OnInitDialog removes the pages of
+	// methods that cannot run
+	const wxWindow *pPage = pDensificationMethodChoicebook_->GetCurrentPage();
+	if(pPage == pPMVSParamsPanel_)
 		pDensification->densificationType_ = R3DProject::DTCMVSPMVS;
-	else if(pDensificationMethodChoicebook_->GetSelection() == 1)
+	else if(pPage == pDMReconParamsPanel_)
 		pDensification->densificationType_ = R3DProject::DTMVE;
-	else if(pDensificationMethodChoicebook_->GetSelection() == 2)
+	else if(pPage == pSMVSReconParamsPanel_)
 		pDensification->densificationType_ = R3DProject::DTSMVS;
-	else if(pDensificationMethodChoicebook_->GetSelection() == 3)
+	else if(pPage == pColmapReconParamsPanel_)
 		pDensification->densificationType_ = R3DProject::DTCOLMAP;
+	else if(pPage == pOpenMVSReconParamsPanel_)
+		pDensification->densificationType_ = R3DProject::DTOPENMVS;
 
 	pDensification->pmvsNumThreads_ = pNumberOfThreadsChoice_->GetSelection() + 1;
 	pDensification->useCMVS_ = pUseCMVSCheckBox_->GetValue();
@@ -82,28 +87,41 @@ void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensifi
 	pDensification->colmapFilter_ = pColmapFilterCheckBox_->GetValue();
 	pDensification->colmapMaxReprojError_ = static_cast<float>(pColmapMaxReprojErrorSlider_->GetValue()) * 0.1f;
 	pDensification->colmapUseCuda_ = pColmapUseCudaCheckBox_->GetValue();
+
+	pDensification->openMVSResolutionLevel_ = pOpenMVSResolutionLevelSlider_->GetValue();
+	pDensification->openMVSNumberViews_ = pOpenMVSNumberViewsSlider_->GetValue();
+	pDensification->openMVSNumberViewsFuse_ = pOpenMVSNumberViewsFuseSlider_->GetValue();
 }
 
 void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 {
 	wxDialog::OnInitDialog(event);	// Call base class to initalize validators
 
-	if(colmapOnly_)
+	// Only offer what can actually run on this triangulation
+	wxString toolTip;
+	if(colmapTriangulation_)
 	{
-		// Page 3 is COLMAP (see getResults()); lock the selector on it instead
-		// of the whole control, so the COLMAP page's own controls stay usable
-		pDensificationMethodChoicebook_->SetSelection(3);
-		wxWindow *pChoiceCtrl = pDensificationMethodChoicebook_->GetChoiceCtrl();
-		if(pChoiceCtrl != NULL)
-		{
-			pChoiceCtrl->Enable(false);
-			pChoiceCtrl->SetToolTip(wxT("This triangulation was computed by COLMAP, so only COLMAP ")
-				wxT("can densify it: CMVS/PMVS, MVE and SMVS all need an OpenMVG ")
-				wxT("reconstruction, which this triangulation does not have."));
-		}
+		removeMethodPage(pPMVSParamsPanel_);
+		removeMethodPage(pDMReconParamsPanel_);
+		removeMethodPage(pSMVSReconParamsPanel_);
+		toolTip = wxT("This triangulation was computed by COLMAP, so only COLMAP and OpenMVS ")
+			wxT("can densify it: CMVS/PMVS, MVE and SMVS all need an OpenMVG ")
+			wxT("reconstruction, which this triangulation does not have.");
 	}
-	else
-		pDensificationMethodChoicebook_->SetSelection(0);
+	// OpenMVS is not shipped with Regard3D, see R3DExternalPrograms
+	wxString openMVSReason;
+	if(!R3DExternalPrograms::getInstance().isOpenMVSDensificationPossible(colmapTriangulation_, openMVSReason))
+	{
+		removeMethodPage(pOpenMVSReconParamsPanel_);
+		if(!toolTip.IsEmpty())
+			toolTip += wxT("\n\n");
+		toolTip += wxT("OpenMVS densification is not available. ") + openMVSReason
+			+ wxT(" (expected in the \"openmvs\" subdirectory of the external tools directory).");
+	}
+	wxWindow *pChoiceCtrl = pDensificationMethodChoicebook_->GetChoiceCtrl();
+	if(pChoiceCtrl != NULL && !toolTip.IsEmpty())
+		pChoiceCtrl->SetToolTip(toolTip);
+	pDensificationMethodChoicebook_->SetSelection(0);
 
 	pMaxImageTextCtrl_->SetValue(wxT("100"));
 	//TransferDataToWindow();
@@ -127,6 +145,9 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 	updateColmapWindowRadiusText();
 	updateColmapMaxReprojErrorText();
 	updateColmapUseCudaCheckBox();
+	updateOpenMVSResolutionLevelText();
+	updateOpenMVSNumberViewsText();
+	updateOpenMVSNumberViewsFuseText();
 
 	Fit();
 	CenterOnParent();
@@ -200,6 +221,21 @@ void Regard3DDensificationDialog::OnColmapWindowRadiusSliderScroll(wxScrollEvent
 void Regard3DDensificationDialog::OnColmapMaxReprojErrorSliderScroll(wxScrollEvent& event)
 {
 	updateColmapMaxReprojErrorText();
+}
+
+void Regard3DDensificationDialog::OnOpenMVSResolutionLevelSliderScroll(wxScrollEvent& event)
+{
+	updateOpenMVSResolutionLevelText();
+}
+
+void Regard3DDensificationDialog::OnOpenMVSNumberViewsSliderScroll(wxScrollEvent& event)
+{
+	updateOpenMVSNumberViewsText();
+}
+
+void Regard3DDensificationDialog::OnOpenMVSNumberViewsFuseSliderScroll(wxScrollEvent& event)
+{
+	updateOpenMVSNumberViewsFuseText();
 }
 
 void Regard3DDensificationDialog::updatePMVSLevelText()
@@ -298,6 +334,40 @@ void Regard3DDensificationDialog::updateColmapUseCudaCheckBox()
 
 	pColmapUseCudaCheckBox_->SetValue(hasCudaBuild && extPrograms.hasCudaDriver());
 	pColmapUseCudaCheckBox_->Enable(false);
+}
+
+void Regard3DDensificationDialog::updateOpenMVSResolutionLevelText()
+{
+	// Each level halves the images
+	int sliderValue = pOpenMVSResolutionLevelSlider_->GetValue();
+	pOpenMVSResolutionLevelTextCtrl_->SetValue( sliderValue > 0
+		? wxString::Format( wxT("%d (1/%d size)"), sliderValue, 1 << sliderValue )
+		: wxString(wxT("0 (full size)")) );
+}
+
+void Regard3DDensificationDialog::updateOpenMVSNumberViewsText()
+{
+	int sliderValue = pOpenMVSNumberViewsSlider_->GetValue();
+	pOpenMVSNumberViewsTextCtrl_->SetValue( sliderValue > 0
+		? wxString::Format( wxT("%d"), sliderValue ) : wxString(wxT("All")) );
+}
+
+void Regard3DDensificationDialog::updateOpenMVSNumberViewsFuseText()
+{
+	int sliderValue = pOpenMVSNumberViewsFuseSlider_->GetValue();
+	pOpenMVSNumberViewsFuseTextCtrl_->SetValue( wxString::Format( wxT("%d"), sliderValue ) );
+}
+
+void Regard3DDensificationDialog::removeMethodPage(wxWindow *pPage)
+{
+	int pageIndex = pDensificationMethodChoicebook_->FindPage(pPage);
+	if(pageIndex == wxNOT_FOUND)
+		return;
+
+	// RemovePage, not DeletePage: the page stays a child of the choicebook and
+	// is destroyed with the dialog, it just isn't shown or selectable any more
+	pDensificationMethodChoicebook_->RemovePage(static_cast<size_t>(pageIndex));
+	pPage->Hide();
 }
 
 BEGIN_EVENT_TABLE( Regard3DDensificationDialog, Regard3DDensificationDialogBase )

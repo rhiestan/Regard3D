@@ -46,10 +46,24 @@ public:
 	void cancel();
 	bool getWasCancelled() const { return wasCancelled_; }
 
+	// Results, read by Regard3DMainFrame::OnSurfaceGenFinished
+	bool getIsOK() const { return isOK_; }
+	const wxString &getErrorMessage() const { return errorMessage_; }
+
 protected:
 	virtual void OnTerminate(int pid, int status);
 
 	void runSingleCommand();
+	/**
+	 * Queues a command.
+	 *
+	 * stepName names the executable in error messages; requiredOutput, if not
+	 * empty, is a file (relative to the project) the step has to have written,
+	 * for tools that can exit with 0 without having produced anything.
+	 */
+	void addCommand(const wxString &cmd, const wxString &progressText,
+		const wxString &stepName, const wxString &requiredOutput = wxEmptyString);
+	void clearCommands();
 
 private:
 	Regard3DMainFrame *pMainFrame_;
@@ -61,8 +75,16 @@ private:
 	wxExecuteEnv env_;
 #endif
 	wxArrayString cmds_, progressTexts_;
+	wxArrayString stepNames_, requiredOutputs_;
+	wxString currentStepName_, currentRequiredOutput_;
 
 	bool wasCancelled_;
+	bool isOK_;
+	wxString errorMessage_;
+
+	// The OpenMVS tools leave their log files in the project directory, see
+	// R3DExternalPrograms::collectOpenMVSLog
+	wxString absoluteProjectPath_, relativeSurfacePath_;
 };
 
 #endif

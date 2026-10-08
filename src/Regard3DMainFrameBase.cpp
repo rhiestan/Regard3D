@@ -1899,6 +1899,9 @@ BEGIN_EVENT_TABLE( Regard3DDensificationDialogBase, wxDialog )
 	EVT_COMMAND_SCROLL( ID_COLMAPMAXIMAGESIZESLIDER, Regard3DDensificationDialogBase::_wxFB_OnColmapMaxImageSizeSliderScroll )
 	EVT_COMMAND_SCROLL( ID_COLMAPWINDOWRADIUSSLIDER, Regard3DDensificationDialogBase::_wxFB_OnColmapWindowRadiusSliderScroll )
 	EVT_COMMAND_SCROLL( ID_COLMAPMAXREPROJERRORSLIDER, Regard3DDensificationDialogBase::_wxFB_OnColmapMaxReprojErrorSliderScroll )
+	EVT_COMMAND_SCROLL( ID_OPENMVSRESOLUTIONLEVELSLIDER, Regard3DDensificationDialogBase::_wxFB_OnOpenMVSResolutionLevelSliderScroll )
+	EVT_COMMAND_SCROLL( ID_OPENMVSNUMBERVIEWSSLIDER, Regard3DDensificationDialogBase::_wxFB_OnOpenMVSNumberViewsSliderScroll )
+	EVT_COMMAND_SCROLL( ID_OPENMVSNUMBERVIEWSFUSESLIDER, Regard3DDensificationDialogBase::_wxFB_OnOpenMVSNumberViewsFuseSliderScroll )
 END_EVENT_TABLE()
 
 Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos, const wxSize& size, long style ) : wxDialog( parent, id, title, pos, size, style )
@@ -2232,6 +2235,60 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	pColmapReconParamsPanel_->Layout();
 	sbSizerColmap->Fit( pColmapReconParamsPanel_ );
 	pDensificationMethodChoicebook_->AddPage( pColmapReconParamsPanel_, wxT("Dense reconstruction (COLMAP)"), false );
+	pOpenMVSReconParamsPanel_ = new wxPanel( pDensificationMethodChoicebook_, ID_OPENMVSRECONPARAMSPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxStaticBoxSizer* sbSizerOpenMVS;
+	sbSizerOpenMVS = new wxStaticBoxSizer( new wxStaticBox( pOpenMVSReconParamsPanel_, wxID_ANY, wxT("Parameters for OpenMVS dense reconstruction") ), wxVERTICAL );
+
+	wxFlexGridSizer* fgSizerOpenMVS;
+	fgSizerOpenMVS = new wxFlexGridSizer( 3, 3, 0, 0 );
+	fgSizerOpenMVS->AddGrowableCol( 2 );
+	fgSizerOpenMVS->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizerOpenMVS->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_staticTextOpenMVS1 = new wxStaticText( sbSizerOpenMVS->GetStaticBox(), wxID_ANY, wxT("Resolution level:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOpenMVS1->Wrap( -1 );
+	fgSizerOpenMVS->Add( m_staticTextOpenMVS1, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pOpenMVSResolutionLevelTextCtrl_ = new wxTextCtrl( sbSizerOpenMVS->GetStaticBox(), ID_OPENMVSRESOLUTIONLEVELTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizerOpenMVS->Add( pOpenMVSResolutionLevelTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pOpenMVSResolutionLevelSlider_ = new wxSlider( sbSizerOpenMVS->GetStaticBox(), ID_OPENMVSRESOLUTIONLEVELSLIDER, 1, 0, 4, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pOpenMVSResolutionLevelSlider_->SetToolTip( wxT("How many times the images are halved before depth maps are computed (DensifyPointCloud --resolution-level). 0 uses the full resolution: most detailed, but slowest.") );
+
+	fgSizerOpenMVS->Add( pOpenMVSResolutionLevelSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+
+	m_staticTextOpenMVS2 = new wxStaticText( sbSizerOpenMVS->GetStaticBox(), wxID_ANY, wxT("Number of views:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOpenMVS2->Wrap( -1 );
+	fgSizerOpenMVS->Add( m_staticTextOpenMVS2, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pOpenMVSNumberViewsTextCtrl_ = new wxTextCtrl( sbSizerOpenMVS->GetStaticBox(), ID_OPENMVSNUMBERVIEWSTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizerOpenMVS->Add( pOpenMVSNumberViewsTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pOpenMVSNumberViewsSlider_ = new wxSlider( sbSizerOpenMVS->GetStaticBox(), ID_OPENMVSNUMBERVIEWSSLIDER, 5, 0, 12, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pOpenMVSNumberViewsSlider_->SetToolTip( wxT("Number of neighbor views used to estimate each depth map (--number-views). 0 uses all available neighbor views.") );
+
+	fgSizerOpenMVS->Add( pOpenMVSNumberViewsSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+
+	m_staticTextOpenMVS3 = new wxStaticText( sbSizerOpenMVS->GetStaticBox(), wxID_ANY, wxT("Min. views for fusion:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOpenMVS3->Wrap( -1 );
+	fgSizerOpenMVS->Add( m_staticTextOpenMVS3, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pOpenMVSNumberViewsFuseTextCtrl_ = new wxTextCtrl( sbSizerOpenMVS->GetStaticBox(), ID_OPENMVSNUMBERVIEWSFUSETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizerOpenMVS->Add( pOpenMVSNumberViewsFuseTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pOpenMVSNumberViewsFuseSlider_ = new wxSlider( sbSizerOpenMVS->GetStaticBox(), ID_OPENMVSNUMBERVIEWSFUSESLIDER, 2, 1, 8, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pOpenMVSNumberViewsFuseSlider_->SetToolTip( wxT("Minimum number of images that have to agree on a depth estimate for it to be kept during fusion (--number-views-fuse). Higher values give fewer, but more reliable points.") );
+
+	fgSizerOpenMVS->Add( pOpenMVSNumberViewsFuseSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+
+
+	sbSizerOpenMVS->Add( fgSizerOpenMVS, 1, wxEXPAND, 3 );
+
+
+	pOpenMVSReconParamsPanel_->SetSizer( sbSizerOpenMVS );
+	pOpenMVSReconParamsPanel_->Layout();
+	sbSizerOpenMVS->Fit( pOpenMVSReconParamsPanel_ );
+	pDensificationMethodChoicebook_->AddPage( pOpenMVSReconParamsPanel_, wxT("Dense reconstruction (OpenMVS)"), false );
 	pDensificationMethodSizer_->Add( pDensificationMethodChoicebook_, 1, wxEXPAND | wxALL, 3 );
 
 
@@ -2278,6 +2335,8 @@ BEGIN_EVENT_TABLE( Regard3DSurfaceDialogBase, wxDialog )
 	EVT_COMMAND_SCROLL( ID_FSSRSCALEFACTORMULTIPLIERSLIDER, Regard3DSurfaceDialogBase::_wxFB_OnFSSRScaleFactorMultiplierSliderScroll )
 	EVT_COMMAND_SCROLL( ID_FSSRCONFIDENCETHRESHOLDSLIDER, Regard3DSurfaceDialogBase::_wxFB_OnFSSRConfidenceThresholdSliderScroll )
 	EVT_COMMAND_SCROLL( ID_FSSRMINCOMPONENTSIZESLIDER, Regard3DSurfaceDialogBase::_wxFB_OnFSSRMinComponentSizeSliderScroll )
+	EVT_COMMAND_SCROLL( ID_OPENMVSMINPOINTDISTANCESLIDER, Regard3DSurfaceDialogBase::_wxFB_OnOpenMVSMinPointDistanceSliderScroll )
+	EVT_COMMAND_SCROLL( ID_OPENMVSSMOOTHITERATIONSSLIDER, Regard3DSurfaceDialogBase::_wxFB_OnOpenMVSSmoothIterationsSliderScroll )
 	EVT_RADIOBOX( ID_PCOLORIZATIONMETHODRADIOBOX_, Regard3DSurfaceDialogBase::_wxFB_OnColorizationMethodRadioBox )
 	EVT_COMMAND_SCROLL( ID_COLVERTNUMBEROFNEIGHBOURSSLIDER, Regard3DSurfaceDialogBase::_wxFB_OnColVertNumberOfNeighboursSliderScroll )
 END_EVENT_TABLE()
@@ -2293,7 +2352,7 @@ Regard3DSurfaceDialogBase::Regard3DSurfaceDialogBase( wxWindow* parent, wxWindow
 	wxBoxSizer* bSizer49;
 	bSizer49 = new wxBoxSizer( wxVERTICAL );
 
-	wxString pSurfaceGenerationMethodRadioBox_Choices[] = { wxT("Poisson surface reconstruction"), wxT("Floating scale surface reconstruction") };
+	wxString pSurfaceGenerationMethodRadioBox_Choices[] = { wxT("Poisson surface reconstruction"), wxT("Floating scale surface reconstruction"), wxT("OpenMVS mesh reconstruction") };
 	int pSurfaceGenerationMethodRadioBox_NChoices = sizeof( pSurfaceGenerationMethodRadioBox_Choices ) / sizeof( wxString );
 	pSurfaceGenerationMethodRadioBox_ = new wxRadioBox( pSurfacePanel_, ID_SURFACEGENERATIONMETHODRADIOBOX, wxT("Surface generation method"), wxDefaultPosition, wxDefaultSize, pSurfaceGenerationMethodRadioBox_NChoices, pSurfaceGenerationMethodRadioBox_Choices, 1, wxRA_SPECIFY_COLS );
 	pSurfaceGenerationMethodRadioBox_->SetSelection( 0 );
@@ -2411,6 +2470,56 @@ Regard3DSurfaceDialogBase::Regard3DSurfaceDialogBase( wxWindow* parent, wxWindow
 
 
 	bSizer49->Add( pFSSRParamsBoxSizer_, 0, wxALL|wxEXPAND, 3 );
+
+	pOpenMVSParamsBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pSurfacePanel_, ID_FSSRPARAMSBOXSIZER, wxT("OpenMVS mesh reconstruction parameters") ), wxVERTICAL );
+
+	wxFlexGridSizer* fgSizerOpenMVSSurface;
+	fgSizerOpenMVSSurface = new wxFlexGridSizer( 3, 3, 0, 0 );
+	fgSizerOpenMVSSurface->AddGrowableCol( 2 );
+	fgSizerOpenMVSSurface->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizerOpenMVSSurface->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_staticTextOpenMVSSurf1 = new wxStaticText( pOpenMVSParamsBoxSizer_->GetStaticBox(), wxID_ANY, wxT("Min. point distance:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOpenMVSSurf1->Wrap( -1 );
+	fgSizerOpenMVSSurface->Add( m_staticTextOpenMVSSurf1, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+
+	pOpenMVSMinPointDistanceTextCtrl_ = new wxTextCtrl( pOpenMVSParamsBoxSizer_->GetStaticBox(), ID_OPENMVSMINPOINTDISTANCETEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizerOpenMVSSurface->Add( pOpenMVSMinPointDistanceTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pOpenMVSMinPointDistanceSlider_ = new wxSlider( pOpenMVSParamsBoxSizer_->GetStaticBox(), ID_OPENMVSMINPOINTDISTANCESLIDER, 15, 0, 50, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pOpenMVSMinPointDistanceSlider_->SetToolTip( wxT("Minimum distance in pixels between the projections of two 3D points for them to count as different while triangulating (ReconstructMesh --min-point-distance). Higher values give coarser meshes, faster.") );
+
+	fgSizerOpenMVSSurface->Add( pOpenMVSMinPointDistanceSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+
+	m_staticTextOpenMVSSurf2 = new wxStaticText( pOpenMVSParamsBoxSizer_->GetStaticBox(), wxID_ANY, wxT("Smoothing iterations:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOpenMVSSurf2->Wrap( -1 );
+	fgSizerOpenMVSSurface->Add( m_staticTextOpenMVSSurf2, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+
+	pOpenMVSSmoothIterationsTextCtrl_ = new wxTextCtrl( pOpenMVSParamsBoxSizer_->GetStaticBox(), ID_OPENMVSSMOOTHITERATIONSTEXTCTRL, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_READONLY );
+	fgSizerOpenMVSSurface->Add( pOpenMVSSmoothIterationsTextCtrl_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	pOpenMVSSmoothIterationsSlider_ = new wxSlider( pOpenMVSParamsBoxSizer_->GetStaticBox(), ID_OPENMVSSMOOTHITERATIONSSLIDER, 2, 0, 10, wxDefaultPosition, wxDefaultSize, wxSL_AUTOTICKS|wxSL_HORIZONTAL );
+	pOpenMVSSmoothIterationsSlider_->SetToolTip( wxT("Number of smoothing iterations applied to the reconstructed surface (--smooth). 0 disables smoothing.") );
+
+	fgSizerOpenMVSSurface->Add( pOpenMVSSmoothIterationsSlider_, 0, wxALIGN_CENTER_VERTICAL|wxALL|wxEXPAND, 3 );
+
+	m_staticTextOpenMVSSurf3 = new wxStaticText( pOpenMVSParamsBoxSizer_->GetStaticBox(), wxID_ANY, wxT("Refine mesh:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOpenMVSSurf3->Wrap( -1 );
+	fgSizerOpenMVSSurface->Add( m_staticTextOpenMVSSurf3, 0, wxALIGN_CENTER_VERTICAL|wxALIGN_RIGHT|wxALL, 3 );
+
+	pOpenMVSRefineMeshCheckBox_ = new wxCheckBox( pOpenMVSParamsBoxSizer_->GetStaticBox(), ID_OPENMVSREFINEMESHCHECKBOX, wxEmptyString, wxDefaultPosition, wxDefaultSize, 0 );
+	pOpenMVSRefineMeshCheckBox_->SetToolTip( wxT("Runs RefineMesh after the reconstruction: a photometric refinement that recovers fine detail. Slow and memory-hungry on large scenes.") );
+
+	fgSizerOpenMVSSurface->Add( pOpenMVSRefineMeshCheckBox_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+
+	fgSizerOpenMVSSurface->Add( 0, 0, 1, wxEXPAND, 5 );
+
+
+	pOpenMVSParamsBoxSizer_->Add( fgSizerOpenMVSSurface, 1, wxEXPAND, 3 );
+
+
+	bSizer49->Add( pOpenMVSParamsBoxSizer_, 0, wxALL|wxEXPAND, 3 );
 
 	wxString pColorizationMethodRadioBox_Choices[] = { wxT("Colored vertices"), wxT("Textures") };
 	int pColorizationMethodRadioBox_NChoices = sizeof( pColorizationMethodRadioBox_Choices ) / sizeof( wxString );

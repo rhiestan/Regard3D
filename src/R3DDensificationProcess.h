@@ -88,6 +88,11 @@ private:
 	// the export, the first command of the queue, has run
 	bool fixColmapSparseModel_;
 	wxString relativeColmapSparsePath_;
+
+	// The OpenMVS tools run in the project directory like every other tool,
+	// so that is where their log files and depth maps end up; they are moved
+	// to/removed from there once each step is done (see OnTerminate)
+	wxString absoluteProjectPath_, relativeDensificationPath_;
 };
 
 #endif

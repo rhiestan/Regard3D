@@ -67,6 +67,7 @@ struct R3DOpenMVGMatchingParams
 	int nearestMatchingMethod_;		// AUTO, BRUTEFORCEL2, ...
 	int cacheSize_;					// 0: keep all regions in memory
 	int preemptiveFeatureCount_;	// 0: no pre-emptive matching
+	bool mutual_;					// --mutual: keep only mutual nearest neighbours
 
 	// openMVG_main_GeometricFilter, one run per selected model
 	bool computeFundamental_;

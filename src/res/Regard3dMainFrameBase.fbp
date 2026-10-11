@@ -11322,7 +11322,7 @@
                                                                         <property name="caption"></property>
                                                                         <property name="caption_visible">1</property>
                                                                         <property name="center_pane">0</property>
-                                                                        <property name="choices">&quot;AUTO&quot; &quot;BRUTEFORCEL2&quot; &quot;HNSWL2&quot; &quot;HNSWL1&quot; &quot;ANNL2&quot; &quot;CASCADEHASHINGL2&quot; &quot;FASTCASCADEHASHINGL2&quot; &quot;BRUTEFORCEHAMMING&quot; &quot;HNSWHAMMING&quot;</property>
+                                                                        <property name="choices">&quot;AUTO&quot; &quot;BRUTEFORCEL2&quot; &quot;HNSWL2&quot; &quot;HNSWL1&quot; &quot;ANNL2&quot; &quot;GEMML2&quot; &quot;CASCADEHASHINGL2&quot; &quot;FASTCASCADEHASHINGL2&quot; &quot;BRUTEFORCEHAMMING&quot; &quot;HNSWHAMMING&quot;</property>
                                                                         <property name="close_button">1</property>
                                                                         <property name="context_help"></property>
                                                                         <property name="context_menu">1</property>
@@ -11607,7 +11607,7 @@
                                                                         <property name="style"></property>
                                                                         <property name="subclass"></property>
                                                                         <property name="toolbar_pane">0</property>
-                                                                        <property name="tooltip">Match on only the first N features per image and drop pairs that get too few matches. This finds the promising pairs quickly, but the matches that are kept come from the reduced feature set as well, so leave it at 0 unless a very large image set is otherwise too slow.</property>
+                                                                        <property name="tooltip">Pre-emptive matching: first match only the N strongest features of each image, and fully match only the pairs where at least 8% of those match. Saves a lot of time on large image sets with many non-overlapping pairs. The surviving pairs are written to preemptive_pairs.txt. 0 turns it off, 200 is a typical value.</property>
                                                                         <property name="validator_data_type"></property>
                                                                         <property name="validator_style">wxFILTER_NONE</property>
                                                                         <property name="validator_type">wxDefaultValidator</property>
@@ -11618,6 +11618,70 @@
                                                                         <property name="window_style"></property>
                                                                     </object>
                                                                 </object>
+                                                            </object>
+                                                        </object>
+                                                        <object class="sizeritem" expanded="1">
+                                                            <property name="border">3</property>
+                                                            <property name="flag">wxALL</property>
+                                                            <property name="proportion">0</property>
+                                                            <object class="wxCheckBox" expanded="1">
+                                                                <property name="BottomDockable">1</property>
+                                                                <property name="LeftDockable">1</property>
+                                                                <property name="RightDockable">1</property>
+                                                                <property name="TopDockable">1</property>
+                                                                <property name="aui_layer"></property>
+                                                                <property name="aui_name"></property>
+                                                                <property name="aui_position"></property>
+                                                                <property name="aui_row"></property>
+                                                                <property name="best_size"></property>
+                                                                <property name="bg"></property>
+                                                                <property name="caption"></property>
+                                                                <property name="caption_visible">1</property>
+                                                                <property name="center_pane">0</property>
+                                                                <property name="checked">0</property>
+                                                                <property name="close_button">1</property>
+                                                                <property name="context_help"></property>
+                                                                <property name="context_menu">1</property>
+                                                                <property name="default_pane">0</property>
+                                                                <property name="dock">Dock</property>
+                                                                <property name="dock_fixed">0</property>
+                                                                <property name="docking">Left</property>
+                                                                <property name="enabled">1</property>
+                                                                <property name="fg"></property>
+                                                                <property name="floatable">1</property>
+                                                                <property name="font"></property>
+                                                                <property name="gripper">0</property>
+                                                                <property name="hidden">0</property>
+                                                                <property name="id">ID_OMVGMUTUALCHECKBOX</property>
+                                                                <property name="label">Mutual matching only</property>
+                                                                <property name="max_size"></property>
+                                                                <property name="maximize_button">0</property>
+                                                                <property name="maximum_size"></property>
+                                                                <property name="min_size"></property>
+                                                                <property name="minimize_button">0</property>
+                                                                <property name="minimum_size"></property>
+                                                                <property name="moveable">1</property>
+                                                                <property name="name">pOMVGMutualCheckBox_</property>
+                                                                <property name="pane_border">1</property>
+                                                                <property name="pane_position"></property>
+                                                                <property name="pane_size"></property>
+                                                                <property name="permission">protected</property>
+                                                                <property name="pin_button">1</property>
+                                                                <property name="pos"></property>
+                                                                <property name="resize">Resizable</property>
+                                                                <property name="show">1</property>
+                                                                <property name="size"></property>
+                                                                <property name="style"></property>
+                                                                <property name="subclass"></property>
+                                                                <property name="toolbar_pane">0</property>
+                                                                <property name="tooltip">Keep a match only if it also passes the distance ratio test when matching in the other direction. Gives fewer but more reliable matches. Almost free with GEMML2, the other matchers have to match each pair a second time.</property>
+                                                                <property name="validator_data_type"></property>
+                                                                <property name="validator_style">wxFILTER_NONE</property>
+                                                                <property name="validator_type">wxDefaultValidator</property>
+                                                                <property name="validator_variable"></property>
+                                                                <property name="window_extra_style"></property>
+                                                                <property name="window_name"></property>
+                                                                <property name="window_style"></property>
                                                             </object>
                                                         </object>
                                                     </object>

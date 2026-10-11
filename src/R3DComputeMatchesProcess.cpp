@@ -239,19 +239,40 @@ bool R3DComputeMatchesProcess::buildCommandList(const R3DProjectPaths &paths)
 	stepNames_.Add(wxT("openMVG_main_PairGenerator"));
 
 	// --- Putative matches ----------------------------------------------------
+	// FromCDouble, not Format: the tools read the ratio with the C locale, so
+	// a comma as the decimal separator would silently be parsed as 0
+	wxString matchOptions(wxT(" -f 1 -r ") + wxString::FromCDouble(params.distanceRatio_, 4)
+		+ wxT(" -n ") + R3DOpenMVGOptions::matcherName(params.nearestMatchingMethod_));
+	if(params.cacheSize_ > 0)
+		matchOptions.Append(wxString::Format(wxT(" -c %d"), params.cacheSize_));
+	if(params.mutual_)
+		matchOptions.Append(wxT(" -m"));
+
+	wxString matchedPairsFile(pairsFile);
+	if(params.preemptiveFeatureCount_ > 0)
+	{
+		// With -P, ComputeMatches only matches the strongest features of each
+		// image and writes the pairs that pass to preemptive_pairs.txt, next to
+		// its output. Its matches come from those few features, so they are
+		// thrown away and the surviving pairs are matched again in full.
+		cmd = quoted(computeMatchesExe)
+			+ wxT(" -i ") + quotedSfmData
+			+ wxT(" -o ") + inMatchesDir(matchesDir, wxT("matches.preemptive.txt"))
+			+ wxT(" -p ") + pairsFile
+			+ matchOptions
+			+ wxString::Format(wxT(" -P %d"), params.preemptiveFeatureCount_);
+		cmds_.Add(cmd);
+		progressTexts_.Add(wxT("Pre-emptive matching (OpenMVG)"));
+		stepNames_.Add(wxT("openMVG_main_ComputeMatches"));
+
+		matchedPairsFile = inMatchesDir(matchesDir, wxT("preemptive_pairs.txt"));
+	}
+
 	cmd = quoted(computeMatchesExe)
 		+ wxT(" -i ") + quotedSfmData
 		+ wxT(" -o ") + putativeMatches
-		+ wxT(" -p ") + pairsFile
-		+ wxT(" -f 1")
-		// FromCDouble, not Format: the tools read this with the C locale, so a
-		// comma as the decimal separator would silently be parsed as 0
-		+ wxT(" -r ") + wxString::FromCDouble(params.distanceRatio_, 4)
-		+ wxT(" -n ") + R3DOpenMVGOptions::matcherName(params.nearestMatchingMethod_);
-	if(params.cacheSize_ > 0)
-		cmd.Append(wxString::Format(wxT(" -c %d"), params.cacheSize_));
-	if(params.preemptiveFeatureCount_ > 0)
-		cmd.Append(wxString::Format(wxT(" -P %d"), params.preemptiveFeatureCount_));
+		+ wxT(" -p ") + matchedPairsFile
+		+ matchOptions;
 	cmds_.Add(cmd);
 	progressTexts_.Add(wxT("Computing putative matches (OpenMVG)"));
 	stepNames_.Add(wxT("openMVG_main_ComputeMatches"));

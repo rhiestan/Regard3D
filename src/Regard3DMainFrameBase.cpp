@@ -1214,7 +1214,7 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	m_staticTextOMVG8->Wrap( -1 );
 	fgSizerOMVGMatching->Add( m_staticTextOMVG8, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
-	wxString pOMVGNearestMatchingMethodChoice_Choices[] = { wxT("AUTO"), wxT("BRUTEFORCEL2"), wxT("HNSWL2"), wxT("HNSWL1"), wxT("ANNL2"), wxT("CASCADEHASHINGL2"), wxT("FASTCASCADEHASHINGL2"), wxT("BRUTEFORCEHAMMING"), wxT("HNSWHAMMING") };
+	wxString pOMVGNearestMatchingMethodChoice_Choices[] = { wxT("AUTO"), wxT("BRUTEFORCEL2"), wxT("HNSWL2"), wxT("HNSWL1"), wxT("ANNL2"), wxT("GEMML2"), wxT("CASCADEHASHINGL2"), wxT("FASTCASCADEHASHINGL2"), wxT("BRUTEFORCEHAMMING"), wxT("HNSWHAMMING") };
 	int pOMVGNearestMatchingMethodChoice_NChoices = sizeof( pOMVGNearestMatchingMethodChoice_Choices ) / sizeof( wxString );
 	pOMVGNearestMatchingMethodChoice_ = new wxChoice( sbSizerOMVGMatching->GetStaticBox(), ID_OMVGNEARESTMATCHINGMETHODCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGNearestMatchingMethodChoice_NChoices, pOMVGNearestMatchingMethodChoice_Choices, 0 );
 	pOMVGNearestMatchingMethodChoice_->SetSelection( 0 );
@@ -1236,12 +1236,17 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	fgSizerOMVGMatching->Add( m_staticTextOMVG10, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
 	pOMVGPreemptiveTextCtrl_ = new wxTextCtrl( sbSizerOMVGMatching->GetStaticBox(), ID_OMVGPREEMPTIVETEXTCTRL, wxT("0"), wxDefaultPosition, wxDefaultSize, 0 );
-	pOMVGPreemptiveTextCtrl_->SetToolTip( wxT("Match on only the first N features per image and drop pairs that get too few matches. This finds the promising pairs quickly, but the matches that are kept come from the reduced feature set as well, so leave it at 0 unless a very large image set is otherwise too slow.") );
+	pOMVGPreemptiveTextCtrl_->SetToolTip( wxT("Pre-emptive matching: first match only the N strongest features of each image, and fully match only the pairs where at least 8% of those match. Saves a lot of time on large image sets with many non-overlapping pairs. The surviving pairs are written to preemptive_pairs.txt. 0 turns it off, 200 is a typical value.") );
 
 	fgSizerOMVGMatching->Add( pOMVGPreemptiveTextCtrl_, 0, wxEXPAND | wxALL, 3 );
 
 
 	sbSizerOMVGMatching->Add( fgSizerOMVGMatching, 1, wxEXPAND | wxALL, 3 );
+
+	pOMVGMutualCheckBox_ = new wxCheckBox( sbSizerOMVGMatching->GetStaticBox(), ID_OMVGMUTUALCHECKBOX, wxT("Mutual matching only"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGMutualCheckBox_->SetToolTip( wxT("Keep a match only if it also passes the distance ratio test when matching in the other direction. Gives fewer but more reliable matches. Almost free with GEMML2, the other matchers have to match each pair a second time.") );
+
+	sbSizerOMVGMatching->Add( pOMVGMutualCheckBox_, 0, wxALL, 3 );
 
 
 	bSizerOpenMVGMatching->Add( sbSizerOMVGMatching, 0, wxEXPAND | wxALL, 3 );

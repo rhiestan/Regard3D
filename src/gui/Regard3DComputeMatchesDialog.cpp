@@ -322,6 +322,7 @@ void Regard3DComputeMatchesDialog::initializeOpenMVGPage()
 	pOMVGDistanceRatioTextCtrl_->SetValue(wxString::Format(wxT("%.3g"), p.distanceRatio_));
 	pOMVGCacheSizeTextCtrl_->SetValue(wxString::Format(wxT("%d"), p.cacheSize_));
 	pOMVGPreemptiveTextCtrl_->SetValue(wxString::Format(wxT("%d"), p.preemptiveFeatureCount_));
+	pOMVGMutualCheckBox_->SetValue(p.mutual_);
 
 	pOMVGFundamentalCheckBox_->SetValue(p.computeFundamental_);
 	pOMVGEssentialCheckBox_->SetValue(p.computeEssential_);
@@ -355,10 +356,11 @@ void Regard3DComputeMatchesDialog::updateOpenMVGDescriberDependencies()
 	const wxString current(pOMVGNearestMatchingMethodChoice_->GetStringSelection());
 
 	pOMVGNearestMatchingMethodChoice_->Clear();
-	for(size_t i = 0; i < kMatcherCount; i++)
+	for(size_t i = 0; i < WXSIZEOF(R3DOpenMVGOptions::kMatcherDisplayOrder); i++)
 	{
-		if(binary ? kMatchers[i].binary_ : kMatchers[i].scalar_)
-			pOMVGNearestMatchingMethodChoice_->Append(kMatchers[i].name_);
+		const R3DOpenMVGOptions::Matcher &m = kMatchers[R3DOpenMVGOptions::kMatcherDisplayOrder[i]];
+		if(binary ? m.binary_ : m.scalar_)
+			pOMVGNearestMatchingMethodChoice_->Append(m.name_);
 	}
 	if(pOMVGNearestMatchingMethodChoice_->SetStringSelection(current) == false)
 		pOMVGNearestMatchingMethodChoice_->SetSelection(0);		// AUTO
@@ -440,6 +442,7 @@ bool Regard3DComputeMatchesDialog::readOpenMVGPage()
 	if(!readNumericField(pOMVGPreemptiveTextCtrl_, wxT("Pre-emptive feature count"), 0, 1000000, value))
 		return false;
 	p.preemptiveFeatureCount_ = static_cast<int>(value);
+	p.mutual_ = pOMVGMutualCheckBox_->GetValue();
 
 	p.computeFundamental_ = pOMVGFundamentalCheckBox_->GetValue();
 	p.computeEssential_ = pOMVGEssentialCheckBox_->GetValue();

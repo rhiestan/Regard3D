@@ -673,6 +673,7 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 			ID_OMVGNEARESTMATCHINGMETHODCHOICE,
 			ID_OMVGCACHESIZETEXTCTRL,
 			ID_OMVGPREEMPTIVETEXTCTRL,
+			ID_OMVGMUTUALCHECKBOX,
 			ID_OMVGFUNDAMENTALCHECKBOX,
 			ID_OMVGESSENTIALCHECKBOX,
 			ID_OMVGHOMOGRAPHYCHECKBOX,
@@ -720,6 +721,7 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		wxTextCtrl* pOMVGCacheSizeTextCtrl_;
 		wxStaticText* m_staticTextOMVG10;
 		wxTextCtrl* pOMVGPreemptiveTextCtrl_;
+		wxCheckBox* pOMVGMutualCheckBox_;
 		wxCheckBox* pOMVGFundamentalCheckBox_;
 		wxCheckBox* pOMVGEssentialCheckBox_;
 		wxCheckBox* pOMVGHomographyCheckBox_;

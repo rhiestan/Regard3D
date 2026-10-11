@@ -1678,7 +1678,7 @@ std::string R3DProject::PictureSet::getBasePathname()
 R3DOpenMVGMatchingParams::R3DOpenMVGMatchingParams()
 	: describerMethod_(0), describerPreset_(0), upright_(false), numThreads_(0),
 	pairMode_(0), contiguousCount_(5),
-	distanceRatio_(0.8), nearestMatchingMethod_(0), cacheSize_(0), preemptiveFeatureCount_(0),
+	distanceRatio_(0.8), nearestMatchingMethod_(0), cacheSize_(0), preemptiveFeatureCount_(0), mutual_(false),
 	computeFundamental_(true), computeEssential_(true), computeHomography_(true),
 	guidedMatching_(false)
 {
@@ -2133,7 +2133,7 @@ BOOST_CLASS_VERSION(R3DProject::Triangulation, 4)
 
 // Serialize the OpenMVG tool parameters
 template<class Archive>
-void R3DOpenMVGMatchingParams::serialize(Archive & ar, const unsigned int WXUNUSED(version))
+void R3DOpenMVGMatchingParams::serialize(Archive & ar, const unsigned int version)
 {
 	ar & boost::serialization::make_nvp("describerMethod", describerMethod_);
 	ar & boost::serialization::make_nvp("describerPreset", describerPreset_);
@@ -2149,7 +2149,10 @@ void R3DOpenMVGMatchingParams::serialize(Archive & ar, const unsigned int WXUNUS
 	ar & boost::serialization::make_nvp("computeEssential", computeEssential_);
 	ar & boost::serialization::make_nvp("computeHomography", computeHomography_);
 	ar & boost::serialization::make_nvp("guidedMatching", guidedMatching_);
+	if(version > 0)
+		ar & boost::serialization::make_nvp("mutual", mutual_);
 }
+BOOST_CLASS_VERSION(R3DOpenMVGMatchingParams, 1)
 
 template<class Archive>
 void R3DOpenMVGTriangulationParams::serialize(Archive & ar, const unsigned int WXUNUSED(version))

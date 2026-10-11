@@ -2346,6 +2346,10 @@ void Regard3DMainFrame::updateProjectDetails()
 					params.Append(cameraModelString);
 					params.Append(wxT("/Matching method: "));
 					params.Append(R3DOpenMVGOptions::matcherName(omvg.nearestMatchingMethod_));
+					if(omvg.mutual_)
+						params.Append(wxT("/Mutual"));
+					if(omvg.preemptiveFeatureCount_ > 0)
+						params.Append(wxString::Format(wxT("/Pre-emptive: %d"), omvg.preemptiveFeatureCount_));
 				}
 				else if(pComputeMatches->computeEngine_ == 2)
 				{

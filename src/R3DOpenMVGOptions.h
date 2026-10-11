@@ -61,6 +61,8 @@ namespace R3DOpenMVGOptions
 
 	// --nearest_matching_method, and which descriptor type each one accepts.
 	// AUTO works for both: it picks a matcher from the regions type.
+	// Projects store the index, so new matchers go at the end; the dialog
+	// shows them in kMatcherDisplayOrder instead.
 	struct Matcher
 	{
 		const wxChar *name_;
@@ -77,9 +79,13 @@ namespace R3DOpenMVGOptions
 		{ wxT("CASCADEHASHINGL2"),     true,  false },
 		{ wxT("FASTCASCADEHASHINGL2"), true,  false },
 		{ wxT("BRUTEFORCEHAMMING"),    false, true  },
-		{ wxT("HNSWHAMMING"),          false, true  }
+		{ wxT("HNSWHAMMING"),          false, true  },
+		{ wxT("GEMML2"),               true,  false }
 	};
 	const size_t kMatcherCount = WXSIZEOF(kMatchers);
+
+	// Indices into kMatchers, in the order of the tool's own help text
+	const size_t kMatcherDisplayOrder[] = { 0, 1, 2, 3, 4, 9, 5, 6, 7, 8 };
 
 	/**
 	 * Looks up a name by index, falling back to the first entry.

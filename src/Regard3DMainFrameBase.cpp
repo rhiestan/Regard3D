@@ -1157,10 +1157,10 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	bSizerOpenMVGMatching->Add( sbSizerOMVGFeatures, 0, wxEXPAND | wxALL, 3 );
 
 	wxStaticBoxSizer* sbSizerOMVGPairs;
-	sbSizerOMVGPairs = new wxStaticBoxSizer( new wxStaticBox( pOpenMVGMatchingPanel_, wxID_ANY, wxT("Pair generation (openMVG_main_PairGenerator)") ), wxVERTICAL );
+	sbSizerOMVGPairs = new wxStaticBoxSizer( new wxStaticBox( pOpenMVGMatchingPanel_, wxID_ANY, wxT("Pair generation (openMVG_main_PairGenerator / ComputeVLAD)") ), wxVERTICAL );
 
 	wxFlexGridSizer* fgSizerOMVGPairs;
-	fgSizerOMVGPairs = new wxFlexGridSizer( 2, 2, 0, 0 );
+	fgSizerOMVGPairs = new wxFlexGridSizer( 6, 2, 0, 0 );
 	fgSizerOMVGPairs->AddGrowableCol( 1 );
 	fgSizerOMVGPairs->SetFlexibleDirection( wxHORIZONTAL );
 	fgSizerOMVGPairs->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
@@ -1169,11 +1169,11 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	m_staticTextOMVG5->Wrap( -1 );
 	fgSizerOMVGPairs->Add( m_staticTextOMVG5, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
 
-	wxString pOMVGPairModeChoice_Choices[] = { wxT("Exhaustive"), wxT("Contiguous") };
+	wxString pOMVGPairModeChoice_Choices[] = { wxT("Exhaustive"), wxT("Contiguous"), wxT("VLAD image retrieval") };
 	int pOMVGPairModeChoice_NChoices = sizeof( pOMVGPairModeChoice_Choices ) / sizeof( wxString );
 	pOMVGPairModeChoice_ = new wxChoice( sbSizerOMVGPairs->GetStaticBox(), ID_OMVGPAIRMODECHOICE, wxDefaultPosition, wxDefaultSize, pOMVGPairModeChoice_NChoices, pOMVGPairModeChoice_Choices, 0 );
 	pOMVGPairModeChoice_->SetSelection( 0 );
-	pOMVGPairModeChoice_->SetToolTip( wxT("Which image pairs are tried. Exhaustive tries every pair, the safe choice for an unordered set of photos. Contiguous only matches each image with the following ones, which is much faster for a video or a sequence that was shot in order.") );
+	pOMVGPairModeChoice_->SetToolTip( wxT("Which image pairs are tried. Exhaustive tries every pair, the safe choice for an unordered set of photos. Contiguous only matches each image with the following ones, which is much faster for a video or a sequence that was shot in order. VLAD image retrieval matches each image only with the images that look most similar to it (openMVG_main_ComputeVLAD), which saves a lot of time on large unordered sets. VLAD needs SIFT, SIFT_ANATOMY or AKAZE_FLOAT features.") );
 
 	fgSizerOMVGPairs->Add( pOMVGPairModeChoice_, 0, wxEXPAND | wxALL, 3 );
 
@@ -1185,6 +1185,45 @@ Regard3DComputeMatchesDialogBase::Regard3DComputeMatchesDialogBase( wxWindow* pa
 	pOMVGContiguousCountTextCtrl_->SetToolTip( wxT("How many following images each image is matched against, in contiguous mode. 5 matches image 0 with 1 to 5, image 1 with 2 to 6, and so on.") );
 
 	fgSizerOMVGPairs->Add( pOMVGContiguousCountTextCtrl_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGVlad1 = new wxStaticText( sbSizerOMVGPairs->GetStaticBox(), wxID_ANY, wxT("Neighbours per image (0 = 30%):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGVlad1->Wrap( -1 );
+	fgSizerOMVGPairs->Add( m_staticTextOMVGVlad1, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	pOMVGVladNeighborsTextCtrl_ = new wxTextCtrl( sbSizerOMVGPairs->GetStaticBox(), ID_OMVGVLADNEIGHBORSTEXTCTRL, wxT("0"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGVladNeighborsTextCtrl_->SetToolTip( wxT("VLAD image retrieval: how many of the most similar images each image is matched with. 0 uses 30% of the images, rounded up. Fewer neighbours is faster, but too few can leave parts of the scene unconnected.") );
+
+	fgSizerOMVGPairs->Add( pOMVGVladNeighborsTextCtrl_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGVlad2 = new wxStaticText( sbSizerOMVGPairs->GetStaticBox(), wxID_ANY, wxT("Codebook size:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGVlad2->Wrap( -1 );
+	fgSizerOMVGPairs->Add( m_staticTextOMVGVlad2, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	pOMVGVladCodebookSizeTextCtrl_ = new wxTextCtrl( sbSizerOMVGPairs->GetStaticBox(), ID_OMVGVLADCODEBOOKSIZETEXTCTRL, wxT("128"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGVladCodebookSizeTextCtrl_->SetToolTip( wxT("VLAD image retrieval: number of visual words (k-means centroids) the image descriptors are built from. 128 is the OpenMVG default.") );
+
+	fgSizerOMVGPairs->Add( pOMVGVladCodebookSizeTextCtrl_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGVlad3 = new wxStaticText( sbSizerOMVGPairs->GetStaticBox(), wxID_ANY, wxT("Codebook features (0 = all):"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGVlad3->Wrap( -1 );
+	fgSizerOMVGPairs->Add( m_staticTextOMVGVlad3, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	pOMVGVladMaxFeaturesTextCtrl_ = new wxTextCtrl( sbSizerOMVGPairs->GetStaticBox(), ID_OMVGVLADMAXFEATURESTEXTCTRL, wxT("0"), wxDefaultPosition, wxDefaultSize, 0 );
+	pOMVGVladMaxFeaturesTextCtrl_->SetToolTip( wxT("VLAD image retrieval: at most this many features, spread evenly over the images, are used to learn the codebook. 0 uses all of them; set a limit if learning takes too long on a large image set.") );
+
+	fgSizerOMVGPairs->Add( pOMVGVladMaxFeaturesTextCtrl_, 0, wxEXPAND | wxALL, 3 );
+
+	m_staticTextOMVGVlad4 = new wxStaticText( sbSizerOMVGPairs->GetStaticBox(), wxID_ANY, wxT("VLAD normalization:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextOMVGVlad4->Wrap( -1 );
+	fgSizerOMVGPairs->Add( m_staticTextOMVGVlad4, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3 );
+
+	wxString pOMVGVladFlavorChoice_Choices[] = { wxT("Signed square root (Jegou 2012)"), wxT("Intra-normalization (Arandjelovic 2013)"), wxT("Residual normalization (Delhumeau 2013)") };
+	int pOMVGVladFlavorChoice_NChoices = sizeof( pOMVGVladFlavorChoice_Choices ) / sizeof( wxString );
+	pOMVGVladFlavorChoice_ = new wxChoice( sbSizerOMVGPairs->GetStaticBox(), ID_OMVGVLADFLAVORCHOICE, wxDefaultPosition, wxDefaultSize, pOMVGVladFlavorChoice_NChoices, pOMVGVladFlavorChoice_Choices, 0 );
+	pOMVGVladFlavorChoice_->SetSelection( 2 );
+	pOMVGVladFlavorChoice_->SetToolTip( wxT("VLAD image retrieval: how the image descriptors are normalized. Residual normalization is the OpenMVG default.") );
+
+	fgSizerOMVGPairs->Add( pOMVGVladFlavorChoice_, 0, wxEXPAND | wxALL, 3 );
 
 
 	sbSizerOMVGPairs->Add( fgSizerOMVGPairs, 1, wxEXPAND | wxALL, 3 );

@@ -66,6 +66,7 @@ public:
 	const wxString &getComputeFeaturesPath() { return computeFeaturesPath_; }
 	const wxString &getComputeFeaturesOpenCVPath() { return computeFeaturesOpenCVPath_; }
 	const wxString &getPairGeneratorPath() { return pairGeneratorPath_; }
+	const wxString &getComputeVLADPath() { return computeVLADPath_; }
 	const wxString &getComputeMatchesPath() { return computeMatchesPath_; }
 	const wxString &getGeometricFilterPath() { return geometricFilterPath_; }
 	const wxString &getSfMPath() { return sfmPath_; }
@@ -146,6 +147,7 @@ private:
 	wxString graphvizPath_;
 	wxString computeFeaturesPath_, computeFeaturesOpenCVPath_;
 	wxString pairGeneratorPath_, computeMatchesPath_, geometricFilterPath_;
+	wxString computeVLADPath_;		// Optional: only the VLAD pair mode needs it
 	wxString sfmPath_;
 	wxString openMVG2PMVSPath_;
 	wxString openMVG2MVE2Path_;

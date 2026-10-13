@@ -669,6 +669,10 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 			ID_OMVGUPRIGHTCHECKBOX,
 			ID_OMVGPAIRMODECHOICE,
 			ID_OMVGCONTIGUOUSCOUNTTEXTCTRL,
+			ID_OMVGVLADNEIGHBORSTEXTCTRL,
+			ID_OMVGVLADCODEBOOKSIZETEXTCTRL,
+			ID_OMVGVLADMAXFEATURESTEXTCTRL,
+			ID_OMVGVLADFLAVORCHOICE,
 			ID_OMVGDISTANCERATIOTEXTCTRL,
 			ID_OMVGNEARESTMATCHINGMETHODCHOICE,
 			ID_OMVGCACHESIZETEXTCTRL,
@@ -713,6 +717,14 @@ class Regard3DComputeMatchesDialogBase : public wxDialog
 		wxChoice* pOMVGPairModeChoice_;
 		wxStaticText* m_staticTextOMVG6;
 		wxTextCtrl* pOMVGContiguousCountTextCtrl_;
+		wxStaticText* m_staticTextOMVGVlad1;
+		wxTextCtrl* pOMVGVladNeighborsTextCtrl_;
+		wxStaticText* m_staticTextOMVGVlad2;
+		wxTextCtrl* pOMVGVladCodebookSizeTextCtrl_;
+		wxStaticText* m_staticTextOMVGVlad3;
+		wxTextCtrl* pOMVGVladMaxFeaturesTextCtrl_;
+		wxStaticText* m_staticTextOMVGVlad4;
+		wxChoice* pOMVGVladFlavorChoice_;
 		wxStaticText* m_staticTextOMVG7;
 		wxTextCtrl* pOMVGDistanceRatioTextCtrl_;
 		wxStaticText* m_staticTextOMVG8;

@@ -59,6 +59,10 @@ namespace R3DOpenMVGOptions
 	const wxChar * const kPairModes[] = { wxT("EXHAUSTIVE"), wxT("CONTIGUOUS") };
 	const size_t kPairModeCount = WXSIZEOF(kPairModes);
 
+	// The pair mode after the PairGenerator ones: the pairs come from
+	// openMVG_main_ComputeVLAD (image retrieval) instead
+	const int kPairModeVLAD = 2;
+
 	// --nearest_matching_method, and which descriptor type each one accepts.
 	// AUTO works for both: it picks a matcher from the regions type.
 	// Projects store the index, so new matchers go at the end; the dialog
@@ -105,6 +109,15 @@ namespace R3DOpenMVGOptions
 		if(index < 0 || index >= static_cast<int>(kDescriberCount))
 			index = 0;
 		return kDescribers[index].binary_;
+	}
+
+	// openMVG_main_ComputeVLAD only handles SIFT_Regions and
+	// AKAZE_Float_Regions, which is every scalar describer, the OpenCV ones
+	// included; it stops with "VLAD does not support this Regions type"
+	// for the binary ones
+	inline bool describerSupportsVLAD(int index)
+	{
+		return !describerIsBinary(index);
 	}
 
 	inline bool describerIsOpenCV(int index)

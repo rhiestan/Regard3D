@@ -2348,6 +2348,13 @@ void Regard3DMainFrame::updateProjectDetails()
 					params.Append(R3DOpenMVGOptions::matcherName(omvg.nearestMatchingMethod_));
 					if(omvg.mutual_)
 						params.Append(wxT("/Mutual"));
+					if(omvg.pairMode_ == R3DOpenMVGOptions::kPairModeVLAD)
+					{
+						if(omvg.vladNeighbors_ > 0)
+							params.Append(wxString::Format(wxT("/Pairs: VLAD, %d neighbours"), omvg.vladNeighbors_));
+						else
+							params.Append(wxT("/Pairs: VLAD, 30% neighbours"));
+					}
 					if(omvg.preemptiveFeatureCount_ > 0)
 						params.Append(wxString::Format(wxT("/Pre-emptive: %d"), omvg.preemptiveFeatureCount_));
 				}

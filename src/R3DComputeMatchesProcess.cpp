@@ -183,7 +183,8 @@ bool R3DComputeMatchesProcess::buildCommandList(const R3DProjectPaths &paths)
 	const wxString quotedMatchesDir(quoted(matchesDir));
 	// openMVG_main_PairGenerator always writes a text file, one pair per line,
 	// whatever the extension says (see savePairs in Pair_Builder.hpp)
-	const wxString pairsFile(inMatchesDir(matchesDir, wxT("pairs.txt")));
+	const bool useVLAD = (params.pairMode_ == R3DOpenMVGOptions::kPairModeVLAD);
+	const wxString pairsFile(inMatchesDir(matchesDir, useVLAD ? wxT("vlad_pairs.txt") : wxT("pairs.txt")));
 	const wxString putativeMatches(inMatchesDir(matchesDir, wxT("matches.putative.txt")));
 
 	cmds_.Clear();
@@ -196,6 +197,7 @@ bool R3DComputeMatchesProcess::buildCommandList(const R3DProjectPaths &paths)
 	const wxString computeFeaturesExe(useOpenCV
 		? progs.getComputeFeaturesOpenCVPath() : progs.getComputeFeaturesPath());
 	const wxString pairGeneratorExe(progs.getPairGeneratorPath());
+	const wxString computeVLADExe(progs.getComputeVLADPath());
 	const wxString computeMatchesExe(progs.getComputeMatchesPath());
 	const wxString geometricFilterExe(progs.getGeometricFilterPath());
 
@@ -228,15 +230,37 @@ bool R3DComputeMatchesProcess::buildCommandList(const R3DProjectPaths &paths)
 	stepNames_.Add(wxT("openMVG_main_ComputeFeatures"));
 
 	// --- Pairs ---------------------------------------------------------------
-	cmd = quoted(pairGeneratorExe)
-		+ wxT(" -i ") + quotedSfmData
-		+ wxT(" -o ") + pairsFile
-		+ wxT(" -m ") + R3DOpenMVGOptions::pairModeName(params.pairMode_);
-	if(params.pairMode_ != 0)
-		cmd.Append(wxString::Format(wxT(" -c %d"), params.contiguousCount_));
-	cmds_.Add(cmd);
-	progressTexts_.Add(wxT("Generating image pairs (OpenMVG)"));
-	stepNames_.Add(wxT("openMVG_main_PairGenerator"));
+	if(useVLAD)
+	{
+		// Reads the features from -o and writes its SVGs there. -p is relative
+		// to the working directory, the project root, like every other path
+		// here; vlad_pairs_simscores.txt goes next to it.
+		cmd = quoted(computeVLADExe)
+			+ wxT(" -i ") + quotedSfmData
+			+ wxT(" -o ") + quotedMatchesDir
+			+ wxT(" -p ") + pairsFile
+			+ wxString::Format(wxT(" -n %d -d %d -m %d -v %d"),
+				params.vladNeighbors_, params.vladCodebookSize_,
+				params.vladMaxFeatures_ > 0 ? params.vladMaxFeatures_ : -1,
+				params.vladFlavor_);
+		if(params.cacheSize_ > 0)
+			cmd.Append(wxString::Format(wxT(" -c %d"), params.cacheSize_));
+		cmds_.Add(cmd);
+		progressTexts_.Add(wxT("Finding similar images (OpenMVG VLAD)"));
+		stepNames_.Add(wxT("openMVG_main_ComputeVLAD"));
+	}
+	else
+	{
+		cmd = quoted(pairGeneratorExe)
+			+ wxT(" -i ") + quotedSfmData
+			+ wxT(" -o ") + pairsFile
+			+ wxT(" -m ") + R3DOpenMVGOptions::pairModeName(params.pairMode_);
+		if(params.pairMode_ != 0)
+			cmd.Append(wxString::Format(wxT(" -c %d"), params.contiguousCount_));
+		cmds_.Add(cmd);
+		progressTexts_.Add(wxT("Generating image pairs (OpenMVG)"));
+		stepNames_.Add(wxT("openMVG_main_PairGenerator"));
+	}
 
 	// --- Putative matches ----------------------------------------------------
 	// FromCDouble, not Format: the tools read the ratio with the C locale, so

@@ -35,7 +35,8 @@ class Regard3DMainFrame;
  * One Regard3D step is several executables here, run one after the other:
  *
  *   openMVG_main_ComputeFeatures[_OpenCV]  -> .feat/.desc, image_describer.json
- *   openMVG_main_PairGenerator             -> pairs.bin
+ *   openMVG_main_PairGenerator             -> pairs.txt
+ *     or openMVG_main_ComputeVLAD          -> vlad_pairs.txt (image retrieval)
  *   openMVG_main_ComputeMatches            -> matches.putative.txt
  *   openMVG_main_GeometricFilter           -> matches.{f,e,h}.txt, once per model
  *

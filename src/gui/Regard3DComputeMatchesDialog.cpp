@@ -279,7 +279,12 @@ bool Regard3DComputeMatchesDialog::checkOpenMVGExecutables()
 	if((isOpenCV ? progs.getComputeFeaturesOpenCVPath() : progs.getComputeFeaturesPath()).IsEmpty())
 		missing.Add(isOpenCV ? wxT("openMVG_main_ComputeFeatures_OpenCV")
 			: wxT("openMVG_main_ComputeFeatures"));
-	if(progs.getPairGeneratorPath().IsEmpty())
+	if(pOMVGPairModeChoice_->GetCurrentSelection() == R3DOpenMVGOptions::kPairModeVLAD)
+	{
+		if(progs.getComputeVLADPath().IsEmpty())
+			missing.Add(wxT("openMVG_main_ComputeVLAD"));
+	}
+	else if(progs.getPairGeneratorPath().IsEmpty())
 		missing.Add(wxT("openMVG_main_PairGenerator"));
 	if(progs.getComputeMatchesPath().IsEmpty())
 		missing.Add(wxT("openMVG_main_ComputeMatches"));
@@ -318,6 +323,10 @@ void Regard3DComputeMatchesDialog::initializeOpenMVGPage()
 
 	setChoiceSelection(pOMVGPairModeChoice_, p.pairMode_);
 	pOMVGContiguousCountTextCtrl_->SetValue(wxString::Format(wxT("%d"), p.contiguousCount_));
+	pOMVGVladNeighborsTextCtrl_->SetValue(wxString::Format(wxT("%d"), p.vladNeighbors_));
+	pOMVGVladCodebookSizeTextCtrl_->SetValue(wxString::Format(wxT("%d"), p.vladCodebookSize_));
+	pOMVGVladMaxFeaturesTextCtrl_->SetValue(wxString::Format(wxT("%d"), p.vladMaxFeatures_));
+	setChoiceSelection(pOMVGVladFlavorChoice_, p.vladFlavor_);
 
 	pOMVGDistanceRatioTextCtrl_->SetValue(wxString::Format(wxT("%.3g"), p.distanceRatio_));
 	pOMVGCacheSizeTextCtrl_->SetValue(wxString::Format(wxT("%d"), p.cacheSize_));
@@ -374,8 +383,16 @@ void Regard3DComputeMatchesDialog::updateOpenMVGDescriberDependencies()
 
 void Regard3DComputeMatchesDialog::updateOpenMVGPairModeDependencies()
 {
+	const int pairMode = pOMVGPairModeChoice_->GetCurrentSelection();
+
 	// --contiguous_count only means something in CONTIGUOUS mode
-	pOMVGContiguousCountTextCtrl_->Enable(pOMVGPairModeChoice_->GetCurrentSelection() == 1);
+	pOMVGContiguousCountTextCtrl_->Enable(pairMode == 1);
+
+	const bool useVLAD = (pairMode == R3DOpenMVGOptions::kPairModeVLAD);
+	pOMVGVladNeighborsTextCtrl_->Enable(useVLAD);
+	pOMVGVladCodebookSizeTextCtrl_->Enable(useVLAD);
+	pOMVGVladMaxFeaturesTextCtrl_->Enable(useVLAD);
+	pOMVGVladFlavorChoice_->Enable(useVLAD);
 }
 
 /**
@@ -422,6 +439,28 @@ bool Regard3DComputeMatchesDialog::readOpenMVGPage()
 	if(!readNumericField(pOMVGContiguousCountTextCtrl_, wxT("Contiguous count"), 1, 100000, value))
 		return false;
 	p.contiguousCount_ = static_cast<int>(value);
+
+	if(!readNumericField(pOMVGVladNeighborsTextCtrl_, wxT("Neighbours per image"), 0, 100000, value))
+		return false;
+	p.vladNeighbors_ = static_cast<int>(value);
+	if(!readNumericField(pOMVGVladCodebookSizeTextCtrl_, wxT("Codebook size"), 2, 100000, value))
+		return false;
+	p.vladCodebookSize_ = static_cast<int>(value);
+	if(!readNumericField(pOMVGVladMaxFeaturesTextCtrl_, wxT("Codebook features"), 0, 100000000, value))
+		return false;
+	p.vladMaxFeatures_ = static_cast<int>(value);
+	p.vladFlavor_ = pOMVGVladFlavorChoice_->GetCurrentSelection();
+
+	if(p.pairMode_ == R3DOpenMVGOptions::kPairModeVLAD
+		&& !R3DOpenMVGOptions::describerSupportsVLAD(p.describerMethod_))
+	{
+		wxMessageBox(wxString::Format(wxT("VLAD image retrieval does not work with %s features.\n\n")
+			wxT("Please choose a SIFT or AKAZE_FLOAT describer, or another pair mode."),
+			R3DOpenMVGOptions::describerName(p.describerMethod_)),
+			wxT("Pair mode not available"), wxICON_WARNING | wxOK, this);
+		pOMVGPairModeChoice_->SetFocus();
+		return false;
+	}
 
 	if(!readNumericField(pOMVGDistanceRatioTextCtrl_, wxT("Distance ratio"), 0.1, 1.0, value))
 		return false;

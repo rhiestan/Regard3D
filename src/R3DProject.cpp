@@ -1678,6 +1678,7 @@ std::string R3DProject::PictureSet::getBasePathname()
 R3DOpenMVGMatchingParams::R3DOpenMVGMatchingParams()
 	: describerMethod_(0), describerPreset_(0), upright_(false), numThreads_(0),
 	pairMode_(0), contiguousCount_(5),
+	vladNeighbors_(0), vladCodebookSize_(128), vladMaxFeatures_(0), vladFlavor_(2),
 	distanceRatio_(0.8), nearestMatchingMethod_(0), cacheSize_(0), preemptiveFeatureCount_(0), mutual_(false),
 	computeFundamental_(true), computeEssential_(true), computeHomography_(true),
 	guidedMatching_(false)
@@ -2151,8 +2152,15 @@ void R3DOpenMVGMatchingParams::serialize(Archive & ar, const unsigned int versio
 	ar & boost::serialization::make_nvp("guidedMatching", guidedMatching_);
 	if(version > 0)
 		ar & boost::serialization::make_nvp("mutual", mutual_);
+	if(version > 1)
+	{
+		ar & boost::serialization::make_nvp("vladNeighbors", vladNeighbors_);
+		ar & boost::serialization::make_nvp("vladCodebookSize", vladCodebookSize_);
+		ar & boost::serialization::make_nvp("vladMaxFeatures", vladMaxFeatures_);
+		ar & boost::serialization::make_nvp("vladFlavor", vladFlavor_);
+	}
 }
-BOOST_CLASS_VERSION(R3DOpenMVGMatchingParams, 1)
+BOOST_CLASS_VERSION(R3DOpenMVGMatchingParams, 2)
 
 template<class Archive>
 void R3DOpenMVGTriangulationParams::serialize(Archive & ar, const unsigned int WXUNUSED(version))

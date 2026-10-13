@@ -59,8 +59,14 @@ struct R3DOpenMVGMatchingParams
 	int numThreads_;				// 0: let OpenMVG decide
 
 	// openMVG_main_PairGenerator
-	int pairMode_;					// 0: exhaustive, 1: contiguous
+	int pairMode_;					// 0: exhaustive, 1: contiguous, 2: VLAD
 	int contiguousCount_;
+
+	// openMVG_main_ComputeVLAD, for pairMode_ 2
+	int vladNeighbors_;				// 0: 30% of the images
+	int vladCodebookSize_;
+	int vladMaxFeatures_;			// 0: learn the codebook from all features
+	int vladFlavor_;				// 0: Jegou, 1: Arandjelovic, 2: Delhumeau
 
 	// openMVG_main_ComputeMatches
 	double distanceRatio_;

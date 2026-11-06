@@ -114,15 +114,8 @@ void Regard3DMatchingResultsDialog::OnInitDialog( wxInitDialogEvent& event )
 		pImageListCtrl_->SetItem(i, 3, imageInfo.cameraMaker_);
 		pImageListCtrl_->SetItem(i, 4, imageInfo.cameraModel_);
 
-		wxString focalLengthStr(wxT("N/A"));
-		if(imageInfo.focalLength_ > 0)
-			focalLengthStr = wxString::Format(wxT("%.3g mm"), imageInfo.focalLength_);
-		pImageListCtrl_->SetItem(i, 5, focalLengthStr);
-
-		wxString sensorWidthStr(wxT("N/A"));
-		if(imageInfo.sensorWidth_ > 0)
-			sensorWidthStr = wxString::Format(wxT("%.3g mm"), imageInfo.sensorWidth_);
-		pImageListCtrl_->SetItem(i, 6, sensorWidthStr);
+		pImageListCtrl_->SetItem(i, 5, imageInfo.getFocalLengthString());
+		pImageListCtrl_->SetItem(i, 6, imageInfo.getSensorWidthString());
 		pImageListCtrl_->SetItemData(i, i);
 
 		if(pComputeMatches_ != NULL)

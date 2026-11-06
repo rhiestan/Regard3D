@@ -52,6 +52,7 @@ bool ExifParser::extractExifInfo(const wxString &filename, ExifParser::EPExifInf
 	epExifInfo.cameraMaker_ = wxString(exifInfo.Make.c_str(), wxConvLibc).Trim(false).Trim(true);
 	epExifInfo.cameraModel_ = wxString(exifInfo.Model.c_str(), wxConvLibc).Trim(false).Trim(true);
 	epExifInfo.focalLength_ = exifInfo.FocalLength;
+	epExifInfo.focalLength35mm_ = exifInfo.FocalLengthIn35mm;
 
 	// Check existence of GPS coordinates
 	double latitude = exifInfo.GeoLocation.Latitude;

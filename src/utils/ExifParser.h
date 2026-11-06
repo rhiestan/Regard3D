@@ -31,6 +31,7 @@ public:
 		int width_, height_;
 		wxString cameraMaker_, cameraModel_;
 		double focalLength_;
+		double focalLength35mm_;	// 35 mm equivalent focal length, 0 if not present
 		bool hasGPS_;
 		double lla_[3];
 		double ecef_[3];

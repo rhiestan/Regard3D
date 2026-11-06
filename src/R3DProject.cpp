@@ -1976,10 +1976,14 @@ namespace boost
 				ar & boost::serialization::make_nvp("lla", i.lla_);
 				ar & boost::serialization::make_nvp("ecef", i.ecef_);
 			}
+			if(version >= 2)
+				ar & boost::serialization::make_nvp("sensorWidthSource", i.sensorWidthSource_);
+			else if(Archive::is_loading::value)
+				i.sensorWidthSource_ = (i.sensorWidth_ > 0) ? ImageInfo::SWS_CameraDB : ImageInfo::SWS_Unknown;
 		}
 	}
 }
-BOOST_CLASS_VERSION(ImageInfo, 1)
+BOOST_CLASS_VERSION(ImageInfo, 2)
 
 // Serialize Surface class
 template<class Archive>

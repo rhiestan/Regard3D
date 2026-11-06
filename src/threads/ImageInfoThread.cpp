@@ -41,6 +41,7 @@ ImageInfoThread::ImageInfoThread()
 	imageInfo_.cameraModel_ = wxEmptyString;
 	imageInfo_.focalLength_ = 0;
 	imageInfo_.sensorWidth_ = 0;
+	imageInfo_.sensorWidthSource_ = ImageInfo::SWS_Unknown;
 	imageInfo_.hasGPSInfo_ = false;
 	for(int i = 0; i < 3; i++)
 	{
@@ -118,6 +119,7 @@ bool ImageInfoThread::getNewImageInfo(wxString &iiFilename, ImageInfo &imageInfo
 	imageInfo.cameraModel_ = imageInfo_.cameraModel_;
 	imageInfo.focalLength_ = imageInfo_.focalLength_;
 	imageInfo.sensorWidth_ = imageInfo_.sensorWidth_;
+	imageInfo.sensorWidthSource_ = imageInfo_.sensorWidthSource_;
 	imageInfo.hasGPSInfo_ = imageInfo_.hasGPSInfo_;
 	if(imageInfo.hasGPSInfo_)
 	{
@@ -170,6 +172,7 @@ wxThread::ExitCode ImageInfoThread::Entry()
 		imageInfo.cameraModel_ = wxEmptyString;
 		imageInfo.focalLength_ = 0;
 		imageInfo.sensorWidth_ = 0;
+		imageInfo.sensorWidthSource_ = ImageInfo::SWS_Unknown;
 		imageInfo.hasGPSInfo_ = false;
 		for(int i = 0; i < 3; i++)
 		{
@@ -211,6 +214,7 @@ wxThread::ExitCode ImageInfoThread::Entry()
 				imageInfo_.cameraModel_ = imageInfo.cameraModel_;
 				imageInfo_.focalLength_ = imageInfo.focalLength_;
 				imageInfo_.sensorWidth_ = imageInfo.sensorWidth_;
+				imageInfo_.sensorWidthSource_ = imageInfo.sensorWidthSource_;
 				imageInfo_.hasGPSInfo_ = imageInfo.hasGPSInfo_;
 				if(imageInfo_.hasGPSInfo_)
 				{
@@ -305,11 +309,19 @@ bool ImageInfoThread::createImageInfo(const wxString &localFilename, ImageInfo &
 				exifInfo.cameraModel_, sensorWidth))
 			{
 				imageInfo.sensorWidth_ = sensorWidth;
+				imageInfo.sensorWidthSource_ = ImageInfo::SWS_UserDB;
 			}
 			else if(CameraDBLookup::getInstance().lookupCamera(exifInfo.cameraMaker_,
 				exifInfo.cameraModel_, sensorWidth))
 			{
 				imageInfo.sensorWidth_ = sensorWidth;
+				imageInfo.sensorWidthSource_ = ImageInfo::SWS_CameraDB;
+			}
+			else
+			{
+				// Camera not in any database: fall back to the 35 mm equivalent
+				// focal length, which most cameras and phones write
+				imageInfo.setFromFocalLength35mm(exifInfo.focalLength35mm_);
 			}
 			
 			imageInfo.hasGPSInfo_ = exifInfo.hasGPS_;

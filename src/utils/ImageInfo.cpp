@@ -24,6 +24,7 @@ ImageInfo::ImageInfo()
 	:	isImported_(false),
 	imageWidth_(0), imageHeight_(0),
 	focalLength_(0), sensorWidth_(0),
+	sensorWidthSource_(SWS_Unknown),
 	hasGPSInfo_(false)
 {
 	for(int i = 0; i < 3; i++)
@@ -53,6 +54,7 @@ ImageInfo &ImageInfo::copy(const ImageInfo &o)
 	cameraModel_ = o.cameraModel_;
 	focalLength_ = o.focalLength_;
 	sensorWidth_ = o.sensorWidth_;
+	sensorWidthSource_ = o.sensorWidthSource_;
 	hasGPSInfo_ = o.hasGPSInfo_;
 	for(int i = 0; i < 3; i++)
 	{
@@ -67,4 +69,70 @@ ImageInfo &ImageInfo::copy(const ImageInfo &o)
 ImageInfo & ImageInfo::operator=(const ImageInfo & o)
 {
 	return copy(o);
+}
+
+wxString ImageInfo::getFocalLengthString() const
+{
+	if(focalLength_ <= 0)
+		return wxT("Unknown");
+	if(sensorWidthSource_ == SWS_Exif35mmOnly)
+		return wxString::Format(wxT("%.3g mm (35 mm equiv.)"), focalLength_);
+	return wxString::Format(wxT("%.3g mm"), focalLength_);
+}
+
+wxString ImageInfo::getSensorWidthString() const
+{
+	if(sensorWidth_ <= 0)
+		return wxT("Unknown (will be estimated)");
+	switch(sensorWidthSource_)
+	{
+	case SWS_UserDB:
+		return wxString::Format(wxT("%.3g mm (user DB)"), sensorWidth_);
+	case SWS_Exif35mm:
+	case SWS_Exif35mmOnly:
+		return wxString::Format(wxT("%.3g mm (from EXIF)"), sensorWidth_);
+	default:
+		return wxString::Format(wxT("%.3g mm"), sensorWidth_);
+	}
+}
+
+bool ImageInfo::setFromFocalLength35mm(double focalLength35mm)
+{
+	// Diagonal of a 36 x 24 mm frame. The 35 mm equivalent focal length scales
+	// the real one by the ratio of the diagonals (CIPA DC-008).
+	const double fullFrameDiagonal = std::sqrt(36.0*36.0 + 24.0*24.0);
+
+	if(!(focalLength35mm > 0))
+		return false;
+
+	// Fraction of the sensor diagonal that lies along the longer image side,
+	// which is the side the sensor width refers to (see R3DProject::writeSfmData).
+	// Without image dimensions assume 3:2.
+	double widthOverDiagonal = 36.0 / fullFrameDiagonal;
+	if(imageWidth_ > 0 && imageHeight_ > 0)
+	{
+		double w = static_cast<double>(std::max(imageWidth_, imageHeight_));
+		double h = static_cast<double>(std::min(imageWidth_, imageHeight_));
+		widthOverDiagonal = w / std::sqrt(w*w + h*h);
+	}
+
+	if(focalLength_ > 0)
+	{
+		double sensorWidth = fullFrameDiagonal * focalLength_ / focalLength35mm * widthOverDiagonal;
+		// Reject implausible values: accept anything from tiny phone sensors
+		// to medium format.
+		if(sensorWidth < 1.0 || sensorWidth > 60.0)
+			return false;
+		sensorWidth_ = sensorWidth;
+		sensorWidthSource_ = SWS_Exif35mm;
+	}
+	else
+	{
+		// Pretend to be a 35 mm camera: same field of view
+		focalLength_ = focalLength35mm;
+		sensorWidth_ = fullFrameDiagonal * widthOverDiagonal;
+		sensorWidthSource_ = SWS_Exif35mmOnly;
+	}
+
+	return true;
 }

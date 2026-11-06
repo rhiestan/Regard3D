@@ -244,18 +244,9 @@ void Regard3DPictureSetDialog::OnOK( wxCommandEvent& event )
 			wxMessageBox(wxT("Too few pictures.\nTriangulation will probably fail."),
 				wxT("Too few pictures"), wxOK | wxICON_WARNING);
 
-		// Check for focal length
-		size_t numberOfKownFocalLength = 0;
-		for(size_t i = 0; i < imageList_.size(); i++)
-		{
-			const ImageInfo &ii = imageList_[i];
-			if(ii.focalLength_ != 0
-				&& ii.sensorWidth_ != 0)
-				numberOfKownFocalLength++;
-		}
-		if(numberOfKownFocalLength < 2)
-			wxMessageBox(wxT("The focal length is known for too few pictures.\nTriangulation will fail.\nUse pictures with known focal length taken with cameras stored in the database."),
-				wxT("Unknown focal length"), wxOK | wxICON_WARNING);
+		// Unknown focal lengths are fine: triangulation starts from an estimate
+		// and refines it. Only global triangulation needs known ones, and the
+		// triangulation dialog offers it only if enough are known.
 
 		EndModal(wxID_OK);
 	}
@@ -334,9 +325,16 @@ void Regard3DPictureSetDialog::OnContextMenuSetFocalLength(wxCommandEvent &event
 		}
 		else
 		{
-			imageList_[rightClickedItem_].focalLength_ = newFocalLength;
-			wxString focalLengthStr(wxString::Format(wxT("%.3g mm"), newFocalLength));
-			pImageListCtrl_->SetItem(rightClickedItem_, 4, focalLengthStr);
+			ImageInfo &ii = imageList_[rightClickedItem_];
+			if(ii.sensorWidthSource_ == ImageInfo::SWS_Exif35mmOnly)
+			{
+				// That sensor width only matched the 35 mm equivalent focal length
+				ii.sensorWidth_ = 0;
+				ii.sensorWidthSource_ = ImageInfo::SWS_Unknown;
+			}
+			ii.focalLength_ = newFocalLength;
+			pImageListCtrl_->SetItem(rightClickedItem_, 4, ii.getFocalLengthString());
+			pImageListCtrl_->SetItem(rightClickedItem_, 5, ii.getSensorWidthString());
 		}
 	}
 }
@@ -422,15 +420,8 @@ void Regard3DPictureSetDialog::addFileToImageList(const wxString &filename, bool
 			pImageListCtrl_->SetItem(newId, 2, pImageInfo->cameraMaker_);
 			pImageListCtrl_->SetItem(newId, 3, pImageInfo->cameraModel_);
 
-			wxString focalLengthStr(wxT("N/A"));
-			if(pImageInfo->focalLength_ > 0)
-				focalLengthStr = wxString::Format(wxT("%.3g mm"), pImageInfo->focalLength_);
-			pImageListCtrl_->SetItem(newId, 4, focalLengthStr);
-
-			wxString sensorWidthStr(wxT("N/A"));
-			if(pImageInfo->sensorWidth_ > 0)
-				sensorWidthStr = wxString::Format(wxT("%.3g mm"), pImageInfo->sensorWidth_);
-			pImageListCtrl_->SetItem(newId, 5, sensorWidthStr);
+			pImageListCtrl_->SetItem(newId, 4, pImageInfo->getFocalLengthString());
+			pImageListCtrl_->SetItem(newId, 5, pImageInfo->getSensorWidthString());
 
 			wxString hasGPSInfoStr(wxT("No"));
 			if(pImageInfo->hasGPSInfo_)
@@ -518,15 +509,8 @@ void Regard3DPictureSetDialog::checkForNewImageInfos()
 				pImageListCtrl_->SetItem(i, 2, imageInfo.cameraMaker_);
 				pImageListCtrl_->SetItem(i, 3, imageInfo.cameraModel_);
 
-				wxString focalLengthStr(wxT("N/A"));
-				if(imageInfo.focalLength_ > 0)
-					focalLengthStr = wxString::Format(wxT("%.3g mm"), imageInfo.focalLength_);
-				pImageListCtrl_->SetItem(i, 4, focalLengthStr);
-
-				wxString sensorWidthStr(wxT("N/A"));
-				if(imageInfo.sensorWidth_ > 0)
-					sensorWidthStr = wxString::Format(wxT("%.3g mm"), imageInfo.sensorWidth_);
-				pImageListCtrl_->SetItem(i, 5, sensorWidthStr);
+				pImageListCtrl_->SetItem(i, 4, imageInfo.getFocalLengthString());
+				pImageListCtrl_->SetItem(i, 5, imageInfo.getSensorWidthString());
 
 				wxString hasGPSInfoStr(wxT("No"));
 				if(imageInfo.hasGPSInfo_)
@@ -558,6 +542,7 @@ void Regard3DPictureSetDialog::checkForNewImageInfos()
 				if(imageInfo.focalLength_ > 0)
 					ii.focalLength_ = imageInfo.focalLength_;
 				ii.sensorWidth_ = imageInfo.sensorWidth_;
+				ii.sensorWidthSource_ = imageInfo.sensorWidthSource_;
 				ii.hasGPSInfo_ = imageInfo.hasGPSInfo_;
 				for(int i = 0; i < 3; i++)
 				{

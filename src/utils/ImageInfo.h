@@ -29,11 +29,32 @@ public:
 	ImageInfo &copy(const ImageInfo &o);
 	ImageInfo & operator=(const ImageInfo & o);
 
+	// Where sensorWidth_ comes from. With SWS_Unknown the focal length is
+	// estimated during triangulation (and refined by bundle adjustment).
+	enum SensorWidthSource
+	{
+		SWS_Unknown = 0,
+		SWS_CameraDB,			// sensor_database.csv (or a project saved before this was recorded)
+		SWS_UserDB,				// User camera database
+		SWS_Exif35mm,			// Derived from EXIF FocalLength and FocalLengthIn35mm
+		SWS_Exif35mmOnly		// Only FocalLengthIn35mm known: focalLength_ is the 35 mm equivalent,
+								// sensorWidth_ the matching width of a 35 mm frame
+	};
+
+	bool hasKnownFocalLength() const { return focalLength_ > 0 && sensorWidth_ > 0; }
+	wxString getFocalLengthString() const;
+	wxString getSensorWidthString() const;
+
+	// Fill sensorWidth_ (and, if missing, focalLength_) from the EXIF 35 mm-equivalent
+	// focal length. Returns false if focalLength35mm is not usable.
+	bool setFromFocalLength35mm(double focalLength35mm);
+
 	wxString filename_, importedFilename_;
 	bool isImported_;
 	int imageWidth_, imageHeight_;
 	wxString cameraMaker_, cameraModel_;
 	double focalLength_, sensorWidth_;
+	int sensorWidthSource_;		// SensorWidthSource
 	bool hasGPSInfo_;
 	double lla_[3];			// Longitude, latitude and altitude in WGS84
 	double ecef_[3];		// Earth centered, earth fixed

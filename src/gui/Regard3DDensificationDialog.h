@@ -39,6 +39,9 @@ public:
 
 protected:
 	virtual void OnInitDialog( wxInitDialogEvent& event );
+	virtual void OnR3DMVSPresetChoice( wxCommandEvent& event );
+	virtual void OnR3DMVSOutlierFilterChoice( wxCommandEvent& event );
+	virtual void OnR3DMVSPointDensityChoice( wxCommandEvent& event );
 	virtual void OnUseCMVSCheckBox( wxCommandEvent& event );
 	virtual void OnPMVSLevelSliderScroll( wxScrollEvent& event );
 	virtual void OnPMVSCellSizeSliderScroll( wxScrollEvent& event );
@@ -57,6 +60,7 @@ protected:
 	virtual void OnOpenMVSNumberViewsSliderScroll( wxScrollEvent& event );
 	virtual void OnOpenMVSNumberViewsFuseSliderScroll( wxScrollEvent& event );
 
+	void updateR3DMVSInfoText();
 	void updatePMVSLevelText();
 	void updatePMVSCellSizeText();
 	void updatePMVSThresholdText();

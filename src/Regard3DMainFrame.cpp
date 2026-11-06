@@ -2555,6 +2555,8 @@ void Regard3DMainFrame::updateProjectDetails()
 					type = wxString(wxT("COLMAP"));
 				else if(pDensification->densificationType_ == R3DProject::DTOPENMVS)
 					type = wxString(wxT("OpenMVS"));
+				else if(pDensification->densificationType_ == R3DProject::DTR3DMVS)
+					type = wxString(wxT("R3DMVS"));
 				else
 					type = wxString(wxT("Unknown"));
 
@@ -2592,6 +2594,17 @@ void Regard3DMainFrame::updateProjectDetails()
 					params.Printf(wxT("Resolution level: %d Number of views: %d Min. views for fusion: %d"),
 						pDensification->openMVSResolutionLevel_, pDensification->openMVSNumberViews_,
 						pDensification->openMVSNumberViewsFuse_);
+				}
+				else if(pDensification->densificationType_ == R3DProject::DTR3DMVS)
+				{
+					static const wxChar *presetNames[] = { wxT("Fast"), wxT("Normal"), wxT("High"), wxT("Ultra") };
+					static const wxChar *filterNames[] = { wxT("Standard"), wxT("Strong"), wxT("Strongest") };
+					const int preset = pDensification->r3dmvsPreset_;
+					const int filter = pDensification->r3dmvsOutlierFilter_;
+					params.Printf(wxT("Quality: %s Outlier filter: %s Point density: %s"),
+						(preset >= 0 && preset <= 3) ? presetNames[preset] : wxT("Unknown"),
+						(filter >= 0 && filter <= 2) ? filterNames[filter] : wxT("Unknown"),
+						(pDensification->r3dmvsPointDensity_ == 1) ? wxT("Reduced") : wxT("Full"));
 				}
 				runningTime = pDensification->runningTime_;
 			}
@@ -3075,6 +3088,22 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 				pTriangulation->computeEngine_ == 2, reason))
 			{
 				wxMessageBox(wxT("OpenMVS densification is not available.\n\n") + reason,
+					wxT("Regard3D error"), wxOK | wxICON_ERROR);
+				project_.removeDensification(pDensification);
+				project_.save();
+				project_.populateTreeControl(pProjectTreeCtrl_);
+				return;
+			}
+		}
+
+		if(pDensification->densificationType_ == R3DProject::R3DDensificationType::DTR3DMVS)
+		{
+			// Same as above: the dialog only offers R3DMVS when this holds
+			wxString reason;
+			if(!R3DExternalPrograms::getInstance().isR3DMVSDensificationPossible(
+				pTriangulation->computeEngine_ == 2, reason))
+			{
+				wxMessageBox(wxT("R3DMVS densification is not available.\n\n") + reason,
 					wxT("Regard3D error"), wxOK | wxICON_ERROR);
 				project_.removeDensification(pDensification);
 				project_.save();

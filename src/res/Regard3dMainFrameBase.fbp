@@ -16801,6 +16801,137 @@
                                             <property name="window_name"></property>
                                             <property name="window_style"></property>
                                             <object class="choicebookpage" expanded="1">
+                                                <property name="label">Dense reconstruction (R3DMVS)</property>
+                                                <property name="select">0</property>
+                                                <object class="wxPanel" expanded="1">
+                                                    <property name="id">ID_R3DMVSRECONPARAMSPANEL</property>
+                                                    <property name="name">pR3DMVSReconParamsPanel_</property>
+                                                    <property name="permission">protected</property>
+                                                    <property name="window_style">wxTAB_TRAVERSAL</property>
+                                                    <object class="wxStaticBoxSizer" expanded="1">
+                                                        <property name="id">wxID_ANY</property>
+                                                        <property name="label">Parameters for R3DMVS dense reconstruction</property>
+                                                        <property name="minimum_size"></property>
+                                                        <property name="name">sbSizerR3DMVS</property>
+                                                        <property name="orient">wxVERTICAL</property>
+                                                        <property name="parent">1</property>
+                                                        <property name="permission">none</property>
+                                                        <object class="sizeritem" expanded="1">
+                                                            <property name="border">3</property>
+                                                            <property name="flag">wxEXPAND</property>
+                                                            <property name="proportion">0</property>
+                                                            <object class="wxFlexGridSizer" expanded="1">
+                                                                <property name="cols">2</property>
+                                                                <property name="flexible_direction">wxHORIZONTAL</property>
+                                                                <property name="growablecols">1</property>
+                                                                <property name="growablerows"></property>
+                                                                <property name="hgap">0</property>
+                                                                <property name="minimum_size"></property>
+                                                                <property name="name">fgSizerR3DMVS</property>
+                                                                <property name="non_flexible_grow_mode">wxFLEX_GROWMODE_SPECIFIED</property>
+                                                                <property name="permission">none</property>
+                                                                <property name="rows">3</property>
+                                                                <property name="vgap">0</property>
+                                                                <object class="sizeritem" expanded="1">
+                                                                    <property name="border">3</property>
+                                                                    <property name="flag">wxALIGN_CENTER_VERTICAL|wxALL</property>
+                                                                    <property name="proportion">0</property>
+                                                                    <object class="wxStaticText" expanded="1">
+                                                                        <property name="id">wxID_ANY</property>
+                                                                        <property name="label">Quality:</property>
+                                                                        <property name="markup">0</property>
+                                                                        <property name="name">m_staticTextR3DMVS1</property>
+                                                                        <property name="permission">protected</property>
+                                                                        <property name="wrap">-1</property>
+                                                                    </object>
+                                                                </object>
+                                                                <object class="sizeritem" expanded="1">
+                                                                    <property name="border">3</property>
+                                                                    <property name="flag">wxALIGN_CENTER_VERTICAL|wxALL</property>
+                                                                    <property name="proportion">0</property>
+                                                                    <object class="wxChoice" expanded="1">
+                                                                        <property name="choices">&quot;Fast&quot; &quot;Normal&quot; &quot;High&quot; &quot;Ultra&quot;</property>
+                                                                        <property name="id">ID_R3DMVSPRESETCHOICE</property>
+                                                                        <property name="name">pR3DMVSPresetChoice_</property>
+                                                                        <property name="permission">protected</property>
+                                                                        <property name="selection">1</property>
+                                                                        <property name="tooltip">Sets all R3DMVS parameters at once (r3dmvs dense --preset). The size of the depth maps decides detail and run time.</property>
+                                                                        <event name="OnChoice">OnR3DMVSPresetChoice</event>
+                                                                    </object>
+                                                                </object>
+                                                                <object class="sizeritem" expanded="1">
+                                                                    <property name="border">3</property>
+                                                                    <property name="flag">wxALIGN_CENTER_VERTICAL|wxALL</property>
+                                                                    <property name="proportion">0</property>
+                                                                    <object class="wxStaticText" expanded="1">
+                                                                        <property name="id">wxID_ANY</property>
+                                                                        <property name="label">Outlier filter:</property>
+                                                                        <property name="markup">0</property>
+                                                                        <property name="name">m_staticTextR3DMVS2</property>
+                                                                        <property name="permission">protected</property>
+                                                                        <property name="wrap">-1</property>
+                                                                    </object>
+                                                                </object>
+                                                                <object class="sizeritem" expanded="1">
+                                                                    <property name="border">3</property>
+                                                                    <property name="flag">wxALIGN_CENTER_VERTICAL|wxALL</property>
+                                                                    <property name="proportion">0</property>
+                                                                    <object class="wxChoice" expanded="1">
+                                                                        <property name="choices">&quot;Standard&quot; &quot;Strong&quot; &quot;Strongest&quot;</property>
+                                                                        <property name="id">ID_R3DMVSOUTLIERFILTERCHOICE</property>
+                                                                        <property name="name">pR3DMVSOutlierFilterChoice_</property>
+                                                                        <property name="permission">protected</property>
+                                                                        <property name="selection">0</property>
+                                                                        <property name="tooltip">Standard: removes unconfirmed depths and halos (the r3dmvs defaults). Strong: also removes small, mostly textureless depth segments such as sky and dark background (--weak-segment 0.001). Strongest: in addition, keeps only points seen by at least two views (--min-sources 2); a much sparser cloud (about a third of the points) with clean silhouettes.</property>
+                                                                        <event name="OnChoice">OnR3DMVSOutlierFilterChoice</event>
+                                                                    </object>
+                                                                </object>
+                                                                <object class="sizeritem" expanded="1">
+                                                                    <property name="border">3</property>
+                                                                    <property name="flag">wxALIGN_CENTER_VERTICAL|wxALL</property>
+                                                                    <property name="proportion">0</property>
+                                                                    <object class="wxStaticText" expanded="1">
+                                                                        <property name="id">wxID_ANY</property>
+                                                                        <property name="label">Point density:</property>
+                                                                        <property name="markup">0</property>
+                                                                        <property name="name">m_staticTextR3DMVS3</property>
+                                                                        <property name="permission">protected</property>
+                                                                        <property name="wrap">-1</property>
+                                                                    </object>
+                                                                </object>
+                                                                <object class="sizeritem" expanded="1">
+                                                                    <property name="border">3</property>
+                                                                    <property name="flag">wxALIGN_CENTER_VERTICAL|wxALL</property>
+                                                                    <property name="proportion">0</property>
+                                                                    <object class="wxChoice" expanded="1">
+                                                                        <property name="choices">&quot;Full&quot; &quot;Reduced&quot;</property>
+                                                                        <property name="id">ID_R3DMVSPOINTDENSITYCHOICE</property>
+                                                                        <property name="name">pR3DMVSPointDensityChoice_</property>
+                                                                        <property name="permission">protected</property>
+                                                                        <property name="selection">0</property>
+                                                                        <property name="tooltip">Full: one point per pixel footprint (--voxel-factor 1). Reduced: a sparser, cleaner looking cloud with 2.5 to 4 times fewer points (--voxel-factor 2), well suited for meshing.</property>
+                                                                        <event name="OnChoice">OnR3DMVSPointDensityChoice</event>
+                                                                    </object>
+                                                                </object>
+                                                            </object>
+                                                        </object>
+                                                        <object class="sizeritem" expanded="1">
+                                                            <property name="border">3</property>
+                                                            <property name="flag">wxALL|wxEXPAND</property>
+                                                            <property name="proportion">0</property>
+                                                            <object class="wxStaticText" expanded="1">
+                                                                <property name="id">wxID_ANY</property>
+                                                                <property name="label">R3DMVS</property>
+                                                                <property name="markup">0</property>
+                                                                <property name="name">pR3DMVSInfoText_</property>
+                                                                <property name="permission">protected</property>
+                                                                <property name="wrap">420</property>
+                                                            </object>
+                                                        </object>
+                                                    </object>
+                                                </object>
+                                            </object>
+                                            <object class="choicebookpage" expanded="1">
                                                 <property name="label">CMVS/PMVS</property>
                                                 <property name="select">0</property>
                                                 <object class="wxPanel" expanded="1">

@@ -48,7 +48,9 @@ void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensifi
 	// By page rather than by index: OnInitDialog removes the pages of
 	// methods that cannot run
 	const wxWindow *pPage = pDensificationMethodChoicebook_->GetCurrentPage();
-	if(pPage == pPMVSParamsPanel_)
+	if(pPage == pR3DMVSReconParamsPanel_)
+		pDensification->densificationType_ = R3DProject::DTR3DMVS;
+	else if(pPage == pPMVSParamsPanel_)
 		pDensification->densificationType_ = R3DProject::DTCMVSPMVS;
 	else if(pPage == pDMReconParamsPanel_)
 		pDensification->densificationType_ = R3DProject::DTMVE;
@@ -91,6 +93,10 @@ void Regard3DDensificationDialog::getResults(R3DProject::Densification *pDensifi
 	pDensification->openMVSResolutionLevel_ = pOpenMVSResolutionLevelSlider_->GetValue();
 	pDensification->openMVSNumberViews_ = pOpenMVSNumberViewsSlider_->GetValue();
 	pDensification->openMVSNumberViewsFuse_ = pOpenMVSNumberViewsFuseSlider_->GetValue();
+
+	pDensification->r3dmvsPreset_ = pR3DMVSPresetChoice_->GetSelection();
+	pDensification->r3dmvsOutlierFilter_ = pR3DMVSOutlierFilterChoice_->GetSelection();
+	pDensification->r3dmvsPointDensity_ = pR3DMVSPointDensityChoice_->GetSelection();
 }
 
 void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
@@ -118,6 +124,16 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 		toolTip += wxT("OpenMVS densification is not available. ") + openMVSReason
 			+ wxT(" (expected in the \"openmvs\" subdirectory of the external tools directory).");
 	}
+	wxString r3dmvsReason;
+	if(!R3DExternalPrograms::getInstance().isR3DMVSDensificationPossible(colmapTriangulation_, r3dmvsReason))
+	{
+		removeMethodPage(pR3DMVSReconParamsPanel_);
+		if(!toolTip.IsEmpty())
+			toolTip += wxT("\n\n");
+		toolTip += wxT("R3DMVS densification is not available. ") + r3dmvsReason;
+		if(R3DExternalPrograms::getInstance().getR3DMVSPath().IsEmpty())
+			toolTip += wxT(" (expected in the \"r3dmvs\" subdirectory of the external tools directory).");
+	}
 	wxWindow *pChoiceCtrl = pDensificationMethodChoicebook_->GetChoiceCtrl();
 	if(pChoiceCtrl != NULL && !toolTip.IsEmpty())
 		pChoiceCtrl->SetToolTip(toolTip);
@@ -131,6 +147,7 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 		pNumberOfThreadsChoice_->Append(wxString::Format(wxT("%d"), i));
 	pNumberOfThreadsChoice_->SetSelection(maxNumberOfThreads - 2);
 
+	updateR3DMVSInfoText();
 	updatePMVSLevelText();
 	updatePMVSCellSizeText();
 	updatePMVSThresholdText();
@@ -151,6 +168,21 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 
 	Fit();
 	CenterOnParent();
+}
+
+void Regard3DDensificationDialog::OnR3DMVSPresetChoice( wxCommandEvent& event )
+{
+	updateR3DMVSInfoText();
+}
+
+void Regard3DDensificationDialog::OnR3DMVSOutlierFilterChoice( wxCommandEvent& event )
+{
+	updateR3DMVSInfoText();
+}
+
+void Regard3DDensificationDialog::OnR3DMVSPointDensityChoice( wxCommandEvent& event )
+{
+	updateR3DMVSInfoText();
 }
 
 void Regard3DDensificationDialog::OnUseCMVSCheckBox( wxCommandEvent& event )
@@ -236,6 +268,51 @@ void Regard3DDensificationDialog::OnOpenMVSNumberViewsSliderScroll(wxScrollEvent
 void Regard3DDensificationDialog::OnOpenMVSNumberViewsFuseSliderScroll(wxScrollEvent& event)
 {
 	updateOpenMVSNumberViewsFuseText();
+}
+
+void Regard3DDensificationDialog::updateR3DMVSInfoText()
+{
+	// What the choices do, as measured for r3dmvs on ETH3D
+	static const wxChar *qualityTexts[] = {
+		wxT("Fast: depth maps up to 1600 pixels, not refined. For a quick preview."),
+		wxT("Normal: depth maps up to 3200 pixels, refined. Recommended."),
+		wxT("High: depth maps up to 6400 pixels. Only for small, detailed objects photographed ")
+			wxT("with images much larger than 3200 pixels, where Normal loses detail. Several times slower."),
+		wxT("Ultra: depth maps at the full image size. Like High, only for small, detailed objects; the slowest.")
+	};
+	static const wxChar *outlierTexts[] = {
+		wxT("Standard outlier filter: removes unconfirmed depths and halos around edges. The most complete cloud."),
+		wxT("Strong outlier filter: also removes small, mostly textureless patches such as sky and dark background."),
+		wxT("Strongest outlier filter: as Strong, and keeps only points seen by at least two views. ")
+			wxT("A much sparser cloud (about a third of the points) with clean silhouettes. With few photos ")
+			wxT("(around 15 to 25) it leaves more holes.")
+	};
+	static const wxChar *densityTexts[] = {
+		wxT(""),
+		wxT(" Reduced density: 2.5 to 4 times fewer points, well suited for meshing.")
+	};
+
+	int quality = pR3DMVSPresetChoice_->GetSelection();
+	if(quality < 0 || quality > 3)
+		quality = 1;
+	int outlierFilter = pR3DMVSOutlierFilterChoice_->GetSelection();
+	if(outlierFilter < 0 || outlierFilter > 2)
+		outlierFilter = 0;
+	int density = pR3DMVSPointDensityChoice_->GetSelection();
+	if(density < 0 || density > 1)
+		density = 0;
+
+	wxString text(qualityTexts[quality]);
+	text += wxT("\n\n");
+	text += outlierTexts[outlierFilter];
+	if(quality == 0)
+		text += wxT(" (Fast has no refinement step, so unconfirmed depths are kept.)");
+	text += densityTexts[density];
+
+	pR3DMVSInfoText_->SetLabel(text);
+	pR3DMVSInfoText_->Wrap(420);
+	pR3DMVSReconParamsPanel_->Layout();
+	pR3DMVSReconParamsPanel_->GetSizer()->SetSizeHints(pR3DMVSReconParamsPanel_);
 }
 
 void Regard3DDensificationDialog::updatePMVSLevelText()

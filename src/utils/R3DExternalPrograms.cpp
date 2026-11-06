@@ -24,6 +24,7 @@
 #include <wx/stdpaths.h>
 #include <wx/dir.h>
 #include <wx/ffile.h>
+#include <wx/process.h>
 
 #include <iostream>
 
@@ -210,6 +211,17 @@ bool R3DExternalPrograms::initialize()
 			checkExecutable(openMVSPath, wxT("TextureMesh"), executableExtension, textureMeshPath_);
 		}
 
+		// R3DMVS, Regard3D's own densification tool. Optional like OpenMVS:
+		// when it is missing, it is simply not offered.
+		wxFileName r3dmvsFN(exeFN);
+		r3dmvsFN.AppendDir(wxT("r3dmvs"));
+		if(r3dmvsFN.DirExists())
+		{
+			const wxString r3dmvsDir(r3dmvsFN.GetPath(wxPATH_GET_VOLUME));
+			allPaths_.Add(r3dmvsDir);
+			checkExecutable(r3dmvsDir, wxT("r3dmvs"), executableExtension, r3dmvsPath_);
+		}
+
 		// Graphviz, used by OpenMVG's global SfM engine: it renders the graphs of
 		// its HTML report by calling std::system("neato ..."), which searches PATH.
 		// Purely optional, so a missing gv directory must not fail the check below.
@@ -268,6 +280,43 @@ bool R3DExternalPrograms::isOpenMVSDensificationPossible(bool colmapTriangulatio
 	for(size_t i = 0; i < missing.GetCount(); i++)
 		reason += (i > 0 ? wxT(", ") : wxT("")) + missing[i];
 	return false;
+}
+
+bool R3DExternalPrograms::isR3DMVSDensificationPossible(bool colmapTriangulation, wxString &reason)
+{
+	if(r3dmvsPath_.IsEmpty())
+	{
+		reason = wxT("Not found: r3dmvs");
+		return false;
+	}
+	if(colmapTriangulation)
+	{
+		reason = wxT("It needs an OpenMVG triangulation, and this one was computed by COLMAP.");
+		return false;
+	}
+	return true;
+}
+
+bool R3DExternalPrograms::requestGracefulStop(long pid)
+{
+	if(pid <= 0)
+		return false;
+#if defined(R3D_WIN32)
+	// GenerateConsoleCtrlEvent only reaches processes sharing the caller's
+	// console. Regard3D is a GUI program without one, while the tool got its
+	// own (hidden) console from wxExecute, so borrow that one for the call.
+	// Ctrl+Break goes to the tool's process group only, never to Regard3D.
+	const DWORD processId = static_cast<DWORD>(pid);
+	if(::GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, processId))
+		return true;		// Regard3D has a console and shares it with the tool
+	if(::GetConsoleWindow() != NULL || !::AttachConsole(processId))
+		return false;
+	const bool isOK = (::GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, processId) != FALSE);
+	::FreeConsole();
+	return isOK;
+#else
+	return wxProcess::Kill(static_cast<int>(pid), wxSIGTERM) == wxKILL_OK;
+#endif
 }
 
 bool R3DExternalPrograms::isOpenMVSTool(const wxString &stepName)

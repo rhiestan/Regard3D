@@ -114,6 +114,32 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 	relativeSurfacePath_ = relativeSurfacePath;
 	wxString relativeSurfaceFilename;		// Used for texturing
 
+	// The R3DMVS cloud carries all its point attributes; PoissonRecon and
+	// FSSR each get a copy in their own layout (r3dmvs export --for), with
+	// the point confidence where they read it
+	wxString denseModelName(paths.relativeDenseModelName_.c_str(), wxConvLibc);
+	bool isR3DMVSCloud = false;
+	{
+		R3DProject::Object *pObject = pProject->getObjectByTypeAndID(
+			R3DProject::R3DTreeItem::TypeDensification, pSurface->parentId_);
+		R3DProject::Densification *pDensification = dynamic_cast<R3DProject::Densification *>(pObject);
+		isR3DMVSCloud = (pDensification != NULL && pDensification->densificationType_ == R3DProject::DTR3DMVS);
+	}
+	if(isR3DMVSCloud && (pSurface->surfaceType_ == R3DProject::STPoissonRecon
+		|| pSurface->surfaceType_ == R3DProject::STFSSRecon))
+	{
+		const bool forPoisson = (pSurface->surfaceType_ == R3DProject::STPoissonRecon);
+		const wxString layout(forPoisson ? wxT("poisson") : wxT("fssr"));
+		const wxString exportedName(wxFileName(relativeSurfacePath,
+			wxT("r3dmvs_") + layout + wxT(".ply")).GetFullPath());
+		addCommand(quoted(extPrograms.getR3DMVSPath())
+			+ wxT(" export --cloud ") + quoted(denseModelName)
+			+ wxT(" --for ") + layout
+			+ wxT(" -o ") + quoted(exportedName),
+			wxT("Preparing point cloud (R3DMVS)"), wxT("r3dmvs export"));
+		denseModelName = exportedName;
+	}
+
 	// texrecon is the only tool here reading the MVE scene: FSSR and Poisson
 	// take the dense point cloud, OpenMVS its own scene. Not exporting it when
 	// it isn't needed also matters for a COLMAP-native triangulation, which
@@ -137,12 +163,14 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 		wxString poissonReconExe = extPrograms.getPoissonReconPath();
 		wxString surfaceTrimmerExe = extPrograms.getSurfaceTrimmerPath();
 
-		wxString poissonReconCmd = poissonReconExe + wxT(" --in ") + wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc)
+		wxString poissonReconCmd = poissonReconExe + wxT(" --in ") + denseModelName
 			+ wxT(" --out ") + relativeSurfacePath + wxT("/model_surface.ply")
 			+ wxString::Format(wxT(" --depth %d --pointWeight %g --samplesPerNode %g"),
 			pSurface->poissonDepth_, pSurface->poissonPointWeight_, pSurface->poissonSamplesPerNode_);
 		if(pSurface->poissonTrimThreshold_ > 0)
 			poissonReconCmd.Append(wxT(" --density"));
+		if(isR3DMVSCloud)
+			poissonReconCmd.Append(wxT(" --confidence"));	// The normal length is the confidence
 		poissonReconCmd.Append(wxT(" --verbose"));
 		addCommand(poissonReconCmd, wxT("Generating surface (PoissonRecon)"), wxT("PoissonRecon"));
 		wxString surfaceFilename(wxT("model_surface.ply"));
@@ -179,7 +207,7 @@ bool R3DSurfaceGenProcess::runSurfaceGenProcess(R3DProject::Surface *pSurface)
 
 		addCommand(fssReconExe + wxString::Format(wxT(" --scale-factor=%g --refine-octree=%d "),
 			pSurface->fssrScaleFactorMultiplier_, pSurface->fssrRefineOctreeLevels_)
-			+ wxString(paths.relativeDenseModelName_.c_str(), wxConvLibc)
+			+ denseModelName
 			+ wxT(" ")
 			+ surfaceModelFN.GetFullPath(),
 			wxT("Generating surface (FSSR)"), wxT("fssrecon"));

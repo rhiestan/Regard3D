@@ -48,8 +48,11 @@ void Regard3DSurfaceDialog::setParams(R3DProject::Densification *pDensification,
 			enableFSSR_ = false;
 		}
 		else if(pDensification->densificationType_ == R3DProject::DTMVE
-			|| pDensification->densificationType_ == R3DProject::DTSMVS)
+			|| pDensification->densificationType_ == R3DProject::DTSMVS
+			|| pDensification->densificationType_ == R3DProject::DTR3DMVS)
 		{
+			// R3DMVS: its cloud is rewritten for each of them first, see
+			// R3DSurfaceGenProcess
 			enablePoisson_ = true;
 			enableFSSR_ = true;
 		}

@@ -1929,6 +1929,9 @@ Regard3DMatchingResultsDialogBase::~Regard3DMatchingResultsDialogBase()
 
 BEGIN_EVENT_TABLE( Regard3DDensificationDialogBase, wxDialog )
 	EVT_INIT_DIALOG( Regard3DDensificationDialogBase::_wxFB_OnInitDialog )
+	EVT_CHOICE( ID_R3DMVSPRESETCHOICE, Regard3DDensificationDialogBase::_wxFB_OnR3DMVSPresetChoice )
+	EVT_CHOICE( ID_R3DMVSOUTLIERFILTERCHOICE, Regard3DDensificationDialogBase::_wxFB_OnR3DMVSOutlierFilterChoice )
+	EVT_CHOICE( ID_R3DMVSPOINTDENSITYCHOICE, Regard3DDensificationDialogBase::_wxFB_OnR3DMVSPointDensityChoice )
 	EVT_CHECKBOX( ID_USECMVSCHECKBOX, Regard3DDensificationDialogBase::_wxFB_OnUseCMVSCheckBox )
 	EVT_COMMAND_SCROLL( ID_PMVSLEVELSLIDER, Regard3DDensificationDialogBase::_wxFB_OnPMVSLevelSliderScroll )
 	EVT_COMMAND_SCROLL( ID_PMVSCELLSIZESLIDER, Regard3DDensificationDialogBase::_wxFB_OnPMVSCellSizeSliderScroll )
@@ -1963,6 +1966,64 @@ Regard3DDensificationDialogBase::Regard3DDensificationDialogBase( wxWindow* pare
 	pDensificationMethodSizer_ = new wxStaticBoxSizer( new wxStaticBox( pDensificationPanel_, ID_DENSIFICATIONMETHODSIZER, wxT("Densification method") ), wxVERTICAL );
 
 	pDensificationMethodChoicebook_ = new wxChoicebook( pDensificationMethodSizer_->GetStaticBox(), ID_DENSIFICATIONMETHODCHOICEBOOK, wxDefaultPosition, wxDefaultSize, wxCHB_DEFAULT );
+	pR3DMVSReconParamsPanel_ = new wxPanel( pDensificationMethodChoicebook_, ID_R3DMVSRECONPARAMSPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxStaticBoxSizer* sbSizerR3DMVS;
+	sbSizerR3DMVS = new wxStaticBoxSizer( new wxStaticBox( pR3DMVSReconParamsPanel_, wxID_ANY, wxT("Parameters for R3DMVS dense reconstruction") ), wxVERTICAL );
+
+	wxFlexGridSizer* fgSizerR3DMVS;
+	fgSizerR3DMVS = new wxFlexGridSizer( 3, 2, 0, 0 );
+	fgSizerR3DMVS->AddGrowableCol( 1 );
+	fgSizerR3DMVS->SetFlexibleDirection( wxHORIZONTAL );
+	fgSizerR3DMVS->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
+
+	m_staticTextR3DMVS1 = new wxStaticText( sbSizerR3DMVS->GetStaticBox(), wxID_ANY, wxT("Quality:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextR3DMVS1->Wrap( -1 );
+	fgSizerR3DMVS->Add( m_staticTextR3DMVS1, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	wxString pR3DMVSPresetChoice_Choices[] = { wxT("Fast"), wxT("Normal"), wxT("High"), wxT("Ultra") };
+	int pR3DMVSPresetChoice_NChoices = sizeof( pR3DMVSPresetChoice_Choices ) / sizeof( wxString );
+	pR3DMVSPresetChoice_ = new wxChoice( sbSizerR3DMVS->GetStaticBox(), ID_R3DMVSPRESETCHOICE, wxDefaultPosition, wxDefaultSize, pR3DMVSPresetChoice_NChoices, pR3DMVSPresetChoice_Choices, 0 );
+	pR3DMVSPresetChoice_->SetSelection( 1 );
+	pR3DMVSPresetChoice_->SetToolTip( wxT("Sets all R3DMVS parameters at once (r3dmvs dense --preset). The size of the depth maps decides detail and run time.") );
+
+	fgSizerR3DMVS->Add( pR3DMVSPresetChoice_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	m_staticTextR3DMVS2 = new wxStaticText( sbSizerR3DMVS->GetStaticBox(), wxID_ANY, wxT("Outlier filter:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextR3DMVS2->Wrap( -1 );
+	fgSizerR3DMVS->Add( m_staticTextR3DMVS2, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	wxString pR3DMVSOutlierFilterChoice_Choices[] = { wxT("Standard"), wxT("Strong"), wxT("Strongest") };
+	int pR3DMVSOutlierFilterChoice_NChoices = sizeof( pR3DMVSOutlierFilterChoice_Choices ) / sizeof( wxString );
+	pR3DMVSOutlierFilterChoice_ = new wxChoice( sbSizerR3DMVS->GetStaticBox(), ID_R3DMVSOUTLIERFILTERCHOICE, wxDefaultPosition, wxDefaultSize, pR3DMVSOutlierFilterChoice_NChoices, pR3DMVSOutlierFilterChoice_Choices, 0 );
+	pR3DMVSOutlierFilterChoice_->SetSelection( 0 );
+	pR3DMVSOutlierFilterChoice_->SetToolTip( wxT("Standard: removes unconfirmed depths and halos (the r3dmvs defaults). Strong: also removes small, mostly textureless depth segments such as sky and dark background (--weak-segment 0.001). Strongest: in addition, keeps only points seen by at least two views (--min-sources 2); a much sparser cloud (about a third of the points) with clean silhouettes.") );
+
+	fgSizerR3DMVS->Add( pR3DMVSOutlierFilterChoice_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	m_staticTextR3DMVS3 = new wxStaticText( sbSizerR3DMVS->GetStaticBox(), wxID_ANY, wxT("Point density:"), wxDefaultPosition, wxDefaultSize, 0 );
+	m_staticTextR3DMVS3->Wrap( -1 );
+	fgSizerR3DMVS->Add( m_staticTextR3DMVS3, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+	wxString pR3DMVSPointDensityChoice_Choices[] = { wxT("Full"), wxT("Reduced") };
+	int pR3DMVSPointDensityChoice_NChoices = sizeof( pR3DMVSPointDensityChoice_Choices ) / sizeof( wxString );
+	pR3DMVSPointDensityChoice_ = new wxChoice( sbSizerR3DMVS->GetStaticBox(), ID_R3DMVSPOINTDENSITYCHOICE, wxDefaultPosition, wxDefaultSize, pR3DMVSPointDensityChoice_NChoices, pR3DMVSPointDensityChoice_Choices, 0 );
+	pR3DMVSPointDensityChoice_->SetSelection( 0 );
+	pR3DMVSPointDensityChoice_->SetToolTip( wxT("Full: one point per pixel footprint (--voxel-factor 1). Reduced: a sparser, cleaner looking cloud with 2.5 to 4 times fewer points (--voxel-factor 2), well suited for meshing.") );
+
+	fgSizerR3DMVS->Add( pR3DMVSPointDensityChoice_, 0, wxALIGN_CENTER_VERTICAL|wxALL, 3 );
+
+
+	sbSizerR3DMVS->Add( fgSizerR3DMVS, 0, wxEXPAND, 3 );
+
+	pR3DMVSInfoText_ = new wxStaticText( sbSizerR3DMVS->GetStaticBox(), wxID_ANY, wxT("R3DMVS"), wxDefaultPosition, wxDefaultSize, 0 );
+	pR3DMVSInfoText_->Wrap( 420 );
+	sbSizerR3DMVS->Add( pR3DMVSInfoText_, 0, wxALL|wxEXPAND, 3 );
+
+
+	pR3DMVSReconParamsPanel_->SetSizer( sbSizerR3DMVS );
+	pR3DMVSReconParamsPanel_->Layout();
+	sbSizerR3DMVS->Fit( pR3DMVSReconParamsPanel_ );
+	pDensificationMethodChoicebook_->AddPage( pR3DMVSReconParamsPanel_, wxT("Dense reconstruction (R3DMVS)"), false );
 	pPMVSParamsPanel_ = new wxPanel( pDensificationMethodChoicebook_, ID_PMVSPARAMSPANEL, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
 	pPMVSParamsBoxSizer_ = new wxStaticBoxSizer( new wxStaticBox( pPMVSParamsPanel_, ID_PMVSPARAMSBOXSIZER, wxT("Parameters for CMVS/PMVS") ), wxVERTICAL );
 

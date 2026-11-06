@@ -22,6 +22,9 @@
 class Regard3DMainFrame;
 
 #include <wx/process.h>
+#include <wx/timer.h>
+
+#include <string>
 
 #include "R3DProject.h"
 
@@ -52,8 +55,11 @@ public:
 
 protected:
 	virtual void OnTerminate(int pid, int status);
+	void OnStopTimer(wxTimerEvent &event);
 
 	void runSingleCommand();
+	void handleR3DMVSOutputLine(const std::string &line);
+	void removeR3DMVSWorkDir();
 	bool writePMVSOptions();
 	bool fixColmapPoints3DFile();
 
@@ -93,6 +99,18 @@ private:
 	// so that is where their log files and depth maps end up; they are moved
 	// to/removed from there once each step is done (see OnTerminate)
 	wxString absoluteProjectPath_, relativeDensificationPath_;
+
+	// r3dmvs reports its progress on stdout ("progress <percent> <stage>
+	// <done>/<total>"), so its stdout is read line by line while it runs.
+	// Its depth map cache (relativeR3DMVSWorkDir_) is never reused and is
+	// removed once it has finished.
+	bool isR3DMVSStep_;
+	std::string r3dmvsStdoutLine_;
+	wxString relativeR3DMVSWorkDir_;
+	// Cancelling r3dmvs asks it to stop (see R3DExternalPrograms::
+	// requestGracefulStop), and kills it only if it is still running when
+	// this timer runs out
+	wxTimer stopTimer_;
 };
 
 #endif

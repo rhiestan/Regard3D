@@ -296,7 +296,8 @@ public:
 		DTCMPMVS,
 		DTSMVS,
 		DTCOLMAP,
-		DTOPENMVS
+		DTOPENMVS,
+		DTR3DMVS
 	};
 
 	/**
@@ -345,6 +346,12 @@ public:
 		int openMVSResolutionLevel_;
 		int openMVSNumberViews_;
 		int openMVSNumberViewsFuse_;
+		// r3dmvs dense --preset: 0 fast, 1 normal, 2 high, 3 ultra
+		int r3dmvsPreset_;
+		// 0 standard, 1 strong (--weak-segment 0.001), 2 strongest (+ --min-sources 2)
+		int r3dmvsOutlierFilter_;
+		// 0 full (--voxel-factor 1), 1 reduced (--voxel-factor 2)
+		int r3dmvsPointDensity_;
 		wxString finalDenseModelName_;
 		wxString runningTime_;
 

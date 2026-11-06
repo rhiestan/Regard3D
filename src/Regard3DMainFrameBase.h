@@ -996,6 +996,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 
 		// Private event handlers
 		void _wxFB_OnInitDialog( wxInitDialogEvent& event ){ OnInitDialog( event ); }
+		void _wxFB_OnR3DMVSPresetChoice( wxCommandEvent& event ){ OnR3DMVSPresetChoice( event ); }
+		void _wxFB_OnR3DMVSOutlierFilterChoice( wxCommandEvent& event ){ OnR3DMVSOutlierFilterChoice( event ); }
+		void _wxFB_OnR3DMVSPointDensityChoice( wxCommandEvent& event ){ OnR3DMVSPointDensityChoice( event ); }
 		void _wxFB_OnUseCMVSCheckBox( wxCommandEvent& event ){ OnUseCMVSCheckBox( event ); }
 		void _wxFB_OnPMVSLevelSliderScroll( wxScrollEvent& event ){ OnPMVSLevelSliderScroll( event ); }
 		void _wxFB_OnPMVSCellSizeSliderScroll( wxScrollEvent& event ){ OnPMVSCellSizeSliderScroll( event ); }
@@ -1022,6 +1025,10 @@ class Regard3DDensificationDialogBase : public wxDialog
 			ID_DENSIFICATIONPANEL,
 			ID_DENSIFICATIONMETHODSIZER,
 			ID_DENSIFICATIONMETHODCHOICEBOOK,
+			ID_R3DMVSRECONPARAMSPANEL,
+			ID_R3DMVSPRESETCHOICE,
+			ID_R3DMVSOUTLIERFILTERCHOICE,
+			ID_R3DMVSPOINTDENSITYCHOICE,
 			ID_PMVSPARAMSPANEL,
 			ID_PMVSPARAMSBOXSIZER,
 			ID_NUMBEROFTHREADSCHOICE,
@@ -1073,6 +1080,14 @@ class Regard3DDensificationDialogBase : public wxDialog
 
 		wxPanel* pDensificationPanel_;
 		wxChoicebook* pDensificationMethodChoicebook_;
+		wxPanel* pR3DMVSReconParamsPanel_;
+		wxStaticText* m_staticTextR3DMVS1;
+		wxChoice* pR3DMVSPresetChoice_;
+		wxStaticText* m_staticTextR3DMVS2;
+		wxChoice* pR3DMVSOutlierFilterChoice_;
+		wxStaticText* m_staticTextR3DMVS3;
+		wxChoice* pR3DMVSPointDensityChoice_;
+		wxStaticText* pR3DMVSInfoText_;
 		wxPanel* pPMVSParamsPanel_;
 		wxStaticBoxSizer* pPMVSParamsBoxSizer_;
 		wxStaticText* m_staticText29;
@@ -1149,6 +1164,9 @@ class Regard3DDensificationDialogBase : public wxDialog
 
 		// Virtual event handlers, override them in your derived class
 		virtual void OnInitDialog( wxInitDialogEvent& event ) = 0;
+		virtual void OnR3DMVSPresetChoice( wxCommandEvent& event ) = 0;
+		virtual void OnR3DMVSOutlierFilterChoice( wxCommandEvent& event ) = 0;
+		virtual void OnR3DMVSPointDensityChoice( wxCommandEvent& event ) = 0;
 		virtual void OnUseCMVSCheckBox( wxCommandEvent& event ) = 0;
 		virtual void OnPMVSLevelSliderScroll( wxScrollEvent& event ) = 0;
 		virtual void OnPMVSCellSizeSliderScroll( wxScrollEvent& event ) = 0;

@@ -90,6 +90,29 @@ public:
 	const wxString &getRefineMeshPath() { return refineMeshPath_; }
 	const wxString &getTextureMeshPath() { return textureMeshPath_; }
 
+	// R3DMVS (r3dmvs/), Regard3D's own densification tool; empty when it is
+	// not installed
+	const wxString &getR3DMVSPath() { return r3dmvsPath_; }
+
+	/**
+	 * Whether an R3DMVS densification of a triangulation can run.
+	 *
+	 * r3dmvs reads the triangulation's sfm_data.bin, which a COLMAP-native
+	 * triangulation does not have. If not, reason says why.
+	 */
+	bool isR3DMVSDensificationPossible(bool colmapTriangulation, wxString &reason);
+
+	/**
+	 * Asks a running tool to stop cleanly instead of killing it.
+	 *
+	 * On Windows that is Ctrl+Break, which reaches only a process started as
+	 * the leader of its own process group (wxEXEC_MAKE_GROUP_LEADER); on other
+	 * systems SIGTERM. Only for tools that handle it, such as r3dmvs, which
+	 * then removes its partly written output. Returns false if the request
+	 * could not be delivered.
+	 */
+	static bool requestGracefulStop(long pid);
+
 	/**
 	 * Whether an OpenMVS densification of a triangulation can run.
 	 *
@@ -161,6 +184,7 @@ private:
 	wxString openMVG2openMVSPath_;
 	wxString interfaceCOLMAPPath_, densifyPointCloudPath_;
 	wxString reconstructMeshPath_, refineMeshPath_, textureMeshPath_;
+	wxString r3dmvsPath_;
 	wxArrayString allPaths_;
 
 	static R3DExternalPrograms instance_;

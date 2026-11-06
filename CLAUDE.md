@@ -238,6 +238,24 @@ can be tried out inside Regard3D. See *Direction of travel* below.
    Regard3D executable (overridable in Properties): `pmvs2`, `cmvs`, `genOption`, `PoissonRecon`,
    `SurfaceTrimmer`, `makescene`, `dmrecon`, `scene2pset`, `fssrecon`, `meshclean`, `texrecon`,
    `smvsrecon`, `smvsrecon_SSE41`, and the OpenMVG tools listed below.
+   Optional, offered only when present: `openmvs/` (OpenMVS), `colmap_cuda/` / `colmap_nocuda/`
+   and `r3dmvs/`.
+
+**R3DMVS** (`r3dmvs/r3dmvs.exe`) is Regard3D's own MVS densifier, run as an external program
+(densification type `DTR3DMVS`). The dialog offers Quality (`--preset`), Outlier filter
+(Standard = r3dmvs's defaults, which already remove unconfirmed depths and halos / Strong =
+`--weak-segment 0.001` / Strongest = also `--min-sources 2`; R3DMVS decisions D51/D52, needs
+R3DMVS f89e44c or later) and Point density (Full / Reduced = `--voxel-factor 2`), stored in
+`r3dmvsPreset_`, `r3dmvsOutlierFilter_` and `r3dmvsPointDensity_`. Pass every r3dmvs option at
+most once: CLI11 rejects repeated single-value options. It reads the triangulation's
+`sfm_data.bin` directly, so it needs an OpenMVG triangulation, and needs `--image-dir` because
+the scene's `root_path` is relative to the project directory, not to the `sfm_data.bin`. Its
+`--progress` lines on stdout drive the progress bar (`R3DDensificationProcess::
+handleR3DMVSOutputLine`). Abort sends Ctrl+Break (`R3DExternalPrograms::requestGracefulStop`;
+the tool is started with `wxEXEC_MAKE_GROUP_LEADER`), so r3dmvs removes its partial output
+itself; it is killed only if it is still running 10 s later. Its depth-map cache
+(`r3dmvs_work/`) is deleted after every run. For PoissonRecon and FSSR, the surface step first
+rewrites the cloud with `r3dmvs export --for poisson|fssr`; PoissonRecon then gets `--confidence`.
 
 Which of the two runs a step is stored per project node in `computeEngine_` (0 = built-in,
 1 = OpenMVG executables) and chosen in the step's dialog. Both ends have to keep working: a change

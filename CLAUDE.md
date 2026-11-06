@@ -22,7 +22,7 @@ C:\Projects\Regard3D\
 │   ├── src\                 <-- everything; CMake root is src/, not the repo root
 │   └── README.md, version.txt
 ├── openMVG\                 reference checkout of OpenMVG (at tag v2.0; v2.1 fetched).
-│                           NOT what gets linked — that comes from vcpkg. Useful for
+│                           NOT what gets linked (see "OpenMVG" below). Useful for
 │                           diffing API changes between releases.
 ├── openmvg_build\           stale out-of-tree OpenMVG build (pre-vcpkg)
 ├── eigen-3.4.0\             stale Eigen source + local install (pre-vcpkg)
@@ -33,7 +33,8 @@ C:\Projects\Regard3D\
 └── *.bat                    configure/build helper scripts
 ```
 
-Dependencies today come from **vcpkg** at `C:\Projects\vcpkg\vcpkg` (triplet `x64-windows`).
+Dependencies today come from **vcpkg** at `C:\Projects\vcpkg\vcpkg` (triplet `x64-windows`),
+except OpenMVG (see below).
 The `build-scripts/` folder is the *older* way of producing dependencies by hand and is largely
 historical — treat its `libs_versions.bat` as stale (it still lists Boost 1.62, OpenCV 3.1, Eigen 3.2).
 
@@ -42,6 +43,33 @@ historical — treat its `libs_versions.bat` as stale (it still lists Boost 1.62
 Dependencies are declared in **`src/vcpkg.json`** (vcpkg *manifest* mode) and pinned by its
 `builtin-baseline` to vcpkg release **2026.07.29** (`9e593bb1`). `src/vcpkg-configuration.json`
 adds `src/vcpkg-overlay-ports/` — see that directory's README before touching it.
+
+### OpenMVG — not from vcpkg
+
+OpenMVG comes from the fork at <https://github.com/rhiestan/openMVG> (branch `openmvg-fast`),
+built and installed separately, and is found through
+`-DOpenMVG_DIR=<install prefix>/lib/openMVG/cmake`. On the development machine that is
+`D:\Projects\OpenMVG_fast\install` (a clang build of `D:\Projects\OpenMVG_fast\openMVG`, the
+same full installation the fork's CI packages), set by `build_regard3d_clang.bat`.
+
+- The fork bundles its own Eigen (3.4), Ceres and FLANN. `src/CMakeLists.txt` detects that
+  (`OpenMVG::openMVG_ceres` exists → `R3D_OPENMVG_BUNDLED_DEPS`) and then compiles Regard3D
+  against those copies instead of looking for Eigen, Ceres, SuiteSparse, FLANN and glog — two
+  Eigens in one binary corrupt every Eigen object passed between them.
+- Its include directories are put *before* the vcpkg include directory, so stale OpenMVG headers
+  in a vcpkg prefix cannot shadow the fork's.
+- The fork is built with clang but **without LTO**, so its libraries are ordinary COFF objects
+  that MSVC can link as well. (An earlier local install used ThinLTO, i.e. LLVM bitcode, which
+  only clang could link.)
+- OpenMP: the fork uses LLVM's runtime (`libomp.dll`, shipped in its `lib/` and `bin/`), and so
+  does Regard3D, so there is one runtime for both. With clang that is automatic. With MSVC,
+  `src/CMakeLists.txt` compiles Regard3D with `-openmp:llvm` (same runtime interface), excludes
+  the Microsoft copy that option asks for (`/NODEFAULTLIB:libomp.lib` / `libompd.lib`), links the
+  fork's `libomp.lib` and copies its `libomp.dll` next to the executable. MSVC's own `-openmp`
+  (`vcomp`) must not be used: the fork's `OpenMVGConfig.cmake` defines `OpenMP::OpenMP_CXX` as
+  `libomp.lib` only, which also requires finding OpenMVG before OpenMP (done). Only
+  `opencv_core4.dll` (`opencv4[openmp]`) still uses `vcomp`, in its own module.
+- The same fork build provides the `openMVG_main_*` executables in `external_tools\openmvg\`.
 
 Configure from the workspace root:
 
@@ -104,7 +132,8 @@ Notes / gotchas:
 - Some deps are still located by hand-rolled `Find*.cmake` in `src/cmake/`
   (`FindFLANN`, `FindTBB`, `FindVLFEAT`, `FindBLAS`, `FindLAPACK`).
   Where vcpkg ships a proper config package, prefer `find_package(<x> CONFIG REQUIRED)` and drop
-  the local module — done for AssImp, SuiteSparse and glog.
+  the local module — done for AssImp (and SuiteSparse and glog, which are now only looked
+  for when OpenMVG uses an external Ceres).
 - `FindVLFEAT.cmake` looks for a library named `vlfeat`/`libvlfeat`, but vcpkg installs `vl.lib`,
   so `VLFEAT_FOUND` is always false. It doesn't matter today because `Regard3DFeatures.cpp` also
   has an unconditional `#undef R3D_HAVE_VLFEAT`, but fix both together if VLFeat is ever wanted.
@@ -116,18 +145,13 @@ Notes / gotchas:
 
 | Library | Version | Notes |
 |---|---|---|
-| OpenMVG | 2.1 | linked via `OpenMVG::openMVG_*` imported targets |
+| OpenMVG | 2.1 (fork) | **not vcpkg** — see "OpenMVG" above; `OpenMVG::openMVG_*` imported targets |
 | OpenCV | 4.12.0 (`opencv4`) | core, flann, imgproc, features2d, calib3d, highgui, imgcodecs, videoio, ml |
 | wxWidgets | 3.3.1 | net, gl, aui, adv, core, base |
 | Boost | 1.91.0 | serialization, thread, filesystem, chrono, locale, date_time, timer, system, plus header-only **accumulators** and **geometry** |
-| Eigen | 5.0.1 | |
-| Ceres | 2.2.0 | bundle adjustment, via OpenMVG; `[lapack,suitesparse]` |
-| glog | 0.7.1 | `find_package(glog CONFIG)` → `glog::glog` |
-| SuiteSparse | 7.12.3 | `find_package(SuiteSparse_config CONFIG)` → `SuiteSparse::SuiteSparseConfig` |
-| OpenBLAS | 0.3.33 | BLAS/LAPACK |
+| Eigen, Ceres, FLANN | bundled with OpenMVG | vcpkg's Eigen 5 still comes in through `opencv4[eigen]`; Regard3D does not use it |
 | OpenSceneGraph | 3.6.5 | 3D viewport |
 | AssImp | 6.0.4 | model import/export; `find_package(assimp CONFIG)` |
-| FLANN | 2022-10-28 | matching |
 | VLFeat | 2020-07-10 | present but **not actually enabled** — see the note below |
 | NLopt | not installed | optional; only if `NLOPT_ROOT_DIR` is set (`R3D_HAVE_NLOPT`) |
 | TBB | not installed | optional; `R3D_USE_TBB` / `R3D_USE_TBB_THREADING`, both off by default |
@@ -269,9 +293,8 @@ work. So new external steps are added *next to* the in-process one, following th
 `R3DComputeMatchesProcess` / `R3DTriangulationProcess`: build an ordered command list, run it
 through `wxProcess`, advance in `OnTerminate()`.
 
-The relevant OpenMVG 2.1 tools (the manifest build installs them to
-`build_2026\vcpkg_installed\x64-windows\tools\openmvg`; Regard3D finds them once they are copied
-into `external_tools\openmvg\`):
+The relevant OpenMVG 2.1 tools (built with the OpenMVG fork; Regard3D finds them once they are
+copied into `external_tools\openmvg\`):
 
 | Step | Executable |
 |---|---|
@@ -322,7 +345,7 @@ Debug build of `build_2026` links and produces `build_2026\Debug\Regard3D.exe`.
 
 `R3DExternalPrograms` looks for six executables in the `openmvg/` directory: `ComputeFeatures`,
 `ComputeFeatures_OpenCV`, `PairGenerator`, `ComputeMatches`, `GeometricFilter` and `SfM`. The
-`_OpenCV` one is **not** shipped by vcpkg's openmvg port, so the describers that need it
+`_OpenCV` one needs an OpenMVG built with OpenCV (the fork's build has `OpenMVG_USE_OPENCV=OFF`), so the describers that need it
 (`AKAZE_OPENCV`, `SIFT_OPENCV`) are unusable unless it is built by hand; the compute matches dialog
 checks for it and says so.
 

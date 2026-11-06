@@ -4,16 +4,16 @@ project(Regard3D CXX)
 # Fix for Clang detection, see https://cmake.org/cmake/help/latest/policy/CMP0025.html
 cmake_policy(SET CMP0025 NEW)
 # Set options for Clang
-IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+IF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=libc++ -stdlib=libc++ -std=c++11 ${EXTRA_COMPILER_OPTIONS}" )
 	message("-std=libc++")
-ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+ENDIF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 # Set options for Clang
-IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+IF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=libc++ -stdlib=libc++ -std=c++11 ${EXTRA_COMPILER_OPTIONS}" )
 	message("-std=libc++")
-ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+ENDIF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 # Enable Unicode
 ADD_DEFINITIONS(-D_UNICODE -DUNICODE)
@@ -138,11 +138,72 @@ IF(R3D_CMAKE_DEBUG_OUTPUT)
 ENDIF(R3D_CMAKE_DEBUG_OUTPUT)
 INCLUDE_DIRECTORIES(${wxWidgets_INCLUDE_DIRS})
 
+# OpenMVG
+# Not from vcpkg: Regard3D uses the OpenMVG fork at
+# https://github.com/rhiestan/openMVG, built and installed separately and
+# picked with -DOpenMVG_DIR=<prefix>/lib/openMVG/cmake.
+#
+# Found before its dependencies, because it decides where they come from:
+# - the fork bundles its own (OpenMVG::openMVG_ceres, and Eigen and FLANN
+#   headers in include/openMVG/third_party). Regard3D then has to compile
+#   against those same copies, as a second Eigen in the binary corrupts every
+#   Eigen object passed across the boundary;
+# - an OpenMVG built against external Ceres, Eigen and FLANN (e.g. a system
+#   package) makes Regard3D look for those as well.
+SET(OPENMVG_EXCLUDE_PATENTED ON)
+#ADD_SUBDIRECTORY(${OPENMVG_SRC_DIR} OpenMVG EXCLUDE_FROM_ALL)
+#INCLUDE_DIRECTORIES(${OpenMVG_INCLUDE_DIRS})
+
+FIND_PACKAGE(OpenMVG)
+IF(NOT OpenMVG_FOUND)
+	MESSAGE(FATAL_ERROR "OpenMVG not found. Build and install "
+		"https://github.com/rhiestan/openMVG, then pass "
+		"-DOpenMVG_DIR=<install prefix>/lib/openMVG/cmake")
+ENDIF(NOT OpenMVG_FOUND)
+# A Windows OpenMVG built with MSVC (e.g. vcpkg's) exports its cl.exe options
+# (/nologo;/GR;/EHsc;/MP;...) as INTERFACE_COMPILE_OPTIONS; any other compiler,
+# such as clang's GNU-style driver, takes them for file names. Drop them there.
+IF(WIN32 AND NOT MSVC)
+	get_directory_property(R3D_IMPORTED_TARGETS IMPORTED_TARGETS)
+	foreach(R3D_TARGET ${R3D_IMPORTED_TARGETS})
+		IF(R3D_TARGET MATCHES "^OpenMVG::")
+			get_target_property(R3D_OPTIONS ${R3D_TARGET} INTERFACE_COMPILE_OPTIONS)
+			IF(R3D_OPTIONS)
+				list(FILTER R3D_OPTIONS EXCLUDE REGEX "^/")
+				set_target_properties(${R3D_TARGET} PROPERTIES INTERFACE_COMPILE_OPTIONS "${R3D_OPTIONS}")
+			ENDIF(R3D_OPTIONS)
+		ENDIF(R3D_TARGET MATCHES "^OpenMVG::")
+	endforeach()
+ENDIF(WIN32 AND NOT MSVC)
+
+IF(TARGET OpenMVG::openMVG_ceres)
+	SET(R3D_OPENMVG_BUNDLED_DEPS TRUE)	# See config.h.in
+	GET_FILENAME_COMPONENT(R3D_OPENMVG_ROOT "${OpenMVG_DIR}/../../.." ABSOLUTE)
+	SET(R3D_OPENMVG_THIRD_PARTY "${R3D_OPENMVG_ROOT}/include/openMVG/third_party")
+	MESSAGE("-- OpenMVG bundles Eigen, Ceres and FLANN: ${R3D_OPENMVG_THIRD_PARTY}")
+	# Its targets add these with -isystem, after the vcpkg include directory,
+	# so an OpenMVG port installed there as well would shadow every header
+	SET(R3D_OPENMVG_DEPENDENCIES_DIR "${R3D_OPENMVG_ROOT}/include/openMVG_dependencies")
+	INCLUDE_DIRECTORIES(BEFORE "${R3D_OPENMVG_ROOT}/include"
+		"${R3D_OPENMVG_DEPENDENCIES_DIR}/cereal/include")
+ELSE(TARGET OpenMVG::openMVG_ceres)
+	SET(R3D_OPENMVG_BUNDLED_DEPS FALSE)
+	# The vcpkg prefix, standing in for it below
+	SET(R3D_OPENMVG_DEPENDENCIES_DIR "${wxWidgets_ROOT_DIR}/include/openMVG_dependencies")
+ENDIF(TARGET OpenMVG::openMVG_ceres)
+
 # FLANN
-#LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-SET(FLANN_USE_STATIC TRUE)
-FIND_PACKAGE(FLANN 1.7.0 REQUIRED)
-INCLUDE_DIRECTORIES(${FLANN_INCLUDE_DIRS})
+IF(R3D_OPENMVG_BUNDLED_DEPS)
+	# Header-only there; BEFORE, so that it wins over any FLANN in the vcpkg
+	# include directory
+	INCLUDE_DIRECTORIES(BEFORE "${R3D_OPENMVG_THIRD_PARTY}/flann/src/cpp")
+	SET(FLANN_LIBRARIES "")
+ELSE(R3D_OPENMVG_BUNDLED_DEPS)
+	#LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+	SET(FLANN_USE_STATIC TRUE)
+	FIND_PACKAGE(FLANN 1.7.0 REQUIRED)
+	INCLUDE_DIRECTORIES(${FLANN_INCLUDE_DIRS})
+ENDIF(R3D_OPENMVG_BUNDLED_DEPS)
 
 # OpenSceneGraph
 FIND_PACKAGE(OpenSceneGraph 3.0.0 REQUIRED osgFX osgPresentation osgVolume
@@ -165,12 +226,18 @@ INCLUDE_DIRECTORIES(${OPENGL_INCLUDE_DIR})
 # holding two Eigen versions - our translation units against one, the prebuilt
 # OpenMVG/Ceres libraries against the other - which corrupts every Eigen object
 # passed across that boundary.
-FIND_PACKAGE(Eigen3 CONFIG REQUIRED)
-IF(NOT EIGEN3_INCLUDE_DIR)
-	GET_TARGET_PROPERTY(EIGEN3_INCLUDE_DIR Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
-ENDIF(NOT EIGEN3_INCLUDE_DIR)
-MESSAGE("Found Eigen ${Eigen3_VERSION} in ${EIGEN3_INCLUDE_DIR}")
-INCLUDE_DIRECTORIES( ${EIGEN3_INCLUDE_DIR} )
+IF(R3D_OPENMVG_BUNDLED_DEPS)
+	SET(EIGEN3_INCLUDE_DIR "${R3D_OPENMVG_THIRD_PARTY}/eigen")
+	MESSAGE("Using the Eigen bundled with OpenMVG in ${EIGEN3_INCLUDE_DIR}")
+	INCLUDE_DIRECTORIES(BEFORE ${EIGEN3_INCLUDE_DIR})
+ELSE(R3D_OPENMVG_BUNDLED_DEPS)
+	FIND_PACKAGE(Eigen3 CONFIG REQUIRED)
+	IF(NOT EIGEN3_INCLUDE_DIR)
+		GET_TARGET_PROPERTY(EIGEN3_INCLUDE_DIR Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+	ENDIF(NOT EIGEN3_INCLUDE_DIR)
+	MESSAGE("Found Eigen ${Eigen3_VERSION} in ${EIGEN3_INCLUDE_DIR}")
+	INCLUDE_DIRECTORIES( ${EIGEN3_INCLUDE_DIR} )
+ENDIF(R3D_OPENMVG_BUNDLED_DEPS)
  
 #FIND_PACKAGE(MKL)
 #IF(MKL_FOUND)
@@ -252,6 +319,17 @@ IF(NOT REGARD3D_DISABLE_OPENMP)
 	FIND_PACKAGE( OpenMP )
 	IF(OPENMP_FOUND)
 		SET( R3D_HAVE_OPENMP 1 )	# This will end up in config.h
+		# An OpenMVG built with clang ships LLVM's OpenMP runtime (libomp), and
+		# its config has OpenMP::OpenMP_CXX link that. MSVC's -openmp would add
+		# MSVC's runtime (vcomp) as well, and the two do not mix. -openmp:llvm
+		# makes cl.exe call the LLVM runtime's interface instead; it asks for
+		# Microsoft's copy of it (libomp/libompd, i.e. libomp140.x86_64.dll),
+		# so that is excluded in favour of OpenMVG's libomp.lib (see below).
+		IF(MSVC AND R3D_OPENMVG_BUNDLED_DEPS AND EXISTS "${R3D_OPENMVG_ROOT}/lib/libomp.lib")
+			SET(R3D_USE_OPENMVG_LIBOMP TRUE)
+			SET(OpenMP_C_FLAGS "-openmp:llvm")
+			SET(OpenMP_CXX_FLAGS "-openmp:llvm")
+		ENDIF()
 		SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}" )
 		SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
 		ADD_DEFINITIONS(-DUSE_OPENMP -DOPENMVG_USE_OPENMP)	# Some OpenMVG subroutines require this
@@ -316,6 +394,9 @@ IF(R3D_USE_OPENBLAS)
 ENDIF(R3D_USE_OPENBLAS)
 
 # Ceres
+# Only for an OpenMVG that does not bundle it; Regard3D itself merely shows
+# its version in the About box. The same goes for SuiteSparse below.
+IF(NOT R3D_OPENMVG_BUNDLED_DEPS)
 MESSAGE("-- Check for Ceres")
 IF(NOT DEFINED EIGEN_INCLUDE_DIR OR EIGEN_INCLUDE_DIR STREQUAL "")
 	SET(EIGEN_INCLUDE_DIR ${EIGEN3_INCLUDE_DIR})
@@ -350,7 +431,7 @@ foreach(tgt ${CERES_LIBRARIES})
 	get_property(v2 TARGET ${tgt} PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE)
 	message("Property of ${tgt}, after: ${v2}")
 endforeach()
-
+ENDIF(NOT R3D_OPENMVG_BUNDLED_DEPS)
 
 # Note: Ceres 2.x no longer bundles miniglog, and its config package exports the
 # Ceres::ceres target instead of the old CERES_INCLUDE_DIR / GLOG_INCLUDE_DIRS
@@ -375,9 +456,13 @@ INCLUDE_DIRECTORIES(
 # else it needs is carried transitively by Ceres. So only SuiteSparseConfig is
 # requested here, which also keeps the GPL-licensed components (SPQR, UMFPACK,
 # KLU, BTF, CXSparse, LDL) out of *our* direct link line -- see the note below.
-FIND_PACKAGE(SuiteSparse_config CONFIG REQUIRED)
-SET(SuiteSparse_LIBRARIES SuiteSparse::SuiteSparseConfig)
-MESSAGE("-- Found SuiteSparse_config: ${SuiteSparse_config_VERSION}")
+IF(R3D_OPENMVG_BUNDLED_DEPS)
+	SET(SuiteSparse_LIBRARIES "")
+ELSE(R3D_OPENMVG_BUNDLED_DEPS)
+	FIND_PACKAGE(SuiteSparse_config CONFIG REQUIRED)
+	SET(SuiteSparse_LIBRARIES SuiteSparse::SuiteSparseConfig)
+	MESSAGE("-- Found SuiteSparse_config: ${SuiteSparse_config_VERSION}")
+ENDIF(R3D_OPENMVG_BUNDLED_DEPS)
 
 IF(FALSE)	# Legacy module-mode discovery, kept for reference
 IF(MSVC)
@@ -436,15 +521,15 @@ ENDIF(MSVC)
 ENDIF()	# End of legacy module-mode discovery. Delete this whole IF(FALSE) block
 		# once the Linux/macOS builds have been re-verified against the config package.
 
-IF(MSVC)
-# Glog
+IF(MSVC AND NOT R3D_OPENMVG_BUNDLED_DEPS)
+# Glog (for Ceres)
 # glog >= 0.5 ships a CMake config package exporting the glog::glog target; it does
 # not set the legacy GLOG_LIBRARIES / GLOG_INCLUDE_DIRS variables, so the old
 # module-style lookup here silently yielded an empty library list.
 FIND_PACKAGE(glog CONFIG REQUIRED)
 SET(GLOG_LIBRARIES glog::glog)
 message("GLOG_LIBRARIES = ${GLOG_LIBRARIES} (version ${glog_VERSION})")
-ENDIF(MSVC)
+ENDIF(MSVC AND NOT R3D_OPENMVG_BUNDLED_DEPS)
 
 # AssImp
 
@@ -500,12 +585,7 @@ IF(R3D_USE_TBB)
 	ENDIF(TBB_FOUND)
 ENDIF(R3D_USE_TBB)
 
-# OpenMVG
-SET(OPENMVG_EXCLUDE_PATENTED ON)
-#ADD_SUBDIRECTORY(${OPENMVG_SRC_DIR} OpenMVG EXCLUDE_FROM_ALL)
-#INCLUDE_DIRECTORIES(${OpenMVG_INCLUDE_DIRS})
-
-FIND_PACKAGE(OpenMVG REQUIRED)
+# OpenMVG (found further up)
 #get_property(OPENMVG_INCLUDE_DIRS TARGET OpenMVG::OpenMVG_sfm PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 #message("OPENMVG_LIBRARIES: ${OPENMVG_LIBRARIES}")
 #message("OPENMVG_INCLUDE_DIRS: ${OPENMVG_INCLUDE_DIRS}")
@@ -517,17 +597,17 @@ FIND_PACKAGE(OpenMVG REQUIRED)
 #message("OPENMVG_INCLUDE_DIRS: ${OPENMVG_INCLUDE_DIRS}")
 #INCLUDE_DIRECTORIES(${OPENMVG_INCLUDE_DIRS})
 # The above doesn't work, this is an ugly workaround:
-INCLUDE_DIRECTORIES("${wxWidgets_ROOT_DIR}/include/openMVG_dependencies")
-INCLUDE_DIRECTORIES("${wxWidgets_ROOT_DIR}/include/openMVG_dependencies/cereal/include")
+INCLUDE_DIRECTORIES("${R3D_OPENMVG_DEPENDENCIES_DIR}")
+INCLUDE_DIRECTORIES("${R3D_OPENMVG_DEPENDENCIES_DIR}/cereal/include")
 
 #SET_TARGET_PROPERTIES(${OPENMVG_LIBRARIES} PROPERTIES MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
 
 IF(DEFINED OPENMVG_VERSION)
 	SET(R3D_HAVE_OPENMVG_VERSION TRUE)
 ENDIF(DEFINED OPENMVG_VERSION)
-IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+IF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 	ADD_DEFINITIONS(-DOPENMVG_STD_UNORDERED_MAP)
-ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+ENDIF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 # VLFEAT (optional)
 SET( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" )
@@ -575,10 +655,10 @@ IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
 ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
 
 # Set options for Clang
-IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+IF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=libc++ -stdlib=libc++ -std=c++11 ${EXTRA_COMPILER_OPTIONS}" )
 	message("-std=libc++")
-ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+ENDIF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 IF(MSVC)
 	SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${R3D_COMPILER_ARCH} /bigobj /MP" )
@@ -648,9 +728,9 @@ IF(R3D_GETENV_WORKAROUND)
 	SET(ALL_SRC ${ALL_SRC} getenv_mingw_workaround.c)
 ENDIF(R3D_GETENV_WORKAROUND)
 
-IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+IF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 	SET_PROPERTY(SOURCE R3DComputeMatches.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -std=c++11 ")
-ENDIF(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+ENDIF(APPLE AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
 # Daisy
 #ADD_SUBDIRECTORY(thirdparty/daisy)
@@ -819,9 +899,34 @@ IF(MSYS)
 	STRING(REGEX REPLACE "/(.)/" "\\1:/" REGARD3D_LINK_LIBRARIES "${REGARD3D_LINK_LIBRARIES}" )
 ENDIF(MSYS)
 
+# clang's GNU-style driver against the MSVC-built (vcpkg) dependencies
+IF(WIN32 AND NOT MSVC AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+	# Symbols MSVC emits locally but clang expects from the DLLs; see the file.
+	# Compiled without LTO so its assembler-named definition stays as written.
+	SET(ALL_SRC ${ALL_SRC} utils/ClangMSVCABIShims.cpp)
+	SET_PROPERTY(SOURCE utils/ClangMSVCABIShims.cpp APPEND_STRING PROPERTY COMPILE_FLAGS " -fno-lto ")
+	# vcpkg's static OpenMVG libraries were compiled with MSVC's /openmp and
+	# call its runtime, while clang's own code uses LLVM's libomp
+	IF(OPENMP_FOUND AND NOT R3D_OPENMVG_BUNDLED_DEPS)
+		SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} vcomp)
+	ENDIF(OPENMP_FOUND AND NOT R3D_OPENMVG_BUNDLED_DEPS)
+ENDIF(WIN32 AND NOT MSVC AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+
 ADD_EXECUTABLE(Regard3D WIN32 MACOSX_BUNDLE ${ALL_SRC} ${ALL_HEADERS})
 
 TARGET_LINK_LIBRARIES(Regard3D ${REGARD3D_LINK_LIBRARIES})
+
+IF(R3D_USE_OPENMVG_LIBOMP)
+	# OpenMVG's libomp.lib is linked through OpenMP::OpenMP_CXX; a library
+	# given by path is not a default library, so it is not excluded here
+	TARGET_LINK_LIBRARIES(Regard3D "${R3D_OPENMVG_ROOT}/lib/libomp.lib")
+	TARGET_LINK_OPTIONS(Regard3D PRIVATE /NODEFAULTLIB:libomp.lib /NODEFAULTLIB:libompd.lib)
+	# vcpkg's applocal step only copies vcpkg's DLLs
+	ADD_CUSTOM_COMMAND(TARGET Regard3D POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			"${R3D_OPENMVG_ROOT}/bin/libomp.dll" "$<TARGET_FILE_DIR:Regard3D>"
+		COMMENT "Copying OpenMVG's OpenMP runtime next to Regard3D")
+ENDIF(R3D_USE_OPENMVG_LIBOMP)
 
 # OpenSceneGraph reads image files through plugins that it loads at run time
 # from a directory called osgPlugins-<version>. The only such path compiled

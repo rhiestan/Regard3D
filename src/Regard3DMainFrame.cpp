@@ -92,8 +92,10 @@
 // SuiteSparse
 //#include "SuiteSparse_config.h"
 
-// Ceres
+// Ceres (its headers are not installed when OpenMVG bundles it)
+#if !defined(R3D_OPENMVG_BUNDLED_DEPS)
 #include "ceres/version.h"
+#endif
 
 #endif
 
@@ -703,8 +705,12 @@ void Regard3DMainFrame::OnAboutMenuItem( wxCommandEvent& event )
 #else
 //	descrString.Append(wxString::Format(wxT("%d.%d.%d"), SUITESPARSE_MAIN_VERSION, SUITESPARSE_SUB_VERSION, SUITESPARSE_SUBSUB_VERSION));
 #endif
+#if defined(R3D_OPENMVG_BUNDLED_DEPS)
+	descrString.Append(wxT("\n Ceres (bundled with OpenMVG)"));
+#else
 	descrString.Append(wxT("\n Ceres ") );
 	descrString.Append( wxString(CERES_VERSION_STRING, *wxConvCurrent) );
+#endif
 #endif
 
 #if defined(R3D_HAVE_OpenBLAS_VERSION)
@@ -3337,7 +3343,7 @@ void Regard3DMainFrame::exportTriangulationWithTool(R3DProject::Triangulation *p
 	pExportProcess_ = new R3DExportProcess(this);
 	// Only a single file can be checked for, so only the conversion is
 	pExportProcess_->runExportProcess(paths, name, command,
-		(fileWildcard.IsEmpty() ? wxEmptyString : target));
+		(fileWildcard.IsEmpty() ? wxString() : target));
 }
 
 /**

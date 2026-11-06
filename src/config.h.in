@@ -17,6 +17,8 @@
 #cmakedefine R3D_HAVE_OPENMVG_VERSION 1
 // Caution: Is empty if R3D_HAVE_OPENMVG_VERSION is not defined
 #define OPENMVG_VERSION ${OPENMVG_VERSION}
+// OpenMVG brings its own Eigen, Ceres and FLANN (see CMakeLists.txt)
+#cmakedefine R3D_OPENMVG_BUNDLED_DEPS 1
 
 #cmakedefine R3D_WIN32 1
 #cmakedefine R3D_MACOSX 1

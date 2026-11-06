@@ -19,32 +19,13 @@
     "boost-thread",
     "boost-timer",
     {
-      "name": "ceres",
-      "features": [
-        "lapack",
-        "suitesparse"
-      ]
-    },
-    "eigen3",
-    "flann",
-    "glog",
-    "openblas",
-    {
       "name": "opencv4",
       "features": [
         "eigen",
         "openmp"
       ]
     },
-    {
-      "name": "openmvg",
-      "features": [
-        "openmp",
-        "software"
-      ]
-    },
     "osg",
-    "suitesparse",
     "vlfeat",
     "wxwidgets"
   ]

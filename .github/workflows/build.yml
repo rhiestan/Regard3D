@@ -16,7 +16,8 @@ name: build
 
 on:
   push:
-    branches: [master, develop]
+    # ci/*: to try a change to the build without a pull request
+    branches: [master, develop, 'ci/**']
     tags: ['v*']
   pull_request:
     branches: [master, develop]

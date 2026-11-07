@@ -15,3 +15,6 @@
 *.PDF	 diff=astextplain
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
+
+# bash on the Windows runners (core.autocrlf=true there) fails on CRLF
+*.sh text eol=lf

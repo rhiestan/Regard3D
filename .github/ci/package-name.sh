@@ -12,9 +12,9 @@ if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
 	if [[ "$tag" != "$version" ]]; then
 		echo "::warning::Tag $GITHUB_REF_NAME does not match version $version in src/version.h"
 	fi
-	name="Regard3D-${tag}-${PLATFORM}"
+	name="Regard3D-${tag}-${R3D_PLATFORM}"
 else
-	name="Regard3D-${version}-${GITHUB_SHA::7}-${PLATFORM}"
+	name="Regard3D-${version}-${GITHUB_SHA::7}-${R3D_PLATFORM}"
 fi
 
 echo "R3D_VERSION=$version" >> "$GITHUB_ENV"

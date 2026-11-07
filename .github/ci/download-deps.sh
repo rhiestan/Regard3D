@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Downloads, into $DEPS_DIR, the release packages of OpenMVG and the external
-# tools for $PLATFORM (windows-x64, linux-x64, macos-arm64), and the DejaVu
+# tools for $R3D_PLATFORM (windows-x64, linux-x64, macos-arm64), and the DejaVu
 # font. Each package ends up in its own directory, without its top-level
 # directory:
 #   openmvg/                      OpenMVG installation (bin, include, lib)
@@ -10,11 +10,11 @@
 # empty tag skips that tool.
 set -euo pipefail
 
-: "${DEPS_DIR:?}" "${PLATFORM:?}"
+: "${DEPS_DIR:?}" "${R3D_PLATFORM:?}"
 mkdir -p "$DEPS_DIR/tools"
 cd "$DEPS_DIR"
 
-if [[ "$PLATFORM" == windows-* ]]; then ext=zip; else ext=tar.gz; fi
+if [[ "$R3D_PLATFORM" == windows-* ]]; then ext=zip; else ext=tar.gz; fi
 
 # extract <archive> <target directory>
 extract() {
@@ -43,7 +43,7 @@ release() {
 		echo "$repo: no release tag, skipped"
 		return
 	fi
-	local asset="$prefix-$tag-$PLATFORM.$ext"
+	local asset="$prefix-$tag-$R3D_PLATFORM.$ext"
 	echo "$repo $tag: $asset"
 	gh release download "$tag" --repo "rhiestan/$repo" --pattern "$asset" --clobber
 	extract "$asset" "$target"

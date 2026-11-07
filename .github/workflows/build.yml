@@ -48,7 +48,9 @@ jobs:
       run:
         shell: bash
     env:
-      PLATFORM: windows-x64
+      # Not PLATFORM: msvc-dev-cmd sets Platform=x64, and Windows environment
+      # variable names ignore case
+      R3D_PLATFORM: windows-x64
       VCPKG_TRIPLET: x64-windows
 
     steps:
@@ -137,7 +139,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: vcpkg-logs-${{ env.PLATFORM }}
+          name: vcpkg-logs-${{ env.R3D_PLATFORM }}
           path: ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
           if-no-files-found: ignore
 

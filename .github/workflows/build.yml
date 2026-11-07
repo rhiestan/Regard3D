@@ -1,0 +1,224 @@
+# Build and package Regard3D.
+#
+# Windows: clang (GNU-style driver, MSVC ABI, ThinLTO) against the vcpkg
+# dependencies (triplet x64-windows, built with MSVC), packaged as an NSIS
+# installer and a portable zip. Linux (AppImage) and macOS follow.
+#
+# Nothing but Regard3D itself is built here. OpenMVG and the external tools
+# come from the GitHub releases of their own repositories, pinned below:
+# OpenMVG as a full installation that find_package(OpenMVG) uses (and whose
+# openMVG_main_* programs are shipped), the tools as ready-made programs.
+#
+# Pushing a tag v* additionally creates a draft GitHub release with the
+# packages.
+
+name: build
+
+on:
+  push:
+    branches: [master, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same LLVM as the OpenMVG fork's CI, whose static libraries are linked
+  LLVM_VERSION: 22.1.2
+  # Releases of the dependencies and tools (tag in github.com/rhiestan/<repo>)
+  OPENMVG_TAG: v0.1.1
+  CMVS_PMVS_TAG: v0.1.0
+  MVE_TAG: v0.1.0
+  SMVS_TAG: v0.1.0
+  POISSONRECON_TAG: v0.1.0
+  MVS_TEXTURING_TAG: v0.1.0
+  DEJAVU_VERSION: '2.37'
+
+jobs:
+  windows:
+    name: windows-x64
+    runs-on: windows-2025
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    env:
+      PLATFORM: windows-x64
+      VCPKG_TRIPLET: x64-windows
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package name
+        run: bash .github/ci/package-name.sh
+
+      # --- Toolchain ------------------------------------------------------------
+
+      - name: Cache LLVM
+        id: cache-llvm
+        uses: actions/cache@v4
+        with:
+          path: C:\llvm
+          key: llvm-${{ env.LLVM_VERSION }}-x86_64-pc-windows-msvc
+
+      - name: Download LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          archive="clang+llvm-${LLVM_VERSION}-x86_64-pc-windows-msvc.tar.xz"
+          curl -sSfL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/$archive"
+          7z x "$RUNNER_TEMP/$archive" -so | 7z x -si -ttar -o'C:\llvm' > /dev/null
+          rm "$RUNNER_TEMP/$archive"
+
+      # The Windows SDK, the MSVC STL and runtime libraries, and Ninja. Also
+      # puts Visual Studio's own clang on the path, so LLVM is referred to by
+      # absolute paths below.
+      - name: Set up the MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Paths
+        run: |
+          echo "LLVM_DIR=C:/llvm/clang+llvm-${LLVM_VERSION}-x86_64-pc-windows-msvc" >> "$GITHUB_ENV"
+          echo "DEPS_DIR=$(cygpath -m "$RUNNER_TEMP")/deps" >> "$GITHUB_ENV"
+          echo "VCPKG_ROOT=$(cygpath -m "$RUNNER_TEMP")/vcpkg" >> "$GITHUB_ENV"
+          echo "VCPKG_INSTALLED=$(cygpath -m "$RUNNER_TEMP")/vcpkg_installed" >> "$GITHUB_ENV"
+          echo "VCPKG_ARCHIVES=$(cygpath -m "$RUNNER_TEMP")/vcpkg_archives" >> "$GITHUB_ENV"
+          echo "VCPKG_BASELINE=$(jq -r '."builtin-baseline"' src/vcpkg.json)" >> "$GITHUB_ENV"
+
+      # --- vcpkg dependencies ------------------------------------------------------
+
+      # The baseline commit of src/vcpkg.json, with history: vcpkg looks up
+      # port versions in git.
+      - name: Check out vcpkg
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          git -C "$VCPKG_ROOT" checkout --quiet "$VCPKG_BASELINE"
+          "$VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+
+      # vcpkg binary cache: the built packages as zip files. The key contains
+      # the MSVC version, which is part of every package's ABI hash; the
+      # restore keys reuse what still matches after a change.
+      - name: Restore the vcpkg binary cache
+        id: cache-vcpkg
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.VCPKG_ARCHIVES }}
+          key: vcpkg-${{ env.VCPKG_TRIPLET }}-${{ env.VCToolsVersion }}-${{ env.VCPKG_BASELINE }}-${{ hashFiles('src/vcpkg.json', 'src/vcpkg-configuration.json', 'src/vcpkg-overlay-ports/**') }}
+          restore-keys: |
+            vcpkg-${{ env.VCPKG_TRIPLET }}-${{ env.VCToolsVersion }}-${{ env.VCPKG_BASELINE }}-
+            vcpkg-${{ env.VCPKG_TRIPLET }}-${{ env.VCToolsVersion }}-
+            vcpkg-${{ env.VCPKG_TRIPLET }}-
+
+      - name: Install the vcpkg dependencies
+        run: |
+          mkdir -p "$VCPKG_ARCHIVES"
+          export VCPKG_BINARY_SOURCES="clear;files,$VCPKG_ARCHIVES,readwrite"
+          "$VCPKG_ROOT/vcpkg" install --x-manifest-root=src \
+            --x-install-root="$VCPKG_INSTALLED" \
+            --triplet="$VCPKG_TRIPLET" --clean-after-build --disable-metrics
+
+      # Saved even if a later step fails, so that a rerun does not rebuild
+      # the dependencies.
+      - name: Save the vcpkg binary cache
+        if: always() && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCPKG_ARCHIVES }}
+          key: ${{ steps.cache-vcpkg.outputs.cache-primary-key }}
+
+      - name: Upload the vcpkg logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-logs-${{ env.PLATFORM }}
+          path: ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
+          if-no-files-found: ignore
+
+      # --- OpenMVG, tools, resources --------------------------------------------------
+
+      - name: Download OpenMVG and the external tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/ci/download-deps.sh
+
+      # --- Regard3D -----------------------------------------------------------------
+
+      # As build_regard3d_clang.bat in the workspace:
+      # CMP0091=NEW: the project's cmake_minimum_required(3.10) leaves the
+      #   MSVC runtime policy at OLD, so clang's GNU driver would link the
+      #   static CRT against the /MD vcpkg packages.
+      # OpenMP_libomp_LIBRARY: LLVM's libomp, which OpenMVG uses as well.
+      # -C 1252: regard3d.rc holds a Latin-1 copyright sign, which llvm-rc
+      #   rejects without a code page.
+      - name: Configure
+        run: |
+          opt="-O3 -DNDEBUG -flto=thin"
+          cmake -Wno-dev -G Ninja -S src -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$LLVM_DIR/bin/clang.exe" \
+            -DCMAKE_CXX_COMPILER="$LLVM_DIR/bin/clang++.exe" \
+            -DCMAKE_AR="$LLVM_DIR/bin/llvm-ar.exe" \
+            -DCMAKE_RANLIB="$LLVM_DIR/bin/llvm-ranlib.exe" \
+            -DCMAKE_RC_COMPILER="$LLVM_DIR/bin/llvm-rc.exe" \
+            -DCMAKE_RC_FLAGS="-C 1252" \
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW \
+            -DOpenMP_libomp_LIBRARY="$LLVM_DIR/lib/libomp.lib" \
+            -DCMAKE_C_FLAGS_RELEASE="$opt" \
+            -DCMAKE_CXX_FLAGS_RELEASE="$opt" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_TRIPLET" \
+            -DVCPKG_MANIFEST_INSTALL=OFF \
+            -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED" \
+            -DOpenMVG_DIR="$DEPS_DIR/openmvg/lib/openMVG/cmake"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      # --- Packages -------------------------------------------------------------------
+
+      - name: Stage
+        run: bash .github/ci/stage-windows.sh
+
+      - name: Check the DLL dependencies
+        run: bash .github/ci/check-windows-deps.sh "$STAGE_DIR"
+
+      - name: Installer and zip
+        run: bash .github/ci/package-windows.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG_NAME }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # A draft: published by hand once the packages have been tried
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Regard3D $GITHUB_REF_NAME" \
+            --generate-notes \
+            --draft \
+            --verify-tag

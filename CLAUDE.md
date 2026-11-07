@@ -182,6 +182,38 @@ Version numbers live in `src/version.h` and are parsed back out of it by `src/CM
 (`REGARD3D_VERSION_MAJOR/MINOR/BUILD`, `REGARD3D_COPYRIGHT_YEAR`). Keep the one-macro-per-line
 format intact or the CMake regex breaks. User-facing changelog: `README.md` and `version.txt`.
 
+## CI and packages (GitHub Actions)
+
+`.github/workflows/build.yml` builds and packages Regard3D; so far only the Windows job
+(`windows-2025`), Linux (AppImage) and macOS (unsigned, ad-hoc signed `.app`) are to follow.
+A `v*` tag also creates a **draft** release with the packages.
+
+- **Nothing but Regard3D is built.** OpenMVG (the full installation `find_package(OpenMVG)`
+  uses, plus its `openMVG_main_*` programs) and the external tools come from the GitHub releases
+  of `rhiestan/{openMVG,CMVS-PMVS,mve,smvs,PoissonRecon,mvs-texturing}`, pinned by the
+  `*_TAG` variables at the top of the workflow (`.github/ci/download-deps.sh`). An empty tag
+  skips a tool. R3DMVS, OpenMVS and COLMAP are not
+  packaged.
+- Windows build = `build_regard3d_clang.bat`: LLVM `LLVM_VERSION` (the same as the OpenMVG fork's
+  CI), GNU-style clang + ThinLTO + lld, vcpkg `x64-windows` at the `builtin-baseline` of
+  `src/vcpkg.json`, installed in a separate step with a files binary cache in `actions/cache`
+  (key includes the MSVC version, which is part of every package's ABI hash).
+- `.github/ci/stage-windows.sh` lays out the installation: `Regard3D.exe`, DLLs,
+  `osgPlugins-*` (plus the DLLs the plugins import, e.g. `gif.dll`, which applocal misses),
+  `libomp.dll`, `sensor_database.csv` (`src/res/`) and `DejaVuSans.ttf` (downloaded) **next to the
+  executable** — that is where `CameraDBLookup` and `R3DFontHandler` look when the registry
+  values are not set — and the tool directories `openmvg/ pmvs/ poisson/ mve/` (smvs and texrecon
+  go into `mve/`), plus `licenses/`.
+- `.github/ci/check-windows-deps.sh` fails the job if any packaged program imports a DLL that
+  is neither packaged, nor Windows, nor the MSVC runtime.
+- `src/install/Regard3D.nsi` packs the stage directory (`-DSTAGE_DIR`), runs `vc_redist.x64.exe`
+  and removes the tool directories of an earlier installation first. Its uninstaller deletes the
+  list of installed files that `package-windows.sh` generates (`-DUNINSTALL_LIST`), never the
+  installation directory as a whole. The portable zip gets the MSVC runtime DLLs instead.
+- There is a single `smvsrecon`: the smvs fork picks its SSE4/AVX2 code at run time (Highway),
+  so the old `smvsrecon_SSE41` build is no longer looked for. `texrecon` comes from the
+  mvs-texturing release (assets named `texrecon-<tag>-<platform>`).
+
 ## Architecture
 
 ### Project model — `src/R3DProject.{h,cpp}`
@@ -237,7 +269,7 @@ can be tried out inside Regard3D. See *Direction of travel* below.
    `pmvs/`, `poisson/`, `mve/`, `openmvg/` (and optionally `cmpmvs/`) subdirectories next to the
    Regard3D executable (overridable in Properties): `pmvs2`, `cmvs`, `genOption`, `PoissonRecon`,
    `SurfaceTrimmer`, `makescene`, `dmrecon`, `scene2pset`, `fssrecon`, `meshclean`, `texrecon`,
-   `smvsrecon`, `smvsrecon_SSE41`, and the OpenMVG tools listed below.
+   `smvsrecon`, and the OpenMVG tools listed below.
    Optional, offered only when present: `openmvs/` (OpenMVS), `colmap_cuda/` / `colmap_nocuda/`
    and `r3dmvs/`.
 

@@ -38,7 +38,6 @@ public:
 	const wxString &getMeshCleanPath() { return meshcleanPath_; }
 	const wxString &getCMPMVSPath() { return cmpmvsPath_; }
 	const wxString &getSMVSReconPath() { return smvsreconPath_; }
-	const wxString &getSMVSReconSSE41Path() { return smvsreconSSE41Path; }
 	// COLMAP is shipped as two separate builds (colmap_cuda/ and colmap_nocuda/);
 	// empty when the corresponding directory wasn't found next to the executable.
 	// Note: colmap_nocuda cannot run densification - COLMAP's dense stereo
@@ -164,7 +163,7 @@ private:
 	wxString makescenePath_, texreconPath_;
 	wxString dmreconPath_, scene2psetPath_, fssreconPath_, meshcleanPath_;
 	wxString cmpmvsPath_;
-	wxString smvsreconPath_, smvsreconSSE41Path;
+	wxString smvsreconPath_;
 	wxString colmapCudaPath_, colmapNoCudaPath_;
 	bool cudaDriverDetected_;
 	wxString graphvizPath_;

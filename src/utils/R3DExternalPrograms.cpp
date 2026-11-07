@@ -123,8 +123,8 @@ bool R3DExternalPrograms::initialize()
 			isOK &= checkExecutable(mveFN.GetPath(wxPATH_GET_VOLUME), wxT("scene2pset"), executableExtension, scene2psetPath_);
 			isOK &= checkExecutable(mveFN.GetPath(wxPATH_GET_VOLUME), wxT("fssrecon"), executableExtension, fssreconPath_);
 			isOK &= checkExecutable(mveFN.GetPath(wxPATH_GET_VOLUME), wxT("meshclean"), executableExtension, meshcleanPath_);
+			// One build for all CPUs: smvs selects SSE4/AVX2 code at run time (Highway)
 			isOK &= checkExecutable(mveFN.GetPath(wxPATH_GET_VOLUME), wxT("smvsrecon"), executableExtension, smvsreconPath_);
-			isOK &= checkExecutable(mveFN.GetPath(wxPATH_GET_VOLUME), wxT("smvsrecon_SSE41"), executableExtension, smvsreconSSE41Path);
 		}
 		else
 			isOK = false;

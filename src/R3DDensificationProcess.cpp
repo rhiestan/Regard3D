@@ -40,7 +40,6 @@ wxString quoted(const wxString& str)
    return wxT("\"") + str + wxT("\"");
 }
 }
-#include "cpuinfo.hpp"
 
 #include <iostream>
 
@@ -230,9 +229,6 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification*
       }
 
       wxString smvsreconExe = R3DExternalPrograms::getInstance().getSMVSReconPath();
-      cpuid::cpuinfo cpuinfo;
-      if (cpuinfo.has_sse4_1())		// TODO: Allow user to fall back to generic version
-         smvsreconExe = R3DExternalPrograms::getInstance().getSMVSReconSSE41Path();
 
       wxString mveSceneDir = wxString(paths.relativeMVESceneDir_.c_str(), wxConvLibc);
       wxString outputModelFilename;

@@ -114,6 +114,16 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 			wxT("can densify it: CMVS/PMVS, MVE and SMVS all need an OpenMVG ")
 			wxT("reconstruction, which this triangulation does not have.");
 	}
+	// COLMAP is not shipped with Regard3D either. Its dense stereo only runs
+	// in the CUDA build, see updateColmapUseCudaCheckBox()
+	wxString colmapReason;
+	if(!R3DExternalPrograms::getInstance().isColmapDensificationPossible(colmapTriangulation_, colmapReason))
+	{
+		removeMethodPage(pColmapReconParamsPanel_);
+		if(!toolTip.IsEmpty())
+			toolTip += wxT("\n\n");
+		toolTip += wxT("COLMAP densification is not available. ") + colmapReason;
+	}
 	// OpenMVS is not shipped with Regard3D, see R3DExternalPrograms
 	wxString openMVSReason;
 	if(!R3DExternalPrograms::getInstance().isOpenMVSDensificationPossible(colmapTriangulation_, openMVSReason))

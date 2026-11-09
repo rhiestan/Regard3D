@@ -123,6 +123,15 @@ public:
 	bool isOpenMVSDensificationPossible(bool colmapTriangulation, wxString &reason);
 
 	/**
+	 * Whether COLMAP densification can run on this triangulation.
+	 *
+	 * patch_match_stereo has no CPU implementation, so it needs colmap_cuda;
+	 * an OpenMVG triangulation also needs openMVG_main_openMVG2Colmap. If not,
+	 * reason says what is missing.
+	 */
+	bool isColmapDensificationPossible(bool colmapTriangulation, wxString &reason);
+
+	/**
 	 * Moves the log file an OpenMVS tool wrote into targetDir, echoing it to
 	 * std::cout first.
 	 *

@@ -3013,6 +3013,21 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 		return;
 	}
 
+	// Only COLMAP and OpenMVS can densify a COLMAP-native triangulation, and
+	// neither is shipped with Regard3D: without them the dialog would have no
+	// method left to offer
+	wxString colmapReason, openMVSReason;
+	if(pTriangulation->computeEngine_ == 2
+		&& !R3DExternalPrograms::getInstance().isColmapDensificationPossible(true, colmapReason)
+		&& !R3DExternalPrograms::getInstance().isOpenMVSDensificationPossible(true, openMVSReason))
+	{
+		wxMessageBox(wxT("This triangulation was computed by COLMAP, so only COLMAP or OpenMVS can densify it, ")
+			wxT("and neither is available.\n\nCOLMAP: ") + colmapReason
+			+ wxT("\nOpenMVS: ") + openMVSReason,
+			wxT("Densification error"), wxICON_ERROR | wxOK);
+		return;
+	}
+
 	Regard3DDensificationDialog dlg(this);
 	dlg.setColmapTriangulation(pTriangulation->computeEngine_ == 2);
 	if(dlg.ShowModal() == wxID_OK)
@@ -3061,9 +3076,11 @@ void Regard3DMainFrame::createDensePointcloud(R3DProject::Triangulation *pTriang
 			// implementation - it requires an NVIDIA/CUDA GPU and the
 			// colmap_cuda build unconditionally; colmap_nocuda can only ever
 			// fail at that step, so it doesn't count as "COLMAP available"
-			// here even if it is installed.
-			if(extPrograms.getColmapCudaPath().IsEmpty()
-				|| (!nativeColmapTriangulation && extPrograms.getOpenMVG2ColmapPath().IsEmpty()))
+			// here even if it is installed. The dialog only offers COLMAP when
+			// this holds; checked again so a densification never starts
+			// with a tool missing.
+			wxString reason;
+			if(!extPrograms.isColmapDensificationPossible(nativeColmapTriangulation, reason))
 			{
 				wxMessageBox(wxT("COLMAP (CUDA build) was not found.\n\n")
 					wxT("COLMAP's dense reconstruction step has no CPU fallback, so it needs\n")

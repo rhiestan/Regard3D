@@ -282,6 +282,23 @@ bool R3DExternalPrograms::isOpenMVSDensificationPossible(bool colmapTriangulatio
 	return false;
 }
 
+bool R3DExternalPrograms::isColmapDensificationPossible(bool colmapTriangulation, wxString &reason)
+{
+	wxArrayString missing;
+	if(colmapCudaPath_.IsEmpty())
+		missing.Add(wxT("colmap with CUDA (in the \"colmap_cuda\" subdirectory)"));
+	if(!colmapTriangulation && openMVG2ColmapPath_.IsEmpty())
+		missing.Add(wxT("openMVG_main_openMVG2Colmap"));
+
+	if(missing.IsEmpty())
+		return true;
+
+	reason = wxT("Not found: ");
+	for(size_t i = 0; i < missing.GetCount(); i++)
+		reason += (i > 0 ? wxT(", ") : wxT("")) + missing[i];
+	return false;
+}
+
 bool R3DExternalPrograms::isR3DMVSDensificationPossible(bool colmapTriangulation, wxString &reason)
 {
 	if(r3dmvsPath_.IsEmpty())

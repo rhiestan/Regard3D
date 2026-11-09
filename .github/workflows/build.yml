@@ -195,10 +195,20 @@ jobs:
       - name: Installer and zip
         run: bash .github/ci/package-windows.sh
 
-      - uses: actions/upload-artifact@v4
+      # One artifact per package, uploaded as is (archive: false): the
+      # artifact is the file itself, named after it, not a zip around it
+      - name: Upload the installer
+        uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.PKG_NAME }}
-          path: dist/*
+          path: dist/${{ env.PKG_NAME }}-setup.exe
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload the portable zip
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/${{ env.PKG_NAME }}.zip
+          archive: false
           if-no-files-found: error
 
   release:
@@ -209,7 +219,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      # v8 leaves the unarchived artifacts as they are
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
@@ -219,7 +230,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
+          find dist -type f
+          # Wherever the download put them
+          mapfile -t packages < <(find dist -type f)
+          gh release create "$GITHUB_REF_NAME" "${packages[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Regard3D $GITHUB_REF_NAME" \
             --generate-notes \

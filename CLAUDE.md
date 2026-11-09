@@ -204,6 +204,8 @@ A `v*` tag also creates a **draft** release with the packages.
   executable** — that is where `CameraDBLookup` and `R3DFontHandler` look when the registry
   values are not set — and the tool directories `openmvg/ pmvs/ poisson/ mve/` (smvs and texrecon
   go into `mve/`), plus `licenses/`.
+- Each package is its own artifact, uploaded unzipped (`upload-artifact@v7`, `archive: false`):
+  `<name>-setup.exe` and the portable `<name>.zip`.
 - `.github/ci/check-windows-deps.sh` fails the job if any packaged program imports a DLL that
   is neither packaged, nor Windows, nor the MSVC runtime.
 - `src/install/Regard3D.nsi` packs the stage directory (`-DSTAGE_DIR`), runs `vc_redist.x64.exe`

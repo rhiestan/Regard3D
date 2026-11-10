@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Regard3D
+GenericName=Structure from motion
+Comment=Create 3D models from photographs
+Exec=Regard3D
+Icon=regard3d
+Terminal=false
+Categories=Graphics;3DGraphics;

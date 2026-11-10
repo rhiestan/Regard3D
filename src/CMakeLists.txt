@@ -211,8 +211,36 @@ FIND_PACKAGE(OpenSceneGraph 3.0.0 REQUIRED osgFX osgPresentation osgVolume
 	osgTerrain osgParticle osgShadow osgSim osgUtil osg OpenThreads)
 
 INCLUDE_DIRECTORIES(${OPENSCENEGRAPH_INCLUDE_DIRS})
+# vcpkg's static OpenSceneGraph (x64-linux, ...) says so in its osg/Config
+IF(NOT R3D_USE_OSG_STATIC AND EXISTS "${OSG_INCLUDE_DIR}/osg/Config")
+	FILE(STRINGS "${OSG_INCLUDE_DIR}/osg/Config" R3D_OSG_STATIC_DEFINE REGEX "#define OSG_LIBRARY_STATIC")
+	IF(R3D_OSG_STATIC_DEFINE)
+		SET(R3D_USE_OSG_STATIC TRUE)
+	ENDIF(R3D_OSG_STATIC_DEFINE)
+ENDIF(NOT R3D_USE_OSG_STATIC AND EXISTS "${OSG_INCLUDE_DIR}/osg/Config")
 IF(R3D_USE_OSG_STATIC)
 	ADD_DEFINITIONS(-DOSG_LIBRARY_STATIC)
+	# Static plugins are linked into the executable: those Regard3DApp.cpp
+	# registers with USE_OSGPLUGIN, USE_DOTOSGWRAPPER_LIBRARY and
+	# USE_SERIALIZER_WRAPPER_LIBRARY. vcpkg's targets for them carry their
+	# dependencies (libpng, freetype, ...), and those of osg itself.
+	FIND_PACKAGE(unofficial-osg CONFIG COMPONENTS plugins)
+	IF(unofficial-osg_FOUND)
+		SET(R3D_OSG_STATIC_TARGETS
+			osg osgDB osgUtil osgGA osgViewer osgText osgManipulator OpenThreads
+			osgdb_ive osgdb_osg osgdb_rgb osgdb_freetype osgdb_p3d osgdb_obj osgdb_ply
+			osgdb_png osgdb_jpeg
+			osgdb_deprecated_osg osgdb_deprecated_osgtext osgdb_deprecated_osgviewer
+			osgdb_serializers_osg osgdb_serializers_osgmanipulator osgdb_serializers_osgtext)
+		SET(R3D_OSG_STATIC_LIBRARIES "")
+		FOREACH(R3D_OSG_TARGET ${R3D_OSG_STATIC_TARGETS})
+			IF(TARGET unofficial::osg::${R3D_OSG_TARGET})
+				LIST(APPEND R3D_OSG_STATIC_LIBRARIES unofficial::osg::${R3D_OSG_TARGET})
+			ELSE(TARGET unofficial::osg::${R3D_OSG_TARGET})
+				MESSAGE(WARNING "OpenSceneGraph: no target unofficial::osg::${R3D_OSG_TARGET}")
+			ENDIF(TARGET unofficial::osg::${R3D_OSG_TARGET})
+		ENDFOREACH(R3D_OSG_TARGET)
+	ENDIF(unofficial-osg_FOUND)
 ENDIF(R3D_USE_OSG_STATIC)
 
 # OpenGL
@@ -837,7 +865,7 @@ IF(DEFINED OSG_PLUGINS_DIR)
 	LINK_DIRECTORIES(${OSG_PLUGINS_DIR})
 ENDIF(DEFINED OSG_PLUGINS_DIR)
 
-SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIES}
+SET(REGARD3D_LINK_LIBRARIES ${REGARD3D_LINK_LIBRARIES} ${R3D_OSG_STATIC_LIBRARIES} ${OPENSCENEGRAPH_LIBRARIES}
 	${Boost_LIBRARIES} AKAZE fast-akaze liop sqlite ${OpenCV_LIBRARIES}
 	OpenMVG::openMVG_sfm OpenMVG::openMVG_stlplus OpenMVG::openMVG_fast
 	OpenMVG::openMVG_exif OpenMVG::openMVG_features OpenMVG::openMVG_image

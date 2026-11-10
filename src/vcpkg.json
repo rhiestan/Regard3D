@@ -22,7 +22,10 @@
       "name": "opencv4",
       "features": [
         "eigen",
-        "openmp"
+        {
+          "name": "openmp",
+          "platform": "windows"
+        }
       ]
     },
     "osg",

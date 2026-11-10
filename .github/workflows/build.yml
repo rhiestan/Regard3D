@@ -2,7 +2,10 @@
 #
 # Windows: clang (GNU-style driver, MSVC ABI, ThinLTO) against the vcpkg
 # dependencies (triplet x64-windows, built with MSVC), packaged as an NSIS
-# installer and a portable zip. Linux (AppImage) and macOS follow.
+# installer and a portable zip.
+# Linux: clang (ThinLTO) against the static vcpkg dependencies (triplet
+# x64-linux, built with GCC) and the system's GTK 3, packaged as an AppImage.
+# macOS follows.
 #
 # Nothing but Regard3D itself is built here. OpenMVG and the external tools
 # come from the GitHub releases of their own repositories, pinned below:
@@ -211,10 +214,167 @@ jobs:
           archive: false
           if-no-files-found: error
 
+  linux:
+    name: linux-x64
+    # The oldest hosted runner: the AppImage runs on distributions with at
+    # least its glibc (2.35), as do the OpenMVG and tool releases, which are
+    # built on it as well
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    env:
+      R3D_PLATFORM: linux-x64
+      VCPKG_TRIPLET: x64-linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package name
+        run: bash .github/ci/package-name.sh
+
+      # --- Toolchain ------------------------------------------------------------
+
+      # Build tools of the vcpkg ports, and the system libraries they and
+      # Regard3D use: X11, OpenGL and GTK 3 (src/vcpkg-overlay-ports)
+      - name: System packages
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            autoconf autoconf-archive automake bison flex gperf libtool \
+            nasm ninja-build pkg-config python3-venv patchelf \
+            libgtk-3-dev libgl-dev libglu1-mesa-dev libegl-dev \
+            libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxxf86vm-dev libxtst-dev libsm-dev \
+            libwayland-dev libxkbcommon-dev wayland-protocols
+
+      - name: Cache LLVM
+        id: cache-llvm
+        uses: actions/cache@v4
+        with:
+          path: ~/llvm
+          key: llvm-${{ env.LLVM_VERSION }}-Linux-X64
+
+      - name: Download LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          archive="LLVM-${LLVM_VERSION}-Linux-X64.tar.xz"
+          curl -sSfL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/$archive"
+          mkdir -p ~/llvm
+          tar -C ~/llvm -xJf "$RUNNER_TEMP/$archive"
+          rm "$RUNNER_TEMP/$archive"
+
+      - name: Paths
+        run: |
+          echo "LLVM_DIR=$HOME/llvm/LLVM-${LLVM_VERSION}-Linux-X64" >> "$GITHUB_ENV"
+          echo "DEPS_DIR=$RUNNER_TEMP/deps" >> "$GITHUB_ENV"
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+          echo "VCPKG_INSTALLED=$RUNNER_TEMP/vcpkg_installed" >> "$GITHUB_ENV"
+          echo "VCPKG_ARCHIVES=$RUNNER_TEMP/vcpkg_archives" >> "$GITHUB_ENV"
+          echo "VCPKG_BASELINE=$(jq -r '."builtin-baseline"' src/vcpkg.json)" >> "$GITHUB_ENV"
+          # Part of every package's ABI hash, as the MSVC version on Windows
+          echo "GCC_VERSION=$(gcc -dumpfullversion)" >> "$GITHUB_ENV"
+
+      # --- vcpkg dependencies ------------------------------------------------------
+
+      - name: Check out vcpkg
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          git -C "$VCPKG_ROOT" checkout --quiet "$VCPKG_BASELINE"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Restore the vcpkg binary cache
+        id: cache-vcpkg
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.VCPKG_ARCHIVES }}
+          key: vcpkg-${{ env.VCPKG_TRIPLET }}-gcc${{ env.GCC_VERSION }}-${{ env.VCPKG_BASELINE }}-${{ hashFiles('src/vcpkg.json', 'src/vcpkg-configuration.json', 'src/vcpkg-overlay-ports/**') }}
+          restore-keys: |
+            vcpkg-${{ env.VCPKG_TRIPLET }}-gcc${{ env.GCC_VERSION }}-${{ env.VCPKG_BASELINE }}-
+            vcpkg-${{ env.VCPKG_TRIPLET }}-gcc${{ env.GCC_VERSION }}-
+            vcpkg-${{ env.VCPKG_TRIPLET }}-
+
+      - name: Install the vcpkg dependencies
+        run: |
+          mkdir -p "$VCPKG_ARCHIVES"
+          export VCPKG_BINARY_SOURCES="clear;files,$VCPKG_ARCHIVES,readwrite"
+          "$VCPKG_ROOT/vcpkg" install --x-manifest-root=src \
+            --x-install-root="$VCPKG_INSTALLED" \
+            --triplet="$VCPKG_TRIPLET" --clean-after-build --disable-metrics
+
+      - name: Save the vcpkg binary cache
+        if: always() && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCPKG_ARCHIVES }}
+          key: ${{ steps.cache-vcpkg.outputs.cache-primary-key }}
+
+      - name: Upload the vcpkg logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-logs-${{ env.R3D_PLATFORM }}
+          path: ${{ env.VCPKG_ROOT }}/buildtrees/**/*.log
+          if-no-files-found: ignore
+
+      # --- OpenMVG, tools, resources --------------------------------------------------
+
+      - name: Download OpenMVG and the external tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/ci/download-deps.sh
+
+      # --- Regard3D -----------------------------------------------------------------
+
+      # OpenMP_libomp_LIBRARY: LLVM's libomp, bundled in the AppImage
+      # -static-libstdc++: the AppImage then does not depend on the host's
+      #   C++ runtime being at least as new as Ubuntu 22.04's
+      - name: Configure
+        run: |
+          opt="-O3 -DNDEBUG -flto=thin"
+          cmake -Wno-dev -G Ninja -S src -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$LLVM_DIR/bin/clang" \
+            -DCMAKE_CXX_COMPILER="$LLVM_DIR/bin/clang++" \
+            -DCMAKE_AR="$LLVM_DIR/bin/llvm-ar" \
+            -DCMAKE_RANLIB="$LLVM_DIR/bin/llvm-ranlib" \
+            -DOpenMP_libomp_LIBRARY="$LLVM_DIR/lib/x86_64-unknown-linux-gnu/libomp.so" \
+            -DCMAKE_C_FLAGS_RELEASE="$opt" \
+            -DCMAKE_CXX_FLAGS_RELEASE="$opt" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -static-libstdc++ -static-libgcc" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_TRIPLET" \
+            -DVCPKG_MANIFEST_INSTALL=OFF \
+            -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED" \
+            -DOpenMVG_DIR="$DEPS_DIR/openmvg/lib/openMVG/cmake"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      # --- Package --------------------------------------------------------------------
+
+      - name: Stage
+        run: bash .github/ci/stage-linux.sh
+
+      - name: Check the library dependencies
+        run: bash .github/ci/check-linux-deps.sh "$STAGE_DIR"
+
+      - name: AppImage
+        run: bash .github/ci/package-linux.sh
+
+      - name: Upload the AppImage
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/${{ env.PKG_NAME }}.AppImage
+          archive: false
+          if-no-files-found: error
+
   release:
     name: Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows]
+    needs: [windows, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write

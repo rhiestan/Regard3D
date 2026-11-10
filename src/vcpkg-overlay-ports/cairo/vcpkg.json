@@ -1,0 +1,23 @@
+{
+  "name": "cairo",
+  "version-string": "system",
+  "description": "The system's cairo (Linux), the one the system's GTK 3 uses. See ../README.md.",
+  "supports": "linux",
+  "features": {
+    "fontconfig": {
+      "description": "Provided by the system's cairo, if at all"
+    },
+    "freetype": {
+      "description": "Provided by the system's cairo, if at all"
+    },
+    "gobject": {
+      "description": "Provided by the system's cairo, if at all"
+    },
+    "lzo": {
+      "description": "Provided by the system's cairo, if at all"
+    },
+    "x11": {
+      "description": "Provided by the system's cairo, if at all"
+    }
+  }
+}

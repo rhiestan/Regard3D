@@ -184,8 +184,8 @@ format intact or the CMake regex breaks. User-facing changelog: `README.md` and 
 
 ## CI and packages (GitHub Actions)
 
-`.github/workflows/build.yml` builds and packages Regard3D; so far only the Windows job
-(`windows-2025`), Linux (AppImage) and macOS (unsigned, ad-hoc signed `.app`) are to follow.
+`.github/workflows/build.yml` builds and packages Regard3D: a Windows job (`windows-2025`) and
+a Linux job (`ubuntu-22.04`, AppImage); macOS (unsigned, ad-hoc signed `.app`) is to follow.
 A `v*` tag also creates a **draft** release with the packages.
 
 - **Nothing but Regard3D is built.** OpenMVG (the full installation `find_package(OpenMVG)`
@@ -212,6 +212,24 @@ A `v*` tag also creates a **draft** release with the packages.
   and removes the tool directories of an earlier installation first. Its uninstaller deletes the
   list of installed files that `package-windows.sh` generates (`-DUNINSTALL_LIST`), never the
   installation directory as a whole. The portable zip gets the MSVC runtime DLLs instead.
+- **Linux** runs on `ubuntu-22.04`, the oldest hosted runner, on purpose: the AppImage needs at
+  least its glibc (2.35), as do the OpenMVG and tool releases, which are built on it too.
+  clang from the LLVM `LLVM_VERSION` release tarball (ThinLTO, lld, `-static-libstdc++`), vcpkg
+  `x64-linux` (static, ports built with the runner's GCC; the GCC version is in the cache key).
+  GTK 3 and cairo are the **system's**: the overlay ports `gtk3`/`cairo` install nothing (see
+  `src/vcpkg-overlay-ports/README.md`), and the AppImage uses the host's GTK. `opencv4[openmp]`
+  is Windows-only in `src/vcpkg.json`, as on Linux it would bring GCC's libgomp next to clang's
+  libomp. OpenSceneGraph is static there, so `src/CMakeLists.txt` links the plugins
+  `Regard3DApp.cpp` registers with `USE_OSGPLUGIN` (vcpkg's `unofficial::osg::osgdb_*` targets).
+- `.github/ci/stage-linux.sh` lays out the AppDir: `usr/bin/Regard3D` (RUNPATH `$ORIGIN/../lib`,
+  libomp in `usr/lib/`), the tool directories next to it in `usr/bin/` (RUNPATH `$ORIGIN`, each
+  with the libraries its programs need, e.g. libomp, libgomp, libatomic), and `sensor_database.csv`
+  plus `DejaVuSans.ttf` in `usr/share/Regard3D/`, which is `wxStandardPaths::GetResourcesDir()`
+  there. `.github/ci/linux-libs.sh` lists what may come from the host (glibc, libstdc++, X11,
+  Wayland, OpenGL, GTK 3 and its stack); everything else is bundled.
+  `.github/ci/check-linux-deps.sh` fails the job if anything is neither, if anything needs a
+  glibc newer than 2.35, or if Regard3D loads two OpenMP runtimes. `package-linux.sh` builds the
+  AppImage with appimagetool (static runtime: no libfuse2 needed on the host).
 - There is a single `smvsrecon`: the smvs fork picks its SSE4/AVX2 code at run time (Highway),
   so the old `smvsrecon_SSE41` build is no longer looked for. `texrecon` comes from the
   mvs-texturing release (assets named `texrecon-<tag>-<platform>`).

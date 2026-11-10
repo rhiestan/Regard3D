@@ -1,0 +1,14 @@
+{
+  "name": "gtk3",
+  "version-string": "system",
+  "description": "The system's GTK 3 (Linux), instead of building GTK and its stack from source. See ../README.md.",
+  "supports": "linux",
+  "features": {
+    "introspection": {
+      "description": "Provided by the system's GTK, if at all"
+    },
+    "wayland": {
+      "description": "Provided by the system's GTK, if at all"
+    }
+  }
+}

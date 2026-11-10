@@ -34,7 +34,7 @@ env:
   # Same LLVM as the OpenMVG fork's CI, whose static libraries are linked
   LLVM_VERSION: 22.1.2
   # Releases of the dependencies and tools (tag in github.com/rhiestan/<repo>)
-  OPENMVG_TAG: v0.1.1
+  OPENMVG_TAG: v0.1.2
   CMVS_PMVS_TAG: v0.1.0
   MVE_TAG: v0.1.0
   SMVS_TAG: v0.1.0
@@ -328,19 +328,28 @@ jobs:
 
       # --- Regard3D -----------------------------------------------------------------
 
-      # OpenMP_libomp_LIBRARY: LLVM's libomp, bundled in the AppImage
+      # OpenMP_omp_LIBRARY: LLVM's libomp, bundled in the AppImage. Clang's
+      #   -fopenmp links "omp", which FindOpenMP looks for only in the
+      #   compiler's implicit link directories; without it, OpenMVGConfig.cmake
+      #   would take the (older) libomp shipped with OpenMVG.
       # -static-libstdc++: the AppImage then does not depend on the host's
       #   C++ runtime being at least as new as Ubuntu 22.04's
       - name: Configure
         run: |
           opt="-O3 -DNDEBUG -flto=thin"
+          libomp="$(find "$LLVM_DIR/lib" -name libomp.so -print -quit)"
+          if [[ -z "$libomp" ]]; then
+            echo "::error::libomp.so not found in $LLVM_DIR/lib"
+            exit 1
+          fi
+          echo "libomp: $libomp"
           cmake -Wno-dev -G Ninja -S src -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER="$LLVM_DIR/bin/clang" \
             -DCMAKE_CXX_COMPILER="$LLVM_DIR/bin/clang++" \
             -DCMAKE_AR="$LLVM_DIR/bin/llvm-ar" \
             -DCMAKE_RANLIB="$LLVM_DIR/bin/llvm-ranlib" \
-            -DOpenMP_libomp_LIBRARY="$LLVM_DIR/lib/x86_64-unknown-linux-gnu/libomp.so" \
+            -DOpenMP_omp_LIBRARY="$libomp" \
             -DCMAKE_C_FLAGS_RELEASE="$opt" \
             -DCMAKE_CXX_FLAGS_RELEASE="$opt" \
             -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -static-libstdc++ -static-libgcc" \

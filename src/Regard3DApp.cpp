@@ -34,6 +34,12 @@
 
 #include <osgDB/Registry>
 
+#if defined(__WXX11__) || defined(__WXGTK__)
+// From <X11/Xlib.h>, whose macros (Status, True, False, None, Bool...)
+// would clash with the rest of this file
+extern "C" int XInitThreads(void);
+#endif
+
 #if defined(OSG_LIBRARY_STATIC)
 	// Add references for static linking some plugins
 	USE_OSGPLUGIN(ive)

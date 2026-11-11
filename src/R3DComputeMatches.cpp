@@ -1092,52 +1092,6 @@ void extractFeaturesAndDescriptors_Parallel(
 #endif
 }
 
-template<class KeypointSetT, class DescriptorT, class cvFeature2DInterfaceT>
-void extractFeaturesAndDescriptors(
-  const std::vector<std::string> & vec_fileNames, // input filenames
-  const std::string & sOutDir,  // Output directory where features and descriptor will be saved
-  std::vector<std::pair<size_t, size_t> > & vec_imagesSize, // input image size (w,h)
-  cvFeature2DInterfaceT &detectAndDescribeClass)
-{
-  vec_imagesSize.resize(vec_fileNames.size());
-  openMVG::image::Image<openMVG::image::RGBColor> imageRGB;
-  openMVG::image::Image<unsigned char> imageGray;
-
-  C_Progress_display my_progress_bar( vec_fileNames.size() );
-  for(size_t i=0; i < vec_fileNames.size(); ++i)  {
-    KeypointSetT kpSet;
-
-    std::string sFeat = stlplus::create_filespec(sOutDir,
-      stlplus::basename_part(vec_fileNames[i]), "feat");
-    std::string sDesc = stlplus::create_filespec(sOutDir,
-      stlplus::basename_part(vec_fileNames[i]), "desc");
-
-    //Test if descriptor and feature was already computed
-    if (stlplus::file_exists(sFeat) && stlplus::file_exists(sDesc)) {
-
-      if (ReadImage(vec_fileNames[i].c_str(), &imageRGB)) {
-        vec_imagesSize[i] = make_pair(imageRGB.Width(), imageRGB.Height());
-      }
-      else {
-        ReadImage(vec_fileNames[i].c_str(), &imageGray);
-        vec_imagesSize[i] = make_pair(imageGray.Width(), imageGray.Height());
-      }
-    }
-    else  { //Not already computed, so compute and save
-
-      if (!ReadImage(vec_fileNames[i].c_str(), &imageGray))
-        continue;
-
-      // Compute features and descriptors and export them to file
-      ComputeCVFeatAndDesc<DescriptorT, cvFeature2DInterfaceT>(imageGray,  kpSet.features(),
-		  kpSet.descriptors(), detectAndDescribeClass);
-      kpSet.saveToBinFile(sFeat, sDesc);
-      vec_imagesSize[i] = make_pair(imageGray.Width(), imageGray.Height());
-    }
-    ++my_progress_bar;
-  }
-}
-
 template<class DescriptorT, class KeypointSetT, class MatcherT>
 void computePutativeDescriptorMatches(
   const std::vector<std::string> & vec_fileNames, // input filenames

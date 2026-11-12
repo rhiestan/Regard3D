@@ -229,7 +229,7 @@ IF(R3D_USE_OSG_STATIC)
 		SET(R3D_OSG_STATIC_TARGETS
 			osg osgDB osgUtil osgGA osgViewer osgText osgManipulator OpenThreads
 			osgdb_ive osgdb_osg osgdb_rgb osgdb_freetype osgdb_p3d osgdb_obj osgdb_ply
-			osgdb_png osgdb_jpeg
+			osgdb_png osgdb_jpeg osgdb_osgviewer
 			osgdb_deprecated_osg osgdb_deprecated_osgtext osgdb_deprecated_osgviewer
 			osgdb_serializers_osg osgdb_serializers_osgmanipulator osgdb_serializers_osgtext)
 		SET(R3D_OSG_STATIC_LIBRARIES "")

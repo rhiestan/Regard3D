@@ -22,8 +22,10 @@ appdir="$PWD/stage/Regard3D.AppDir"
 rm -rf "$appdir"
 mkdir -p "$appdir/usr/bin" "$appdir/usr/lib" "$appdir/usr/share/Regard3D"
 tools="$DEPS_DIR/tools"
-# Where the libraries to bundle are looked for: LLVM's (libomp) and the
-# system's (libgomp, libatomic)
+# Where the libraries to bundle are looked for: first the packages the
+# programs come from ($pkg_path, e.g. the libomp.so.5 OpenMVG ships in lib/),
+# then LLVM's (libomp) and the system's (libgomp, libatomic, libquadmath)
+pkg_path=()
 search_path=("$LLVM_DIR/lib/x86_64-unknown-linux-gnu" "$LLVM_DIR/lib"
 	/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu)
 
@@ -37,7 +39,7 @@ bundle() {
 			continue
 		fi
 		found=""
-		for dir in "${search_path[@]}"; do
+		for dir in "${pkg_path[@]}" "${search_path[@]}"; do
 			if [[ -e "$dir/$lib" ]]; then
 				found="$dir/$lib"
 				break
@@ -78,6 +80,16 @@ cp -a "$tools"/PoissonRecon/bin/{PoissonRecon,SurfaceTrimmer} "$tools"/PoissonRe
 cp -a "$tools"/mve/bin/. "$ext/mve/"
 cp -a "$tools"/smvs/bin/smvsrecon "$tools"/mvs-texturing/bin/texrecon "$ext/mve/"
 for d in openmvg pmvs poisson mve; do
+	case "$d" in
+		openmvg) pkgs=("$DEPS_DIR/openmvg") ;;
+		pmvs) pkgs=("$tools/CMVS-PMVS") ;;
+		poisson) pkgs=("$tools/PoissonRecon") ;;
+		mve) pkgs=("$tools/mve" "$tools/smvs" "$tools/mvs-texturing") ;;
+	esac
+	pkg_path=()
+	for p in "${pkgs[@]}"; do
+		pkg_path+=("$p/lib" "$p/bin")
+	done
 	for f in "$ext/$d"/*; do
 		if is_elf "$f" && [[ "$(basename "$f")" != *.so* ]]; then
 			patchelf --set-rpath '$ORIGIN' "$f"
@@ -89,6 +101,7 @@ for d in openmvg pmvs poisson mve; do
 		fi
 	done
 done
+pkg_path=()
 
 # Desktop integration
 install -Dm644 src/res/linux/regard3d.desktop "$appdir/usr/share/applications/regard3d.desktop"

@@ -100,14 +100,12 @@ bool R3DComputeMatchesProcess::runComputeMatchesProcess(R3DProject::ComputeMatch
 #if wxCHECK_VERSION(2, 9, 0)
 	env_.cwd = paths_.absoluteProjectPath_;		// All paths are relative to project
 
-	// Set PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH environment variable
+	// Windows: the tool directories go into PATH, so that the tools find their
+	// DLLs. Not on Linux and macOS: there each tool finds its libraries through
+	// its RUNPATH/rpath, which LD_LIBRARY_PATH/DYLD_LIBRARY_PATH would override,
+	// giving a tool another tool's libraries (e.g. an older libomp.so.5)
 #if defined(R3D_WIN32)
 	wxString envVarName(wxT("PATH"));
-#elif defined(R3D_MACOSX)
-	wxString envVarName(wxT("DYLD_LIBRARY_PATH"));
-#else
-	wxString envVarName(wxT("LD_LIBRARY_PATH"));
-#endif
 
 	wxEnvVariableHashMap envVars;
 	if(wxGetEnvMap(&envVars))
@@ -146,6 +144,7 @@ bool R3DComputeMatchesProcess::runComputeMatchesProcess(R3DProject::ComputeMatch
 		}
 		env_.env = envVars;
 	}
+#endif
 #endif
 
 	if(!buildCommandList(paths_))

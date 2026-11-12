@@ -60,6 +60,25 @@ bundle() {
 cp build/Regard3D "$appdir/usr/bin/"
 strip "$appdir/usr/bin/Regard3D"
 patchelf --set-rpath '$ORIGIN/../lib' "$appdir/usr/bin/Regard3D"
+# wxWidgets links libOpenGL.so.0, which a default Ubuntu installation lacks
+# (libopengl0). glvnd's libGL.so.1 (libgl1, always there) exports the same
+# OpenGL functions, and dispatches them to the current context, EGL's too.
+if needed "$appdir/usr/bin/Regard3D" | grep -qx libOpenGL.so.0; then
+	libgl=/usr/lib/x86_64-linux-gnu/libGL.so.1
+	missing_gl="$(comm -23 \
+		<(nm -D --undefined-only "$appdir/usr/bin/Regard3D" | awk '{print $NF}' | grep -E '^gl[A-Z]' | sort -u) \
+		<(nm -D --defined-only "$libgl" | awk '{print $NF}' | sort -u))"
+	if [[ -n "$missing_gl" ]]; then
+		echo "::error::$libgl lacks OpenGL functions Regard3D uses: $(tr '\n' ' ' <<< "$missing_gl")"
+		exit 1
+	fi
+	if needed "$appdir/usr/bin/Regard3D" | grep -qx libGL.so.1; then
+		patchelf --remove-needed libOpenGL.so.0 "$appdir/usr/bin/Regard3D"
+	else
+		patchelf --replace-needed libOpenGL.so.0 libGL.so.1 "$appdir/usr/bin/Regard3D"
+	fi
+	echo "Regard3D: libOpenGL.so.0 replaced by libGL.so.1"
+fi
 bundle "$appdir/usr/bin/Regard3D" "$appdir/usr/lib"
 for lib in "$appdir"/usr/lib/*; do
 	patchelf --set-rpath '$ORIGIN' "$lib"

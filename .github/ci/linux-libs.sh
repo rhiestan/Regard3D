@@ -24,8 +24,9 @@ is_host() {
 		libXcursor.so.1|libXxf86vm.so.1|libXrender.so.1|libXfixes.so.3|libXtst.so.6|\
 		libXcomposite.so.1|libXdamage.so.1|libSM.so.6|libICE.so.6|libxcb*.so.*|\
 		libxkbcommon.so.0|libwayland-client.so.0|libwayland-cursor.so.0|libwayland-egl.so.1) return 0 ;;
-		# OpenGL (glvnd)
-		libGL.so.1|libGLX.so.0|libOpenGL.so.0|libEGL.so.1|libGLU.so.1|libGLdispatch.so.0) return 0 ;;
+		# OpenGL (glvnd). Not libOpenGL.so.0 (libopengl0) nor libGLU.so.1
+		# (libglu1-mesa): a default Ubuntu installation lacks them.
+		libGL.so.1|libGLX.so.0|libEGL.so.1|libGLdispatch.so.0) return 0 ;;
 		# GTK 3 and its stack
 		libgtk-3.so.0|libgdk-3.so.0|libgdk_pixbuf-2.0.so.0|libpango-1.0.so.0|\
 		libpangocairo-1.0.so.0|libpangoft2-1.0.so.0|libcairo.so.2|libcairo-gobject.so.2|\

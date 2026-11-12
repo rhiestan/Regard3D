@@ -215,6 +215,13 @@ void CALLBACK SharedGLContext::debugCallback(unsigned int source, unsigned int t
 
 #if defined(__WXMAC__)
 #	include "CGLCurrent.h"
+#elif (defined(__WXX11__) || defined(__WXGTK__)) && wxUSE_GLCANVAS_EGL
+// Without the X11 types (and macros) in EGL's platform header
+#	define EGL_NO_X11
+#	include <EGL/egl.h>
+#elif defined(__WXX11__) || defined(__WXGTK__)
+// Only setNoActiveContext follows, so X11's macros (None, Status...) do no harm
+#	include <GL/glx.h>
 #endif
 
 /**
@@ -226,18 +233,21 @@ void SharedGLContext::setNoActiveContext(wxGLCanvas *pGLCanvas)
 {
 #if defined(__WXMSW__)
 	wglMakeCurrent((HDC) pGLCanvas->GetHDC(), NULL);
+#elif (defined(__WXX11__) || defined(__WXGTK__)) && wxUSE_GLCANVAS_EGL
+	// wxGLCanvas uses EGL (wxWidgets >= 3.2 on GTK, also on Wayland)
+	EGLDisplay display = eglGetCurrentDisplay();
+	if(display != EGL_NO_DISPLAY)
+		eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 #elif defined(__WXX11__) || defined(__WXGTK__)
-	// Unfortunately wxGLContext::MakeCurrent is private, so we have to copy the code here...
-	if (wxGLCanvas::GetGLXVersion() >= 13)
-#	if wxCHECK_VERSION(2, 9, 0)
-		glXMakeContextCurrent( wxGetX11Display(), None, None, NULL);
-	else // GLX <= 1.2 doesn't have glXMakeContextCurrent()
-		glXMakeCurrent( wxGetX11Display(), None, NULL);
-#	else
-		glXMakeContextCurrent( (Display *)wxGetDisplay(), None, None, NULL);
-	else // GLX <= 1.2 doesn't have glXMakeContextCurrent()
-		glXMakeCurrent( (Display *)wxGetDisplay(), None, NULL);
-#	endif
+	// wxGLCanvas uses GLX
+	Display *display = glXGetCurrentDisplay();
+	if(display != NULL)
+	{
+		if (wxGLCanvas::GetGLXVersion() >= 13)
+			glXMakeContextCurrent(display, None, None, NULL);
+		else // GLX <= 1.2 doesn't have glXMakeContextCurrent()
+			glXMakeCurrent(display, None, NULL);
+	}
 #elif defined(__WXMAC__)
 	CGLSetCurrentContext(NULL);
 #else

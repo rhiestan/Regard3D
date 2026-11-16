@@ -17,7 +17,9 @@ libdir="${1:?}"
 bin="${LLVM_DIR:?}/bin"
 bundled=(libopenMVG_jpeg.a libopenMVG_png.a libopenMVG_tiff.a libopenMVG_zlib.a)
 map="$(mktemp)"
-trap 'rm -f "$map"' EXIT
+names="$(mktemp)"
+undef="$(mktemp)"
+trap 'rm -f "$map" "$names" "$undef"' EXIT
 
 for a in "${bundled[@]}"; do
 	"$bin/llvm-nm" --defined-only --extern-only --format=just-symbols "$libdir/$a"
@@ -28,11 +30,15 @@ if [[ ! -s "$map" ]]; then
 	exit 1
 fi
 
-# The OpenMVG libraries that use them (and the four themselves)
+cut -d' ' -f1 "$map" > "$names"
+
+# The OpenMVG libraries that use them (and the four themselves). nm writes
+# to a file first: piped into grep -q, it could be killed by SIGPIPE once
+# grep has found a match, which pipefail turns into "no match".
 users=()
 for a in "$libdir"/lib*.a; do
-	if "$bin/llvm-nm" --undefined-only --format=just-symbols "$a" 2>/dev/null \
-		| grep -qxFf <(cut -d' ' -f1 "$map"); then
+	"$bin/llvm-nm" --undefined-only --format=just-symbols "$a" > "$undef" 2>/dev/null || true
+	if grep -qxFf "$names" "$undef"; then
 		users+=("$a")
 	fi
 done
@@ -44,7 +50,7 @@ done
 # None of the original names may be referenced any more
 left="$(for a in "$libdir"/lib*.a; do
 	"$bin/llvm-nm" --undefined-only --format=just-symbols "$a" 2>/dev/null
-done | grep -xFf <(cut -d' ' -f1 "$map") | sort -u || true)"
+done | grep -xFf "$names" | sort -u || true)"
 if [[ -n "$left" ]]; then
 	echo "::error::still referenced unprefixed: $(tr '\n' ' ' <<< "$left")"
 	exit 1

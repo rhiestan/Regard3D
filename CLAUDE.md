@@ -221,6 +221,11 @@ A `v*` tag also creates a **draft** release with the packages.
   is Windows-only in `src/vcpkg.json`, as on Linux it would bring GCC's libgomp next to clang's
   libomp. OpenSceneGraph is static there, so `src/CMakeLists.txt` links the plugins
   `Regard3DApp.cpp` registers with `USE_OSGPLUGIN` (vcpkg's `unofficial::osg::osgdb_*` targets).
+  OpenMVG's bundled static libjpeg 9/libpng/libtiff/zlib would collide with vcpkg's static
+  copies (OpenMVG's image code ended up calling libjpeg-turbo and crashed), so
+  `.github/ci/prefix-openmvg-image-libs.sh` renames their symbols to `omvg_*` before configure.
+  Regard3D sets no `LD_LIBRARY_PATH` for the tools on Linux/macOS: it would override their
+  RUNPATH and hand one tool another's `libomp.so.5`.
 - `.github/ci/stage-linux.sh` lays out the AppDir: `usr/bin/Regard3D` (RUNPATH `$ORIGIN/../lib`,
   libomp in `usr/lib/`), the tool directories next to it in `usr/bin/` (RUNPATH `$ORIGIN`, each
   with the libraries its programs need, e.g. libomp, libgomp, libatomic), and `sensor_database.csv`

@@ -326,6 +326,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash .github/ci/download-deps.sh
 
+      # So that OpenMVG's image code keeps its own libjpeg/libpng/libtiff/zlib
+      # instead of linking against vcpkg's (see the script)
+      - name: Prefix the image libraries bundled with OpenMVG
+        run: bash .github/ci/prefix-openmvg-image-libs.sh "$DEPS_DIR/openmvg/lib"
+
       # --- Regard3D -----------------------------------------------------------------
 
       # OpenMP_omp_LIBRARY: LLVM's libomp, bundled in the AppImage. Clang's

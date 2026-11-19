@@ -304,9 +304,13 @@ can be tried out inside Regard3D. See *Direction of travel* below.
 `--weak-segment 0.001` / Strongest = also `--min-sources 2`; R3DMVS decisions D51/D52, needs
 R3DMVS f89e44c or later) and Point density (Full / Reduced = `--voxel-factor 2`), stored in
 `r3dmvsPreset_`, `r3dmvsOutlierFilter_` and `r3dmvsPointDensity_`. Pass every r3dmvs option at
-most once: CLI11 rejects repeated single-value options. It reads the triangulation's
-`sfm_data.bin` directly, so it needs an OpenMVG triangulation, and needs `--image-dir` because
-the scene's `root_path` is relative to the project directory, not to the `sfm_data.bin`. Its
+most once: CLI11 rejects repeated single-value options. It reads only COLMAP sparse models
+(R3DMVS decision D57): an OpenMVG triangulation is first exported with
+`openMVG_main_openMVG2Colmap -f bin` into the densification's `colmap_sparse/` (needs an
+openMVG2Colmap with `-f`, OpenMVG fork `c7a57491` or later, which also writes correct track
+indices, so `fixColmapPoints3DFile` is not needed there); a COLMAP-native triangulation's own
+`<model>/0` is used directly. `--image-dir` is the picture set's image directory, which the
+image names in both are relative to. Its
 `--progress` lines on stdout drive the progress bar (`R3DDensificationProcess::
 handleR3DMVSOutputLine`). Abort sends Ctrl+Break (`R3DExternalPrograms::requestGracefulStop`;
 the tool is started with `wxEXEC_MAKE_GROUP_LEADER`), so r3dmvs removes its partial output

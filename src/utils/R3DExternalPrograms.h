@@ -96,8 +96,9 @@ public:
 	/**
 	 * Whether an R3DMVS densification of a triangulation can run.
 	 *
-	 * r3dmvs reads the triangulation's sfm_data.bin, which a COLMAP-native
-	 * triangulation does not have. If not, reason says why.
+	 * r3dmvs reads COLMAP sparse models: a COLMAP-native triangulation's
+	 * own, or what openMVG_main_openMVG2Colmap exports from an OpenMVG one,
+	 * which therefore also needs that. If not, reason says why.
 	 */
 	bool isR3DMVSDensificationPossible(bool colmapTriangulation, wxString &reason);
 

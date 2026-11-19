@@ -301,17 +301,21 @@ bool R3DExternalPrograms::isColmapDensificationPossible(bool colmapTriangulation
 
 bool R3DExternalPrograms::isR3DMVSDensificationPossible(bool colmapTriangulation, wxString &reason)
 {
+	// r3dmvs reads COLMAP models: a COLMAP triangulation's own, or the
+	// export of an OpenMVG one
+	wxArrayString missing;
 	if(r3dmvsPath_.IsEmpty())
-	{
-		reason = wxT("Not found: r3dmvs");
-		return false;
-	}
-	if(colmapTriangulation)
-	{
-		reason = wxT("It needs an OpenMVG triangulation, and this one was computed by COLMAP.");
-		return false;
-	}
-	return true;
+		missing.Add(wxT("r3dmvs (in the \"r3dmvs\" subdirectory)"));
+	if(!colmapTriangulation && openMVG2ColmapPath_.IsEmpty())
+		missing.Add(wxT("openMVG_main_openMVG2Colmap (in the \"openmvg\" subdirectory)"));
+
+	if(missing.IsEmpty())
+		return true;
+
+	reason = wxT("Not found: ");
+	for(size_t i = 0; i < missing.GetCount(); i++)
+		reason += (i > 0 ? wxT(", ") : wxT("")) + missing[i];
+	return false;
 }
 
 bool R3DExternalPrograms::requestGracefulStop(long pid)

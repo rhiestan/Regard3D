@@ -140,9 +140,8 @@ void Regard3DDensificationDialog::OnInitDialog( wxInitDialogEvent& event )
 		removeMethodPage(pR3DMVSReconParamsPanel_);
 		if(!toolTip.IsEmpty())
 			toolTip += wxT("\n\n");
-		toolTip += wxT("R3DMVS densification is not available. ") + r3dmvsReason;
-		if(R3DExternalPrograms::getInstance().getR3DMVSPath().IsEmpty())
-			toolTip += wxT(" (expected in the \"r3dmvs\" subdirectory of the external tools directory).");
+		toolTip += wxT("R3DMVS densification is not available. ") + r3dmvsReason
+			+ wxT(" of the external tools directory.");
 	}
 	wxWindow *pChoiceCtrl = pDensificationMethodChoicebook_->GetChoiceCtrl();
 	if(pChoiceCtrl != NULL && !toolTip.IsEmpty())

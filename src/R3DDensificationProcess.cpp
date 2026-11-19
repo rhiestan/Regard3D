@@ -422,9 +422,36 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification*
    }
    else if (pDensification->densificationType_ == R3DProject::DTR3DMVS)
    {
-      // r3dmvs reads the sfm_data.bin of the triangulation directly, no
-      // export needed. Its root_path is relative to the project directory,
-      // r3dmvs would resolve it relative to the sfm_data.bin: --image-dir.
+      // r3dmvs reads COLMAP sparse models (R3DMVS decision D57):
+      //   OpenMVG triangulation:  openMVG_main_openMVG2Colmap -f bin -> colmap_sparse/
+      //                           (cameras.bin, images.bin, points3D.bin)
+      //   COLMAP-native one:      its own model, <colmap model>/0
+      // The image names in either are relative to the image directory, which
+      // r3dmvs would otherwise look for next to the model: --image-dir.
+      // The export needs an openMVG2Colmap with -f (OpenMVG fork c7a57491 or
+      // later), which also writes the track indices COLMAP expects, so the
+      // points3D.txt patch of the COLMAP densification is not needed here.
+      const bool nativeColmapTriangulation = (paths.triangulationEngine_ == 2);
+      wxString modelPath;
+      if (nativeColmapTriangulation)
+      {
+         wxFileName nativeSparseFN(wxString(paths.relativeColmapModelPath_.c_str(), wxConvLibc), wxEmptyString);
+         nativeSparseFN.AppendDir(wxT("0"));
+         modelPath = nativeSparseFN.GetPath(wxPATH_GET_VOLUME);
+      }
+      else
+      {
+         wxFileName sparseFN(relativeDensificationPath_, wxEmptyString);
+         sparseFN.AppendDir(wxT("colmap_sparse"));
+         modelPath = sparseFN.GetPath(wxPATH_GET_VOLUME);
+         cmds_.Add(quoted(R3DExternalPrograms::getInstance().getOpenMVG2ColmapPath())
+            + wxT(" -i ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+            + wxT(" -o ") + quoted(modelPath)
+            + wxT(" -f bin"));
+         progressTexts_.Add(wxT("Exporting project to COLMAP"));
+         stepNames_.Add(wxT("openMVG_main_openMVG2Colmap"));
+      }
+
       static const wxChar* presets[] = { wxT("fast"), wxT("normal"), wxT("high"), wxT("ultra") };
       const int preset = (pDensification->r3dmvsPreset_ >= 0 && pDensification->r3dmvsPreset_ <= 3)
          ? pDensification->r3dmvsPreset_ : 1;
@@ -457,7 +484,7 @@ bool R3DDensificationProcess::runDensificationProcess(R3DProject::Densification*
       // The work directory is inside the project, so that a killed run
       // cannot leave depth maps in the system's temporary directory
       cmds_.Add(quoted(R3DExternalPrograms::getInstance().getR3DMVSPath())
-         + wxT(" dense ") + quoted(wxString(paths.relativeTriSfmDataFilename_.c_str(), wxConvLibc))
+         + wxT(" dense ") + quoted(modelPath)
          + wxT(" --image-dir ") + quoted(wxString(paths.relativeImagePath_.c_str(), wxConvLibc))
          + wxT(" --preset ") + presets[preset]
          + wxT(" --work-dir ") + quoted(relativeR3DMVSWorkDir_)

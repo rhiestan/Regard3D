@@ -26,6 +26,15 @@ where nothing depends on them. Keep their feature lists in step with what other 
 (`gtk3[introspection,wayland]`, `cairo[fontconfig,freetype,gobject,lzo,x11]`): vcpkg rejects a
 request for a feature a port does not declare.
 
+## `kubazip` — new SHA512 for the v0.3.14 source archive
+
+assimp depends on kubazip. On 2026-11-20 GitHub's generated archive of kuba--/zip v0.3.14
+started to give a different SHA512 than the one in the baseline's port, so a build that has to
+download it fails ("unexpected hash", microsoft/vcpkg#55200). The new archive has the same
+files as the tag. The overlay is the baseline's port with only the SHA512 changed. Delete it
+when the baseline is bumped past the upstream fix (microsoft/vcpkg#55202); that fix covers
+kubazip 0.3.15, so a newer baseline doesn't need the overlay.
+
 ## Checking for more of this
 
 The usual failure mode is that the pinned baseline references an artifact that its

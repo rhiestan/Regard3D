@@ -34,7 +34,7 @@ env:
   # Same LLVM as the OpenMVG fork's CI, whose static libraries are linked
   LLVM_VERSION: 22.1.2
   # Releases of the dependencies and tools (tag in github.com/rhiestan/<repo>)
-  OPENMVG_TAG: v0.1.2
+  OPENMVG_TAG: v0.1.3
   CMVS_PMVS_TAG: v0.1.0
   MVE_TAG: v0.1.0
   SMVS_TAG: v0.1.0

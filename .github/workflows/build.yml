@@ -107,32 +107,52 @@ jobs:
           git -C "$VCPKG_ROOT" checkout --quiet "$VCPKG_BASELINE"
           "$VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
 
-      # vcpkg binary cache: the built packages as zip files. The key contains
-      # the MSVC version, which is part of every package's ABI hash; the
-      # restore keys reuse what still matches after a change.
+      # vcpkg binary cache: the built packages as zip files. A cache entry
+      # cannot be overwritten, so the key ends in the run ID: every run that
+      # builds a package saves a new entry, and a run restores the newest one
+      # that matches a restore key. The keys contain the MSVC version, which is
+      # part of every package's ABI hash; the shorter ones reuse what still
+      # matches after a change.
       - name: Restore the vcpkg binary cache
         id: cache-vcpkg
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_ARCHIVES }}
-          key: vcpkg-${{ env.VCPKG_TRIPLET }}-${{ env.VCToolsVersion }}-${{ env.VCPKG_BASELINE }}-${{ hashFiles('src/vcpkg.json', 'src/vcpkg-configuration.json', 'src/vcpkg-overlay-ports/**') }}
+          key: vcpkg-${{ env.VCPKG_TRIPLET }}-${{ env.VCToolsVersion }}-${{ env.VCPKG_BASELINE }}-${{ hashFiles('src/vcpkg.json', 'src/vcpkg-configuration.json', 'src/vcpkg-overlay-ports/**') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            vcpkg-${{ env.VCPKG_TRIPLET }}-${{ env.VCToolsVersion }}-${{ env.VCPKG_BASELINE }}-${{ hashFiles('src/vcpkg.json', 'src/vcpkg-configuration.json', 'src/vcpkg-overlay-ports/**') }}-
             vcpkg-${{ env.VCPKG_TRIPLET }}-${{ env.VCToolsVersion }}-${{ env.VCPKG_BASELINE }}-
             vcpkg-${{ env.VCPKG_TRIPLET }}-${{ env.VCToolsVersion }}-
             vcpkg-${{ env.VCPKG_TRIPLET }}-
 
+      # VCPKG_FORCE_DOWNLOADED_BINARIES: vcpkg's own tools (CMake etc.) at the
+      # versions the baseline pins, not the runner's, which change with the
+      # runner image (CMake 4.5 broke boost-locale 1.91, boostorg/locale#274).
+      # "built" tells the save step whether there is anything new to save.
       - name: Install the vcpkg dependencies
+        id: vcpkg-install
+        env:
+          VCPKG_FORCE_DOWNLOADED_BINARIES: 1
         run: |
           mkdir -p "$VCPKG_ARCHIVES"
           export VCPKG_BINARY_SOURCES="clear;files,$VCPKG_ARCHIVES,readwrite"
+          shopt -s nullglob
+          before=("$VCPKG_ARCHIVES"/*/*.zip)
+          status=0
           "$VCPKG_ROOT/vcpkg" install --x-manifest-root=src \
             --x-install-root="$VCPKG_INSTALLED" \
-            --triplet="$VCPKG_TRIPLET" --clean-after-build --disable-metrics
+            --triplet="$VCPKG_TRIPLET" --clean-after-build --disable-metrics || status=$?
+          after=("$VCPKG_ARCHIVES"/*/*.zip)
+          echo "Binary cache: ${#before[@]} packages before, ${#after[@]} after"
+          if [ "${#after[@]}" -gt "${#before[@]}" ]; then
+            echo "built=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit $status
 
       # Saved even if a later step fails, so that a rerun does not rebuild
       # the dependencies.
       - name: Save the vcpkg binary cache
-        if: always() && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        if: always() && steps.vcpkg-install.outputs.built == 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ env.VCPKG_ARCHIVES }}
@@ -285,27 +305,43 @@ jobs:
           git -C "$VCPKG_ROOT" checkout --quiet "$VCPKG_BASELINE"
           "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
+      # As in the Windows job: the key ends in the run ID, the restore keys
+      # find the newest entry.
       - name: Restore the vcpkg binary cache
         id: cache-vcpkg
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_ARCHIVES }}
-          key: vcpkg-${{ env.VCPKG_TRIPLET }}-gcc${{ env.GCC_VERSION }}-${{ env.VCPKG_BASELINE }}-${{ hashFiles('src/vcpkg.json', 'src/vcpkg-configuration.json', 'src/vcpkg-overlay-ports/**') }}
+          key: vcpkg-${{ env.VCPKG_TRIPLET }}-gcc${{ env.GCC_VERSION }}-${{ env.VCPKG_BASELINE }}-${{ hashFiles('src/vcpkg.json', 'src/vcpkg-configuration.json', 'src/vcpkg-overlay-ports/**') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            vcpkg-${{ env.VCPKG_TRIPLET }}-gcc${{ env.GCC_VERSION }}-${{ env.VCPKG_BASELINE }}-${{ hashFiles('src/vcpkg.json', 'src/vcpkg-configuration.json', 'src/vcpkg-overlay-ports/**') }}-
             vcpkg-${{ env.VCPKG_TRIPLET }}-gcc${{ env.GCC_VERSION }}-${{ env.VCPKG_BASELINE }}-
             vcpkg-${{ env.VCPKG_TRIPLET }}-gcc${{ env.GCC_VERSION }}-
             vcpkg-${{ env.VCPKG_TRIPLET }}-
 
+      # As in the Windows job: vcpkg's own pinned tools, not the runner's.
       - name: Install the vcpkg dependencies
+        id: vcpkg-install
+        env:
+          VCPKG_FORCE_DOWNLOADED_BINARIES: 1
         run: |
           mkdir -p "$VCPKG_ARCHIVES"
           export VCPKG_BINARY_SOURCES="clear;files,$VCPKG_ARCHIVES,readwrite"
+          shopt -s nullglob
+          before=("$VCPKG_ARCHIVES"/*/*.zip)
+          status=0
           "$VCPKG_ROOT/vcpkg" install --x-manifest-root=src \
             --x-install-root="$VCPKG_INSTALLED" \
-            --triplet="$VCPKG_TRIPLET" --clean-after-build --disable-metrics
+            --triplet="$VCPKG_TRIPLET" --clean-after-build --disable-metrics || status=$?
+          after=("$VCPKG_ARCHIVES"/*/*.zip)
+          echo "Binary cache: ${#before[@]} packages before, ${#after[@]} after"
+          if [ "${#after[@]}" -gt "${#before[@]}" ]; then
+            echo "built=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit $status
 
       - name: Save the vcpkg binary cache
-        if: always() && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        if: always() && steps.vcpkg-install.outputs.built == 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ env.VCPKG_ARCHIVES }}

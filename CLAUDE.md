@@ -197,7 +197,11 @@ A `v*` tag also creates a **draft** release with the packages.
 - Windows build = `build_regard3d_clang.bat`: LLVM `LLVM_VERSION` (the same as the OpenMVG fork's
   CI), GNU-style clang + ThinLTO + lld, vcpkg `x64-windows` at the `builtin-baseline` of
   `src/vcpkg.json`, installed in a separate step with a files binary cache in `actions/cache`
-  (key includes the MSVC version, which is part of every package's ABI hash).
+  (key includes the MSVC version, which is part of every package's ABI hash, and ends in the
+  run ID: entries cannot be overwritten, so each run that builds a package saves a new one and
+  the restore keys pick the newest). `VCPKG_FORCE_DOWNLOADED_BINARIES=1` makes vcpkg use the
+  CMake etc. its baseline pins instead of the runner's, which change with the runner image
+  (CMake 4.5 broke boost-locale 1.91). Same in the Linux job.
 - `.github/ci/stage-windows.sh` lays out the installation: `Regard3D.exe`, DLLs,
   `osgPlugins-*` (plus the DLLs the plugins import, e.g. `gif.dll`, which applocal misses),
   `libomp.dll`, `sensor_database.csv` (`src/res/`) and `DejaVuSans.ttf` (downloaded) **next to the

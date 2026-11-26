@@ -5,7 +5,8 @@
 #   sensor_database.csv, DejaVuSans.ttf
 #                                   found next to the executable (wxStandardPaths
 #                                   resources directory on Windows)
-#   openmvg/ pmvs/ poisson/ mve/    the external tools, in the directories
+#   openmvg/ pmvs/ poisson/ mve/ r3dmvs/
+#                                   the external tools, in the directories
 #                                   R3DExternalPrograms looks in
 #   licenses/                       Regard3D's, the tools', the vcpkg packages'
 # The MSVC runtime is not included: the installer runs vc_redist, the zip
@@ -55,6 +56,11 @@ cp "$tools"/PoissonRecon/bin/{PoissonRecon.exe,SurfaceTrimmer.exe,libomp.dll} "$
 cp "$tools"/mve/bin/* "$stage/mve/"
 cp "$tools"/smvs/bin/smvsrecon.exe "$stage/mve/"
 cp "$tools"/mvs-texturing/bin/texrecon.exe "$stage/mve/"
+# R3DMVS: one self-contained program (static C runtime, no OpenMP)
+if [[ -d "$tools/Regard3D_MVS" ]]; then
+	mkdir -p "$stage/r3dmvs"
+	cp "$tools"/Regard3D_MVS/bin/r3dmvs.exe "$stage/r3dmvs/"
+fi
 
 # Licenses
 lic="$stage/licenses"
@@ -91,6 +97,7 @@ done
 	echo "SMVS           https://github.com/rhiestan/smvs/releases/tag/$SMVS_TAG"
 	echo "PoissonRecon   https://github.com/rhiestan/PoissonRecon/releases/tag/$POISSONRECON_TAG"
 	echo "MVS-Texturing  https://github.com/rhiestan/mvs-texturing/releases/tag/$MVS_TEXTURING_TAG"
+	[[ -z "$R3DMVS_TAG" ]] || echo "Regard3D_MVS   https://github.com/rhiestan/Regard3D_MVS/releases/tag/$R3DMVS_TAG"
 	echo "DejaVu fonts   https://dejavu-fonts.github.io/ ($DEJAVU_VERSION)"
 	echo "Libraries built with vcpkg (https://github.com/microsoft/vcpkg): see vcpkg/"
 } > "$lic/README.txt"

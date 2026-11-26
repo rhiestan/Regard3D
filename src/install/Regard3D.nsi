@@ -143,6 +143,7 @@ Section "Regard3D" Section_Main
 	RMDir /r "$INSTDIR\pmvs"
 	RMDir /r "$INSTDIR\poisson"
 	RMDir /r "$INSTDIR\mve"
+	RMDir /r "$INSTDIR\r3dmvs"
 	; Libraries only Regard3D 1.0 used
 	Delete "$INSTDIR\flang.dll"
 	Delete "$INSTDIR\flangrti.dll"

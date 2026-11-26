@@ -40,6 +40,8 @@ env:
   SMVS_TAG: v0.1.0
   POISSONRECON_TAG: v0.1.0
   MVS_TEXTURING_TAG: v0.1.0
+  # Regard3D_MVS (r3dmvs); needs an OpenMVG with openMVG2Colmap -f (v0.1.3+)
+  R3DMVS_TAG: v0.1.0
   DEJAVU_VERSION: '2.37'
 
 jobs:

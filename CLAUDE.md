@@ -190,10 +190,12 @@ A `v*` tag also creates a **draft** release with the packages.
 
 - **Nothing but Regard3D is built.** OpenMVG (the full installation `find_package(OpenMVG)`
   uses, plus its `openMVG_main_*` programs) and the external tools come from the GitHub releases
-  of `rhiestan/{openMVG,CMVS-PMVS,mve,smvs,PoissonRecon,mvs-texturing}`, pinned by the
-  `*_TAG` variables at the top of the workflow (`.github/ci/download-deps.sh`). An empty tag
-  skips a tool. R3DMVS, OpenMVS and COLMAP are not
-  packaged.
+  of `rhiestan/{openMVG,CMVS-PMVS,mve,smvs,PoissonRecon,mvs-texturing,Regard3D_MVS}`, pinned by
+  the `*_TAG` variables at the top of the workflow (`.github/ci/download-deps.sh`). An empty tag
+  skips a tool. The Regard3D_MVS assets are named without the tag's `v` (`r3dmvs-0.1.0-…`) and
+  have `r3dmvs` at the top level; `download-deps.sh` moves it into `bin/` like the others'.
+  r3dmvs is self-contained (static C runtime, no OpenMP; only glibc on Linux) and needs
+  OpenMVG v0.1.3 or later (`openMVG2Colmap -f`). OpenMVS and COLMAP are not packaged.
 - Windows build = `build_regard3d_clang.bat`: LLVM `LLVM_VERSION` (the same as the OpenMVG fork's
   CI), GNU-style clang + ThinLTO + lld, vcpkg `x64-windows` at the `builtin-baseline` of
   `src/vcpkg.json`, installed in a separate step with a files binary cache in `actions/cache`
@@ -206,8 +208,8 @@ A `v*` tag also creates a **draft** release with the packages.
   `osgPlugins-*` (plus the DLLs the plugins import, e.g. `gif.dll`, which applocal misses),
   `libomp.dll`, `sensor_database.csv` (`src/res/`) and `DejaVuSans.ttf` (downloaded) **next to the
   executable** — that is where `CameraDBLookup` and `R3DFontHandler` look when the registry
-  values are not set — and the tool directories `openmvg/ pmvs/ poisson/ mve/` (smvs and texrecon
-  go into `mve/`), plus `licenses/`.
+  values are not set — and the tool directories `openmvg/ pmvs/ poisson/ mve/ r3dmvs/` (smvs and
+  texrecon go into `mve/`), plus `licenses/`.
 - Each package is its own artifact, uploaded unzipped (`upload-artifact@v7`, `archive: false`):
   `<name>-setup.exe` and the portable `<name>.zip`.
 - `.github/ci/check-windows-deps.sh` fails the job if any packaged program imports a DLL that

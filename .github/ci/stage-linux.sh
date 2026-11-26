@@ -3,7 +3,7 @@
 #   usr/bin/Regard3D                Regard3D (RUNPATH $ORIGIN/../lib)
 #   usr/lib/                        the libraries it needs that the host does
 #                                   not provide (LLVM's libomp)
-#   usr/bin/{openmvg,pmvs,poisson,mve}/
+#   usr/bin/{openmvg,pmvs,poisson,mve,r3dmvs}/
 #                                   the external tools, where R3DExternalPrograms
 #                                   looks (next to the executable), each with
 #                                   the libraries it needs (RUNPATH $ORIGIN)
@@ -98,12 +98,20 @@ cp -a "$tools"/CMVS-PMVS/bin/. "$ext/pmvs/"
 cp -a "$tools"/PoissonRecon/bin/{PoissonRecon,SurfaceTrimmer} "$tools"/PoissonRecon/bin/*.so* "$ext/poisson/"
 cp -a "$tools"/mve/bin/. "$ext/mve/"
 cp -a "$tools"/smvs/bin/smvsrecon "$tools"/mvs-texturing/bin/texrecon "$ext/mve/"
-for d in openmvg pmvs poisson mve; do
+tooldirs=(openmvg pmvs poisson mve)
+# R3DMVS: one program that needs only glibc
+if [[ -d "$tools/Regard3D_MVS" ]]; then
+	mkdir -p "$ext/r3dmvs"
+	cp -a "$tools"/Regard3D_MVS/bin/r3dmvs "$ext/r3dmvs/"
+	tooldirs+=(r3dmvs)
+fi
+for d in "${tooldirs[@]}"; do
 	case "$d" in
 		openmvg) pkgs=("$DEPS_DIR/openmvg") ;;
 		pmvs) pkgs=("$tools/CMVS-PMVS") ;;
 		poisson) pkgs=("$tools/PoissonRecon") ;;
 		mve) pkgs=("$tools/mve" "$tools/smvs" "$tools/mvs-texturing") ;;
+		r3dmvs) pkgs=("$tools/Regard3D_MVS") ;;
 	esac
 	pkg_path=()
 	for p in "${pkgs[@]}"; do
@@ -163,6 +171,7 @@ done
 	echo "SMVS           https://github.com/rhiestan/smvs/releases/tag/$SMVS_TAG"
 	echo "PoissonRecon   https://github.com/rhiestan/PoissonRecon/releases/tag/$POISSONRECON_TAG"
 	echo "MVS-Texturing  https://github.com/rhiestan/mvs-texturing/releases/tag/$MVS_TEXTURING_TAG"
+	[[ -z "$R3DMVS_TAG" ]] || echo "Regard3D_MVS   https://github.com/rhiestan/Regard3D_MVS/releases/tag/$R3DMVS_TAG"
 	echo "DejaVu fonts   https://dejavu-fonts.github.io/ ($DEJAVU_VERSION)"
 	echo "LLVM OpenMP    https://github.com/llvm/llvm-project ($LLVM_VERSION)"
 	echo "Libraries built with vcpkg (https://github.com/microsoft/vcpkg): see vcpkg/"

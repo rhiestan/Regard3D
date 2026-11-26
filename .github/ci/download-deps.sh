@@ -36,14 +36,16 @@ extract() {
 	rm -rf "$tmp" "$1"
 }
 
-# release <repo> <tag> <asset name prefix> <target directory>
+# release <repo> <tag> <asset name prefix> <target directory> [<asset version>]
+# The asset is <prefix>-<asset version>-<platform>; the asset version is the
+# tag unless given.
 release() {
 	local repo="$1" tag="$2" prefix="$3" target="$4"
 	if [[ -z "$tag" ]]; then
 		echo "$repo: no release tag, skipped"
 		return
 	fi
-	local asset="$prefix-$tag-$R3D_PLATFORM.$ext"
+	local asset="$prefix-${5:-$tag}-$R3D_PLATFORM.$ext"
 	echo "$repo $tag: $asset"
 	gh release download "$tag" --repo "rhiestan/$repo" --pattern "$asset" --clobber
 	extract "$asset" "$target"
@@ -55,6 +57,14 @@ release mve "$MVE_TAG" mve tools/mve
 release smvs "$SMVS_TAG" smvs tools/smvs
 release PoissonRecon "$POISSONRECON_TAG" poissonrecon tools/PoissonRecon
 release mvs-texturing "$MVS_TEXTURING_TAG" texrecon tools/mvs-texturing
+# Asset names without the tag's "v" (r3dmvs-0.1.0-...), and the program at
+# the top level: moved into bin/ like the other tools', so that the staging
+# scripts take only the rest as license files
+release Regard3D_MVS "$R3DMVS_TAG" r3dmvs tools/Regard3D_MVS "${R3DMVS_TAG#v}"
+if [[ -d tools/Regard3D_MVS ]]; then
+	mkdir -p tools/Regard3D_MVS/bin
+	mv tools/Regard3D_MVS/r3dmvs* tools/Regard3D_MVS/bin/
+fi
 
 font="dejavu-fonts-ttf-$DEJAVU_VERSION.zip"
 curl -sSfL -o "$font" \

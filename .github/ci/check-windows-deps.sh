@@ -47,10 +47,11 @@ while IFS= read -r -d '' bin; do
 		missing=1
 	done < <("$readobj" --coff-imports "$bin" | sed -n 's/^ *Name: *\(.*\.[A-Za-z]*\)$/\1/p' | sort -u)
 done < <(find "$stage" -maxdepth 2 \( -iname '*.exe' -o -iname '*.dll' \) \
-	! -path "$stage/openmvg/*" ! -path "$stage/pmvs/*" ! -path "$stage/poisson/*" ! -path "$stage/mve/*" -print0)
+	! -path "$stage/openmvg/*" ! -path "$stage/pmvs/*" ! -path "$stage/poisson/*" ! -path "$stage/mve/*" ! -path "$stage/r3dmvs/*" -print0)
 
-# The tools only need their OpenMP runtime next to them
-for d in openmvg pmvs poisson mve; do
+# The tools only need their OpenMP runtime next to them (r3dmvs not even that)
+for d in openmvg pmvs poisson mve r3dmvs; do
+	[[ -d "$stage/$d" ]] || continue
 	while IFS= read -r -d '' bin; do
 		while IFS= read -r dll; do
 			if [[ -f "$stage/$d/$dll" ]] || is_system "$dll"; then

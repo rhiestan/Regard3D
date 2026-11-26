@@ -970,15 +970,16 @@ IF(R3D_USE_OPENMVG_LIBOMP)
 		COMMENT "Copying OpenMVG's OpenMP runtime next to Regard3D")
 ENDIF(R3D_USE_OPENMVG_LIBOMP)
 
-# OpenSceneGraph reads image files through plugins that it loads at run time
+# OpenSceneGraph reads image files and fonts through plugins that it loads at run time
 # from a directory called osgPlugins-<version>. The only such path compiled
 # into the library points into the build tree of whoever built OpenSceneGraph
 # (with vcpkg, a directory that is deleted once the port is installed), so
 # unless the plugins are next to the executable osgDB finds no reader and
-# a textured surface shows up without its texture. Only the image readers are
-# needed here, the models are read with AssImp.
+# a textured surface shows up without its texture, and the "Regard3D" text
+# of the start view without its font (osgdb_freetype). Only the image and
+# font readers are needed here, the models are read with AssImp.
 IF(WIN32 AND NOT R3D_USE_OSG_STATIC)
-	SET(R3D_OSG_IMAGE_PLUGINS png jpeg tiff bmp gif tga)
+	SET(R3D_OSG_PLUGINS png jpeg tiff bmp gif tga freetype)
 
 	GET_FILENAME_COMPONENT(R3D_OSG_RELEASE_PREFIX "${OSGDB_LIBRARY_RELEASE}" DIRECTORY)
 	GET_FILENAME_COMPONENT(R3D_OSG_RELEASE_PREFIX "${R3D_OSG_RELEASE_PREFIX}" DIRECTORY)
@@ -990,7 +991,7 @@ IF(WIN32 AND NOT R3D_USE_OSG_STATIC)
 		"bin/osgPlugins-${OPENSCENEGRAPH_VERSION}"
 		"lib/osgPlugins-${OPENSCENEGRAPH_VERSION}")
 
-	FOREACH(R3D_OSG_PLUGIN ${R3D_OSG_IMAGE_PLUGINS})
+	FOREACH(R3D_OSG_PLUGIN ${R3D_OSG_PLUGINS})
 		FIND_FILE(R3D_OSG_PLUGIN_${R3D_OSG_PLUGIN}_RELEASE "osgdb_${R3D_OSG_PLUGIN}.dll"
 			PATHS "${R3D_OSG_RELEASE_PREFIX}"
 			PATH_SUFFIXES ${R3D_OSG_PLUGIN_SUFFIXES} NO_DEFAULT_PATH)
@@ -1009,8 +1010,8 @@ IF(WIN32 AND NOT R3D_USE_OSG_STATIC)
 
 		ADD_CUSTOM_COMMAND(TARGET Regard3D POST_BUILD
 			COMMAND ${CMAKE_COMMAND} -E make_directory "${R3D_OSG_PLUGIN_DEST}"
-			COMMENT "Copying OpenSceneGraph image plugins next to Regard3D")
-		FOREACH(R3D_OSG_PLUGIN ${R3D_OSG_IMAGE_PLUGINS})
+			COMMENT "Copying OpenSceneGraph plugins next to Regard3D")
+		FOREACH(R3D_OSG_PLUGIN ${R3D_OSG_PLUGINS})
 			IF(R3D_OSG_PLUGIN_${R3D_OSG_PLUGIN}_RELEASE AND R3D_OSG_PLUGIN_${R3D_OSG_PLUGIN}_DEBUG)
 				ADD_CUSTOM_COMMAND(TARGET Regard3D POST_BUILD
 					COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -1019,7 +1020,7 @@ IF(WIN32 AND NOT R3D_USE_OSG_STATIC)
 			ENDIF(R3D_OSG_PLUGIN_${R3D_OSG_PLUGIN}_RELEASE AND R3D_OSG_PLUGIN_${R3D_OSG_PLUGIN}_DEBUG)
 		ENDFOREACH(R3D_OSG_PLUGIN)
 	ELSE(R3D_OSG_PLUGIN_png_RELEASE AND R3D_OSG_PLUGIN_png_DEBUG)
-		MESSAGE(WARNING "OpenSceneGraph image plugins were not found next to ${OSGDB_LIBRARY_RELEASE}. Textured surfaces will be shown without their texture.")
+		MESSAGE(WARNING "OpenSceneGraph plugins were not found next to ${OSGDB_LIBRARY_RELEASE}. Textured surfaces will be shown without their texture, and texts without their font.")
 	ENDIF(R3D_OSG_PLUGIN_png_RELEASE AND R3D_OSG_PLUGIN_png_DEBUG)
 ENDIF(WIN32 AND NOT R3D_USE_OSG_STATIC)
 

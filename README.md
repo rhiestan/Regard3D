@@ -67,9 +67,15 @@ Initial version, based on OpenMVG 0.7
 System requirements
 -------------------
 
-* Windows 7 or newer, 64 bit edition
-* Mac OS X 10.7 or newer
-* OpenGL capable graphics card/chip
+* A 64-bit x86 processor (x86_64)
+* An OpenGL capable graphics card/chip
+* Windows: Windows 10 or 11, 64-bit edition. The installer also installs the Microsoft Visual C++
+  Redistributable; the portable zip contains its DLLs and runs without installing anything.
+* Linux (AppImage): a distribution with glibc 2.35 or newer, e.g. Ubuntu 22.04, Linux Mint 21,
+  Debian 12, Fedora 36, openSUSE Leap 16 or newer. Not RHEL/Rocky/AlmaLinux 9 (glibc 2.34).
+  The system has to provide GTK 3, X11 or Wayland, OpenGL (`libGL.so.1`) and FUSE (`fusermount`)
+  to mount the AppImage, which every desktop installation has. Without FUSE, run it with
+  `--appimage-extract-and-run`.
 
 
 Documentation, building

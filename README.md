@@ -18,6 +18,15 @@ The Regard3D source code is released under the [MIT license](http://opensource.o
 Version history
 ---------------
 
+### Version 1.1.0, 26.11.2026:
+- Major overhaul, most work done by Claude Code
+- OpenMVG 2.1, using external command-line tools for features, matches, triangulation
+- Triangulation: Intrinsic and extrinsic refinement, the triangulation and resection methods, the camera model for unknown cameras, and which matches file to use.
+- New matching options: mutual matching only, the GEMML2 matcher, and two-pass pre-emptive matching.
+- New pair mode: VLAD image retrieval (openMVG_main_ComputeVLAD), which matches only the image pairs it selects.
+- Regard3DMVS: a new densification method.
+- External tools (OpenMVG, MVE, PoissonRecon, texrecon) are performance-optimized
+
 ### Version 1.0.0, 14.03.2019:
 - Upgraded to OpenMVG 1.4
 - Upgraded to OpenCV 4.0

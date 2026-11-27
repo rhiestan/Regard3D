@@ -431,11 +431,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      # v8 leaves the unarchived artifacts as they are
+      # The artifacts are the packages themselves (archive: false). Without
+      # skip-decompress, v8 would unpack the portable zip like a zipped artifact.
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
+          skip-decompress: true
 
       # A draft: published by hand once the packages have been tried
       - name: Create the release
